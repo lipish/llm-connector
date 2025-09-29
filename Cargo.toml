@@ -1,0 +1,51 @@
+[package]
+name = "llm-connector"
+version = "0.1.0"
+edition = "2021"
+authors = ["lipi"]
+description = "A lightweight Rust library for protocol adaptation across multiple LLM providers. Focuses solely on converting between different LLM provider APIs and providing a unified OpenAI-compatible interface."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/lipish/llm-connector"
+keywords = ["llm", "ai", "protocol", "adapter", "openai"]
+categories = ["api-bindings", "web-programming::http-client"]
+
+[lib]
+name = "llm_connector"
+path = "src/lib.rs"
+
+[features]
+default = ["reqwest"]
+# HTTP client support
+reqwest = ["dep:reqwest", "dep:tokio", "dep:futures-util"]
+# Streaming support
+streaming = ["reqwest", "dep:pin-project-lite"]
+# Configuration support
+config = ["dep:serde_yaml"]
+
+[dependencies]
+# Core serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP client (optional)
+reqwest = { version = "0.11", features = ["json", "stream"], optional = true }
+tokio = { version = "1.0", features = ["rt"], optional = true }
+futures-util = { version = "0.3", optional = true }
+
+# Streaming utilities (optional)
+pin-project-lite = { version = "0.2", optional = true }
+
+# Configuration (optional)
+serde_yaml = { version = "0.9", optional = true }
+
+# Error handling
+thiserror = "1.0"
+
+# Async trait support
+async-trait = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }
+tokio-test = "0.4"
+wiremock = "0.6"
