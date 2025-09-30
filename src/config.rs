@@ -225,3 +225,14 @@ impl ProviderConfig {
         self.timeout_ms.unwrap_or(30000) // 30 seconds default
     }
 }
+
+impl Default for ProviderConfig {
+    fn default() -> Self {
+        Self {
+            api_key: String::new(),
+            base_url: None,
+            timeout_ms: None,
+            proxy: None,
+        }
+    }
+}

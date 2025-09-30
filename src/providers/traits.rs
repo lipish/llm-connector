@@ -1,16 +1,16 @@
 use crate::types::{ChatRequest, ChatResponse};
 #[cfg(feature = "streaming")]
 use crate::types::StreamingResponse;
-use super::error_mapper::ErrorMapper;
+use super::errors::ErrorMapper;
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 #[async_trait]
 pub trait ProviderAdapter: Send + Sync + Clone + 'static {
-    type RequestType: Serialize + Send;
-    type ResponseType: DeserializeOwned + Send;
-    type StreamResponseType: DeserializeOwned + Send;
+    type RequestType: Serialize + Send + Sync;
+    type ResponseType: DeserializeOwned + Send + Sync;
+    type StreamResponseType: DeserializeOwned + Send + Sync;
     type ErrorMapperType: ErrorMapper;
 
     fn name(&self) -> &str;

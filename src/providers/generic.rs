@@ -1,13 +1,16 @@
 use crate::config::ProviderConfig;
 use crate::error::LlmConnectorError;
-use crate::providers::common::adapter::ProviderAdapter;
-use crate::providers::common::error_mapper::ErrorMapper;
-use crate::providers::common::http_transport::HttpTransport;
+use crate::providers::base::Provider;
+use crate::providers::errors::ErrorMapper;
+use crate::providers::traits::ProviderAdapter;
+use crate::providers::transport::HttpTransport;
 use crate::types::{ChatRequest, ChatResponse};
+use async_trait::async_trait;
 #[cfg(feature = "streaming")]
 use {
-    crate::types::{ChatStream, StreamingResponse, StreamingResponseExt},
-    futures_util::{stream, Stream, StreamExt},
+    crate::types::ChatStream,
+    crate::utils::streaming::sse_data_events,
+    futures_util::StreamExt,
 };
 
 #[derive(Clone, Debug)]
@@ -49,8 +52,9 @@ impl<T: ProviderAdapter> GenericProvider<T> {
             let response_data: T::ResponseType = response.json().await.map_err(LlmConnectorError::HttpError)?;
             Ok(self.adapter.parse_response_data(response_data))
         } else {
+            let status = response.status().as_u16();
             let response_data: serde_json::Value = response.json().await.map_err(LlmConnectorError::HttpError)?;
-            Err(T::ErrorMapperType::map_error(response_data))
+            Err(T::ErrorMapperType::map_http_error(status, response_data))
         }
     }
 
@@ -59,9 +63,23 @@ impl<T: ProviderAdapter> GenericProvider<T> {
         let url = self.adapter.endpoint_url(&self.transport.config.base_url);
         let request_data = self.adapter.build_request_data(request, true);
 
-        let stream = self.transport.stream(&url, &request_data).await?;
+        let response = self.transport.client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", &self.transport.config.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request_data)
+            .send()
+            .await
+            .map_err(LlmConnectorError::from)?;
 
-        let mapped_stream = stream.flat_map(sse_data_events).filter_map(|event| async move {
+        if !response.status().is_success() {
+            return Err(LlmConnectorError::ProviderError(format!(
+                "HTTP error: {}",
+                response.status()
+            )));
+        }
+
+        let mapped_stream = sse_data_events(response).filter_map(|event| async move {
             match event {
                 Ok(data) => {
                     if data.as_str() == "[DONE]" {
@@ -78,5 +96,26 @@ impl<T: ProviderAdapter> GenericProvider<T> {
         });
 
         Ok(Box::pin(mapped_stream))
+    }
+}
+
+// Implement Provider trait for GenericProvider
+#[async_trait]
+impl<T: ProviderAdapter> Provider for GenericProvider<T> {
+    fn name(&self) -> &str {
+        self.adapter.name()
+    }
+
+    fn supported_models(&self) -> Vec<String> {
+        self.adapter.supported_models()
+    }
+
+    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
+        self.chat(request).await
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
+        self.chat_stream(request).await
     }
 }

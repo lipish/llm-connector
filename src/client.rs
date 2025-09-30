@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::error::LlmConnectorError;
-use crate::providers::{Provider, utils};
+use crate::providers::Provider;
+use crate::providers::base::utils;
 use crate::types::{ChatRequest, ChatResponse};
 
 #[cfg(feature = "streaming")]
@@ -40,32 +41,34 @@ impl Client {
     /// Initialize providers based on configuration
     #[cfg(feature = "reqwest")]
     fn initialize_providers(&mut self) {
+        use crate::providers::{GenericProvider, DeepSeekAdapter, AliyunAdapter, ZhipuAdapter};
+
         // Initialize DeepSeek provider
         if let Some(deepseek_config) = &self.config.deepseek {
-            if let Ok(provider) = crate::providers::deepseek::DeepSeekProvider::new(deepseek_config.clone()) {
+            if let Ok(provider) = GenericProvider::new(deepseek_config.clone(), DeepSeekAdapter) {
                 self.providers.insert("deepseek".to_string(), Arc::new(provider));
             }
         }
 
         // Initialize Aliyun provider
         if let Some(aliyun_config) = &self.config.aliyun {
-            if let Ok(provider) = crate::providers::aliyun::AliyunProvider::new(aliyun_config.clone()) {
+            if let Ok(provider) = GenericProvider::new(aliyun_config.clone(), AliyunAdapter) {
                 self.providers.insert("aliyun".to_string(), Arc::new(provider));
             }
         }
 
         // Initialize Zhipu provider
         if let Some(zhipu_config) = &self.config.zhipu {
-            if let Ok(provider) = crate::providers::zhipu::ZhipuProvider::new(zhipu_config.clone()) {
+            if let Ok(provider) = GenericProvider::new(zhipu_config.clone(), ZhipuAdapter) {
                 self.providers.insert("zhipu".to_string(), Arc::new(provider));
             }
         }
 
         // TODO: Initialize other providers when they are implemented
-        // Example of how other providers will be initialized:
-        // if let Some(openai_config) = &self.config.openai {
-        //     if let Ok(provider) = openai::OpenAIProvider::new(openai_config.clone()) {
-        //         self.providers.insert("openai".to_string(), Arc::new(provider));
+        // Example for adding a new provider:
+        // if let Some(new_config) = &self.config.new_provider {
+        //     if let Ok(provider) = GenericProvider::new(new_config.clone(), NewProviderAdapter) {
+        //         self.providers.insert("new_provider".to_string(), Arc::new(provider));
         //     }
         // }
     }

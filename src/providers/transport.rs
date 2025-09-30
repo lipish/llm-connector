@@ -51,9 +51,35 @@ impl HttpTransport {
         self.client
             .post(url)
             .header("Authorization", format!("Bearer {}", &self.config.api_key))
+            .header("Content-Type", "application/json")
             .json(body)
             .send()
             .await
             .map_err(LlmConnectorError::from)
+    }
+
+    #[cfg(feature = "streaming")]
+    pub async fn stream<T: Serialize>(
+        &self,
+        url: &str,
+        body: &T,
+    ) -> Result<impl futures_util::Stream<Item = Result<reqwest::Bytes, reqwest::Error>>, LlmConnectorError> {
+        let response = self.client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", &self.config.api_key))
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .await
+            .map_err(LlmConnectorError::from)?;
+
+        if !response.status().is_success() {
+            return Err(LlmConnectorError::ProviderError(format!(
+                "HTTP error: {}",
+                response.status()
+            )));
+        }
+
+        Ok(response.bytes_stream())
     }
 }
