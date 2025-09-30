@@ -33,7 +33,8 @@ pub mod streaming {
                             for raw_line in event_str.split('\n') {
                                 // Trim trailing CR (already normalized), and leading/trailing spaces
                                 let line = raw_line.trim_end();
-                                if let Some(rest) = line.strip_prefix("data: ")
+                                if let Some(rest) = line
+                                    .strip_prefix("data: ")
                                     .or_else(|| line.strip_prefix("data:"))
                                 {
                                     let payload = rest.trim_start();

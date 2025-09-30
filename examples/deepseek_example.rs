@@ -64,11 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== DeepSeek Example with Manual Configuration ===");
 
     let config = Config {
-        deepseek: Some(ProviderConfig {
-            api_key: "your-deepseek-api-key-here".to_string(),
-            base_url: Some("https://api.deepseek.com".to_string()),
-            timeout_ms: Some(30000),
-        }),
+        deepseek: Some(
+            ProviderConfig::new("your-deepseek-api-key-here")
+                .with_base_url("https://api.deepseek.com")
+                .with_timeout_ms(30000),
+        ),
         ..Default::default()
     };
 

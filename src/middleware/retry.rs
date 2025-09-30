@@ -9,7 +9,7 @@ use std::future::Future;
 use std::time::Duration;
 
 /// Retry middleware that handles automatic retrying with exponential backoff
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RetryMiddleware {
     config: RetryConfig,
 }
@@ -18,13 +18,6 @@ impl RetryMiddleware {
     /// Create a new retry middleware with the given configuration
     pub fn new(config: RetryConfig) -> Self {
         Self { config }
-    }
-
-    /// Create a retry middleware with default configuration
-    pub fn default() -> Self {
-        Self {
-            config: RetryConfig::default(),
-        }
     }
 
     /// Execute a function with retry logic
@@ -242,7 +235,9 @@ mod tests {
                 async move {
                     let count = counter.fetch_add(1, Ordering::SeqCst);
                     if count < 2 {
-                        Err(LlmConnectorError::ServerError("temporary error".to_string()))
+                        Err(LlmConnectorError::ServerError(
+                            "temporary error".to_string(),
+                        ))
                     } else {
                         Ok("success")
                     }

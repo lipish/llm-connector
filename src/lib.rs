@@ -58,14 +58,12 @@ pub mod utils;
 
 // Re-exports for convenience
 pub use client::Client;
-pub use config::{Config, ProviderConfig, RetryConfig, RegistryConfig};
+pub use config::{Config, ProviderConfig, RegistryConfig, RetryConfig};
 pub use error::LlmConnectorError;
-pub use types::{
-    ChatRequest, ChatResponse, Message, Choice, Usage,
-};
+pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage};
 
 #[cfg(feature = "streaming")]
-pub use types::{StreamingResponse, StreamingChoice, Delta, ChatStream};
+pub use types::{ChatStream, Delta, StreamingChoice, StreamingResponse};
 
 // Provider trait
 pub use providers::Provider;

@@ -70,7 +70,7 @@ async fn test_deepseek_real_chat_completion() {
     let response = result.unwrap();
     assert!(!response.choices.is_empty(), "Should receive choices");
     assert!(
-        response.choices[0].message.content.len() > 0,
+        !response.choices[0].message.content.is_empty(),
         "Response content should not be empty"
     );
 

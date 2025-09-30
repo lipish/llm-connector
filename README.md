@@ -556,10 +556,10 @@ use std::sync::Arc;
 
 // Create interceptor chain
 let chain = InterceptorChain::new()
-    .add(Arc::new(ValidationInterceptor::new()
+    .with_interceptor(Arc::new(ValidationInterceptor::new()
         .with_max_tokens(2000)
         .with_max_messages(10)))
-    .add(Arc::new(SanitizationInterceptor::new()
+    .with_interceptor(Arc::new(SanitizationInterceptor::new()
         .with_remove_system_fingerprint(true)));
 
 // Execute with interceptors
@@ -572,16 +572,22 @@ let response = chain.execute(request, |req| async move {
 
 Check out the [examples](./examples/) directory for more usage examples:
 
-- `longcat_demo.rs` - LongCat API usage
-- `p0_complete_demo.rs` - P0 improvements demo
-- `p1_complete_demo.rs` - P1 improvements demo (retry, factory)
-- `p2_complete_demo.rs` - P2 improvements demo (middleware, interceptors)
+- `deepseek_example.rs` - DeepSeek provider basic usage
+- `longcat_demo.rs` - LongCat API complete demo (free quota available)
 - `protocol_architecture_demo.rs` - Protocol architecture overview
+- `test_all_providers.rs` - Test all configured providers
+- `verify_real_api_calls.rs` - Verify real API calls
+
+**📖 [Examples Documentation](./examples/README.md)** - Detailed guide for all examples
 
 Run an example:
 
 ```bash
-cargo run --example longcat_demo
+# Set API key
+export DEEPSEEK_API_KEY="your-api-key"
+
+# Run example
+cargo run --example deepseek_example
 ```
 
 ## 📖 Documentation

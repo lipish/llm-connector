@@ -5,8 +5,7 @@
 
 use crate::config::ProviderConfig;
 use crate::error::LlmConnectorError;
-use crate::protocols::core::{ProviderAdapter, GenericProvider};
-use crate::protocols::{OpenAIProtocol, AnthropicProtocol, AliyunProtocol};
+use crate::protocols::{AliyunProtocol, AnthropicProtocol};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -17,14 +16,17 @@ use std::sync::{Arc, RwLock};
 pub trait ProtocolFactory: Send + Sync {
     /// Get the protocol name (e.g., "openai", "anthropic")
     fn protocol_name(&self) -> &str;
-    
+
     /// Get the list of provider names that use this protocol
     fn supported_providers(&self) -> Vec<&str>;
-    
+
     /// Create a protocol adapter instance
-    fn create_adapter(&self, provider_name: &str, config: &ProviderConfig) 
-        -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError>;
-    
+    fn create_adapter(
+        &self,
+        provider_name: &str,
+        config: &ProviderConfig,
+    ) -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError>;
+
     /// Check if this factory supports a given provider
     fn supports_provider(&self, provider_name: &str) -> bool {
         self.supported_providers().contains(&provider_name)
@@ -39,7 +41,7 @@ impl ProtocolFactory for OpenAIProtocolFactory {
     fn protocol_name(&self) -> &str {
         "openai"
     }
-    
+
     fn supported_providers(&self) -> Vec<&str> {
         vec![
             "deepseek",
@@ -52,10 +54,12 @@ impl ProtocolFactory for OpenAIProtocolFactory {
             "longcat",
         ]
     }
-    
-    fn create_adapter(&self, provider_name: &str, _config: &ProviderConfig) 
-        -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> 
-    {
+
+    fn create_adapter(
+        &self,
+        provider_name: &str,
+        _config: &ProviderConfig,
+    ) -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> {
         let adapter = match provider_name {
             "deepseek" => crate::protocols::openai::deepseek(),
             "zhipu" => crate::protocols::openai::zhipu(),
@@ -65,11 +69,14 @@ impl ProtocolFactory for OpenAIProtocolFactory {
             "minimax" => crate::protocols::openai::minimax(),
             "stepfun" => crate::protocols::openai::stepfun(),
             "longcat" => crate::protocols::openai::longcat(),
-            _ => return Err(LlmConnectorError::UnsupportedModel(
-                format!("Unknown OpenAI-compatible provider: {}", provider_name)
-            )),
+            _ => {
+                return Err(LlmConnectorError::UnsupportedModel(format!(
+                    "Unknown OpenAI-compatible provider: {}",
+                    provider_name
+                )))
+            }
         };
-        
+
         Ok(Box::new(adapter))
     }
 }
@@ -82,14 +89,16 @@ impl ProtocolFactory for AnthropicProtocolFactory {
     fn protocol_name(&self) -> &str {
         "anthropic"
     }
-    
+
     fn supported_providers(&self) -> Vec<&str> {
         vec!["anthropic", "claude"]
     }
-    
-    fn create_adapter(&self, _provider_name: &str, config: &ProviderConfig) 
-        -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> 
-    {
+
+    fn create_adapter(
+        &self,
+        _provider_name: &str,
+        config: &ProviderConfig,
+    ) -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> {
         let adapter = AnthropicProtocol::new(config.base_url.as_deref());
         Ok(Box::new(adapter))
     }
@@ -103,14 +112,16 @@ impl ProtocolFactory for AliyunProtocolFactory {
     fn protocol_name(&self) -> &str {
         "aliyun"
     }
-    
+
     fn supported_providers(&self) -> Vec<&str> {
         vec!["aliyun", "dashscope", "qwen"]
     }
-    
-    fn create_adapter(&self, _provider_name: &str, config: &ProviderConfig) 
-        -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> 
-    {
+
+    fn create_adapter(
+        &self,
+        _provider_name: &str,
+        config: &ProviderConfig,
+    ) -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> {
         let adapter = AliyunProtocol::new(config.base_url.as_deref());
         Ok(Box::new(adapter))
     }
@@ -134,79 +145,97 @@ impl ProtocolFactoryRegistry {
             provider_to_protocol: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Create a registry with default factories
     pub fn with_defaults() -> Self {
         let registry = Self::new();
         registry.register_default_factories();
         registry
     }
-    
+
     /// Register default protocol factories
     pub fn register_default_factories(&self) {
         self.register(Arc::new(OpenAIProtocolFactory));
         self.register(Arc::new(AnthropicProtocolFactory));
         self.register(Arc::new(AliyunProtocolFactory));
     }
-    
+
     /// Register a protocol factory
     pub fn register(&self, factory: Arc<dyn ProtocolFactory>) {
         let protocol_name = factory.protocol_name().to_string();
-        
+
         // Register factory
-        self.factories.write().unwrap()
+        self.factories
+            .write()
+            .unwrap()
             .insert(protocol_name.clone(), factory.clone());
-        
+
         // Register provider mappings
         let mut provider_map = self.provider_to_protocol.write().unwrap();
         for provider in factory.supported_providers() {
             provider_map.insert(provider.to_string(), protocol_name.clone());
         }
     }
-    
+
     /// Get a factory by protocol name
     pub fn get_factory(&self, protocol_name: &str) -> Option<Arc<dyn ProtocolFactory>> {
         self.factories.read().unwrap().get(protocol_name).cloned()
     }
-    
+
     /// Get the protocol name for a provider
     pub fn get_protocol_for_provider(&self, provider_name: &str) -> Option<String> {
-        self.provider_to_protocol.read().unwrap().get(provider_name).cloned()
+        self.provider_to_protocol
+            .read()
+            .unwrap()
+            .get(provider_name)
+            .cloned()
     }
-    
+
     /// Create a protocol adapter for a provider
-    pub fn create_for_provider(&self, provider_name: &str, config: &ProviderConfig) 
-        -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> 
-    {
+    pub fn create_for_provider(
+        &self,
+        provider_name: &str,
+        config: &ProviderConfig,
+    ) -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> {
         // Find the protocol for this provider
-        let protocol_name = self.get_protocol_for_provider(provider_name)
-            .ok_or_else(|| LlmConnectorError::UnsupportedModel(
-                format!("Unknown provider: {}", provider_name)
-            ))?;
-        
+        let protocol_name = self
+            .get_protocol_for_provider(provider_name)
+            .ok_or_else(|| {
+                LlmConnectorError::UnsupportedModel(format!("Unknown provider: {}", provider_name))
+            })?;
+
         // Get the factory
-        let factory = self.get_factory(&protocol_name)
-            .ok_or_else(|| LlmConnectorError::ProviderError(
-                format!("No factory registered for protocol: {}", protocol_name)
-            ))?;
-        
+        let factory = self.get_factory(&protocol_name).ok_or_else(|| {
+            LlmConnectorError::ProviderError(format!(
+                "No factory registered for protocol: {}",
+                protocol_name
+            ))
+        })?;
+
         // Create the adapter
         factory.create_adapter(provider_name, config)
     }
-    
+
     /// List all registered protocols
     pub fn list_protocols(&self) -> Vec<String> {
         self.factories.read().unwrap().keys().cloned().collect()
     }
-    
+
     /// List all supported providers
     pub fn list_providers(&self) -> Vec<String> {
-        self.provider_to_protocol.read().unwrap().keys().cloned().collect()
+        self.provider_to_protocol
+            .read()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect()
     }
-    
+
     /// Get all providers for a protocol
     pub fn get_providers_for_protocol(&self, protocol_name: &str) -> Vec<String> {
-        self.provider_to_protocol.read().unwrap()
+        self.provider_to_protocol
+            .read()
+            .unwrap()
             .iter()
             .filter(|(_, proto)| proto.as_str() == protocol_name)
             .map(|(provider, _)| provider.clone())
@@ -245,23 +274,32 @@ mod tests {
     #[test]
     fn test_registry() {
         let registry = ProtocolFactoryRegistry::with_defaults();
-        
+
         // Test protocol lookup
         assert!(registry.get_factory("openai").is_some());
         assert!(registry.get_factory("anthropic").is_some());
         assert!(registry.get_factory("aliyun").is_some());
-        
+
         // Test provider lookup
-        assert_eq!(registry.get_protocol_for_provider("deepseek"), Some("openai".to_string()));
-        assert_eq!(registry.get_protocol_for_provider("claude"), Some("anthropic".to_string()));
-        assert_eq!(registry.get_protocol_for_provider("qwen"), Some("aliyun".to_string()));
+        assert_eq!(
+            registry.get_protocol_for_provider("deepseek"),
+            Some("openai".to_string())
+        );
+        assert_eq!(
+            registry.get_protocol_for_provider("claude"),
+            Some("anthropic".to_string())
+        );
+        assert_eq!(
+            registry.get_protocol_for_provider("qwen"),
+            Some("aliyun".to_string())
+        );
     }
 
     #[test]
     fn test_list_protocols() {
         let registry = ProtocolFactoryRegistry::with_defaults();
         let protocols = registry.list_protocols();
-        
+
         assert!(protocols.contains(&"openai".to_string()));
         assert!(protocols.contains(&"anthropic".to_string()));
         assert!(protocols.contains(&"aliyun".to_string()));
@@ -271,7 +309,7 @@ mod tests {
     fn test_list_providers() {
         let registry = ProtocolFactoryRegistry::with_defaults();
         let providers = registry.list_providers();
-        
+
         assert!(providers.contains(&"deepseek".to_string()));
         assert!(providers.contains(&"claude".to_string()));
         assert!(providers.contains(&"qwen".to_string()));

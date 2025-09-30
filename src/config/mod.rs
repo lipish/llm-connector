@@ -28,12 +28,12 @@
 //! let config = RegistryConfig::from_file("config.json").unwrap();
 //! ```
 
-pub mod provider;
 pub mod loader;
+pub mod provider;
 
 // Re-export main types
+pub use loader::{ProviderConfigEntry, RegistryConfig};
 pub use provider::{ProviderConfig, RetryConfig, SharedProviderConfig};
-pub use loader::{RegistryConfig, ProviderConfigEntry};
 
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -42,7 +42,7 @@ use std::env;
 ///
 /// This structure is kept for backward compatibility.
 /// For new code, use `RegistryConfig` instead.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     /// OpenAI configuration
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -69,19 +69,6 @@ pub struct Config {
     pub kimi: Option<ProviderConfig>,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            openai: None,
-            anthropic: None,
-            deepseek: None,
-            zhipu: None,
-            aliyun: None,
-            kimi: None,
-        }
-    }
-}
-
 impl Config {
     /// Create configuration from environment variables
     pub fn from_env() -> Self {
@@ -89,50 +76,58 @@ impl Config {
 
         // OpenAI
         if let Ok(api_key) = env::var("OPENAI_API_KEY") {
-            config.openai = Some(ProviderConfig::new(api_key)
-                .with_base_url(env::var("OPENAI_BASE_URL").unwrap_or_default())
-                .with_timeout_ms(
-                    env::var("OPENAI_TIMEOUT_MS")
-                        .ok()
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(30000)
-                ));
+            config.openai = Some(
+                ProviderConfig::new(api_key)
+                    .with_base_url(env::var("OPENAI_BASE_URL").unwrap_or_default())
+                    .with_timeout_ms(
+                        env::var("OPENAI_TIMEOUT_MS")
+                            .ok()
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(30000),
+                    ),
+            );
         }
 
         // DeepSeek
         if let Ok(api_key) = env::var("DEEPSEEK_API_KEY") {
-            config.deepseek = Some(ProviderConfig::new(api_key)
-                .with_base_url(env::var("DEEPSEEK_BASE_URL").unwrap_or_default())
-                .with_timeout_ms(
-                    env::var("DEEPSEEK_TIMEOUT_MS")
-                        .ok()
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(30000)
-                ));
+            config.deepseek = Some(
+                ProviderConfig::new(api_key)
+                    .with_base_url(env::var("DEEPSEEK_BASE_URL").unwrap_or_default())
+                    .with_timeout_ms(
+                        env::var("DEEPSEEK_TIMEOUT_MS")
+                            .ok()
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(30000),
+                    ),
+            );
         }
 
         // Zhipu
         if let Ok(api_key) = env::var("ZHIPU_API_KEY").or_else(|_| env::var("GLM_API_KEY")) {
-            config.zhipu = Some(ProviderConfig::new(api_key)
-                .with_base_url(env::var("ZHIPU_BASE_URL").unwrap_or_default())
-                .with_timeout_ms(
-                    env::var("ZHIPU_TIMEOUT_MS")
-                        .ok()
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(30000)
-                ));
+            config.zhipu = Some(
+                ProviderConfig::new(api_key)
+                    .with_base_url(env::var("ZHIPU_BASE_URL").unwrap_or_default())
+                    .with_timeout_ms(
+                        env::var("ZHIPU_TIMEOUT_MS")
+                            .ok()
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(30000),
+                    ),
+            );
         }
 
         // Aliyun
         if let Ok(api_key) = env::var("ALIYUN_API_KEY").or_else(|_| env::var("DASHSCOPE_API_KEY")) {
-            config.aliyun = Some(ProviderConfig::new(api_key)
-                .with_base_url(env::var("ALIYUN_BASE_URL").unwrap_or_default())
-                .with_timeout_ms(
-                    env::var("ALIYUN_TIMEOUT_MS")
-                        .ok()
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(30000)
-                ));
+            config.aliyun = Some(
+                ProviderConfig::new(api_key)
+                    .with_base_url(env::var("ALIYUN_BASE_URL").unwrap_or_default())
+                    .with_timeout_ms(
+                        env::var("ALIYUN_TIMEOUT_MS")
+                            .ok()
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(30000),
+                    ),
+            );
         }
 
         config

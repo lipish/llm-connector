@@ -1,5 +1,5 @@
 //! Anthropic Protocol Implementation
-//! 
+//!
 //! This module implements the Anthropic Messages API protocol used by Claude models.
 //! The Anthropic protocol differs from OpenAI in several key ways:
 //! - Uses `/v1/messages` endpoint instead of `/chat/completions`
@@ -7,12 +7,12 @@
 //! - Different streaming format
 //! - Different error structure
 
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Usage, ToolCall};
-use crate::protocols::core::{ProviderAdapter, ErrorMapper};
-use std::sync::Arc;
+use crate::protocols::core::{ErrorMapper, ProviderAdapter};
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
 
 #[cfg(feature = "streaming")]
 use crate::types::{Delta, StreamingChoice, StreamingResponse};
@@ -64,9 +64,16 @@ pub enum AnthropicContentBlock {
     #[serde(rename = "image")]
     Image { source: AnthropicImageSource },
     #[serde(rename = "tool_use")]
-    ToolUse { id: String, name: String, input: Value },
+    ToolUse {
+        id: String,
+        name: String,
+        input: Value,
+    },
     #[serde(rename = "tool_result")]
-    ToolResult { tool_use_id: String, content: String },
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+    },
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -102,7 +109,11 @@ pub enum AnthropicResponseContent {
     #[serde(rename = "text")]
     Text { text: String },
     #[serde(rename = "tool_use")]
-    ToolUse { id: String, name: String, input: Value },
+    ToolUse {
+        id: String,
+        name: String,
+        input: Value,
+    },
 }
 
 #[derive(Deserialize, Debug)]
@@ -164,19 +175,37 @@ impl ErrorMapper for AnthropicErrorMapper {
             .as_str()
             .or_else(|| body["message"].as_str())
             .unwrap_or("Unknown Anthropic error");
-            
+
         let error_type = body["error"]["type"]
             .as_str()
             .or_else(|| body["type"].as_str())
             .unwrap_or("unknown_error");
 
         match status {
-            400 => crate::error::LlmConnectorError::InvalidRequest(format!("Anthropic: {} ({})", error_message, error_type)),
-            401 => crate::error::LlmConnectorError::AuthenticationError(format!("Anthropic: {} ({})", error_message, error_type)),
-            403 => crate::error::LlmConnectorError::PermissionError(format!("Anthropic: {} ({})", error_message, error_type)),
-            429 => crate::error::LlmConnectorError::RateLimitError(format!("Anthropic: {} ({})", error_message, error_type)),
-            500..=599 => crate::error::LlmConnectorError::ServerError(format!("Anthropic HTTP {}: {} ({})", status, error_message, error_type)),
-            _ => crate::error::LlmConnectorError::ProviderError(format!("Anthropic HTTP {}: {} ({})", status, error_message, error_type)),
+            400 => crate::error::LlmConnectorError::InvalidRequest(format!(
+                "Anthropic: {} ({})",
+                error_message, error_type
+            )),
+            401 => crate::error::LlmConnectorError::AuthenticationError(format!(
+                "Anthropic: {} ({})",
+                error_message, error_type
+            )),
+            403 => crate::error::LlmConnectorError::PermissionError(format!(
+                "Anthropic: {} ({})",
+                error_message, error_type
+            )),
+            429 => crate::error::LlmConnectorError::RateLimitError(format!(
+                "Anthropic: {} ({})",
+                error_message, error_type
+            )),
+            500..=599 => crate::error::LlmConnectorError::ServerError(format!(
+                "Anthropic HTTP {}: {} ({})",
+                status, error_message, error_type
+            )),
+            _ => crate::error::LlmConnectorError::ProviderError(format!(
+                "Anthropic HTTP {}: {} ({})",
+                status, error_message, error_type
+            )),
         }
     }
 
@@ -191,11 +220,12 @@ impl ErrorMapper for AnthropicErrorMapper {
     }
 
     fn is_retriable_error(error: &crate::error::LlmConnectorError) -> bool {
-        matches!(error, 
-            crate::error::LlmConnectorError::RateLimitError(_) |
-            crate::error::LlmConnectorError::ServerError(_) |
-            crate::error::LlmConnectorError::TimeoutError(_) |
-            crate::error::LlmConnectorError::ConnectionError(_)
+        matches!(
+            error,
+            crate::error::LlmConnectorError::RateLimitError(_)
+                | crate::error::LlmConnectorError::ServerError(_)
+                | crate::error::LlmConnectorError::TimeoutError(_)
+                | crate::error::LlmConnectorError::ConnectionError(_)
         )
     }
 }
@@ -207,16 +237,20 @@ impl ErrorMapper for AnthropicErrorMapper {
 impl AnthropicRequest {
     pub fn from_chat_request(request: &ChatRequest, stream: bool) -> Self {
         // Extract system message if present
-        let (system_message, user_messages): (Vec<_>, Vec<_>) = request.messages
+        let (system_message, user_messages): (Vec<_>, Vec<_>) = request
+            .messages
             .iter()
             .partition(|msg| msg.role == "system");
-        
+
         let system = system_message.first().map(|msg| msg.content.clone());
-        
-        let messages = user_messages.iter().map(|msg| AnthropicMessage {
-            role: msg.role.clone(),
-            content: AnthropicContent::Text(msg.content.clone()),
-        }).collect();
+
+        let messages = user_messages
+            .iter()
+            .map(|msg| AnthropicMessage {
+                role: msg.role.clone(),
+                content: AnthropicContent::Text(msg.content.clone()),
+            })
+            .collect();
 
         Self {
             model: request.model.clone(),
@@ -228,20 +262,28 @@ impl AnthropicRequest {
             stop_sequences: request.stop.clone(),
             stream: if stream { Some(true) } else { None },
             tools: request.tools.as_ref().map(|tools| {
-                tools.iter().map(|tool| AnthropicTool {
-                    name: tool.function.name.clone(),
-                    description: tool.function.description.clone().unwrap_or_default(),
-                    input_schema: tool.function.parameters.clone(),
-                }).collect()
+                tools
+                    .iter()
+                    .map(|tool| AnthropicTool {
+                        name: tool.function.name.clone(),
+                        description: tool.function.description.clone().unwrap_or_default(),
+                        input_schema: tool.function.parameters.clone(),
+                    })
+                    .collect()
             }),
-            tool_choice: request.tool_choice.as_ref().map(|tc| serde_json::to_value(tc).unwrap_or_default()),
+            tool_choice: request
+                .tool_choice
+                .as_ref()
+                .map(|tc| serde_json::to_value(tc).unwrap_or_default()),
         }
     }
 }
 
 impl AnthropicResponse {
     pub fn to_chat_response(self) -> ChatResponse {
-        let content = self.content.into_iter()
+        let content = self
+            .content
+            .into_iter()
             .filter_map(|block| match block {
                 AnthropicResponseContent::Text { text } => Some(text),
                 _ => None,
@@ -297,13 +339,16 @@ impl AnthropicProtocol {
     pub fn new(base_url: Option<&str>) -> Self {
         Self {
             base_url: Arc::from(base_url.unwrap_or("https://api.anthropic.com")),
-            supported_models: Arc::from(vec![
-                "claude-3-5-sonnet-20241022".to_string(),
-                "claude-3-5-haiku-20241022".to_string(),
-                "claude-3-opus-20240229".to_string(),
-                "claude-3-sonnet-20240229".to_string(),
-                "claude-3-haiku-20240307".to_string(),
-            ].into_boxed_slice()),
+            supported_models: Arc::from(
+                vec![
+                    "claude-3-5-sonnet-20241022".to_string(),
+                    "claude-3-5-haiku-20241022".to_string(),
+                    "claude-3-opus-20240229".to_string(),
+                    "claude-3-sonnet-20240229".to_string(),
+                    "claude-3-haiku-20240307".to_string(),
+                ]
+                .into_boxed_slice(),
+            ),
         }
     }
 }
@@ -380,10 +425,7 @@ pub fn anthropic() -> AnthropicProtocol {
 
 /// Get all providers that use the Anthropic protocol
 pub fn anthropic_providers() -> Vec<(&'static str, AnthropicProtocol)> {
-    vec![
-        ("anthropic", anthropic()),
-        ("claude", anthropic()),
-    ]
+    vec![("anthropic", anthropic()), ("claude", anthropic())]
 }
 
 /// Anthropic provider type alias

@@ -1,30 +1,30 @@
 //! Response types for chat completions
 
-use serde::{Deserialize, Serialize};
 use super::request::Message;
+use serde::{Deserialize, Serialize};
 
 /// Chat completion response
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ChatResponse {
     /// A unique identifier for the chat completion.
     pub id: String,
-    
+
     /// Object type (always "chat.completion")
     pub object: String,
-    
+
     /// Unix timestamp of creation
     pub created: u64,
-    
+
     /// Model used for the completion
     pub model: String,
-    
+
     /// List of completion choices
     pub choices: Vec<Choice>,
-    
+
     /// Usage statistics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
-    
+
     /// System fingerprint
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
@@ -35,14 +35,14 @@ pub struct ChatResponse {
 pub struct Choice {
     /// The index of the choice in the list of choices.
     pub index: u32,
-    
+
     /// The generated message
     pub message: Message,
-    
+
     /// Reason for finishing
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
-    
+
     /// Log probabilities
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<serde_json::Value>,

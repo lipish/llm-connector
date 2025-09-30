@@ -79,8 +79,8 @@ impl LlmConnectorError {
         matches!(
             self,
             LlmConnectorError::NetworkError(_)
-            | LlmConnectorError::RateLimitError(_)
-            | LlmConnectorError::ProviderError(_)
+                | LlmConnectorError::RateLimitError(_)
+                | LlmConnectorError::ProviderError(_)
         )
     }
 
@@ -125,11 +125,26 @@ mod tests {
 
     #[test]
     fn test_status_codes() {
-        assert_eq!(LlmConnectorError::AuthenticationError("test".to_string()).status_code(), 401);
-        assert_eq!(LlmConnectorError::RateLimitError("test".to_string()).status_code(), 429);
-        assert_eq!(LlmConnectorError::InvalidRequest("test".to_string()).status_code(), 400);
-        assert_eq!(LlmConnectorError::UnsupportedModel("test".to_string()).status_code(), 400);
-        assert_eq!(LlmConnectorError::NetworkError("test".to_string()).status_code(), 502);
+        assert_eq!(
+            LlmConnectorError::AuthenticationError("test".to_string()).status_code(),
+            401
+        );
+        assert_eq!(
+            LlmConnectorError::RateLimitError("test".to_string()).status_code(),
+            429
+        );
+        assert_eq!(
+            LlmConnectorError::InvalidRequest("test".to_string()).status_code(),
+            400
+        );
+        assert_eq!(
+            LlmConnectorError::UnsupportedModel("test".to_string()).status_code(),
+            400
+        );
+        assert_eq!(
+            LlmConnectorError::NetworkError("test".to_string()).status_code(),
+            502
+        );
     }
 
     #[test]
@@ -159,4 +174,3 @@ mod tests {
         ));
     }
 }
-

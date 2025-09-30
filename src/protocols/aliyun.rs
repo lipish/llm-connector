@@ -4,12 +4,12 @@
 //! Aliyun uses a custom protocol that differs significantly from both OpenAI and Anthropic.
 
 use crate::error::LlmConnectorError;
-use crate::protocols::core::{ProviderAdapter, ErrorMapper};
-use std::sync::Arc;
+use crate::protocols::core::{ErrorMapper, ProviderAdapter};
 use crate::types::{ChatRequest, ChatResponse, Message, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
 
 #[cfg(feature = "streaming")]
 use crate::types::StreamingResponse;
@@ -125,19 +125,37 @@ impl ErrorMapper for AliyunErrorMapper {
             .as_str()
             .or_else(|| body["message"].as_str())
             .unwrap_or("Unknown Aliyun error");
-            
+
         let error_code = body["error"]["code"]
             .as_str()
             .or_else(|| body["code"].as_str())
             .unwrap_or("unknown");
 
         match status {
-            400 => LlmConnectorError::InvalidRequest(format!("Aliyun: {} ({})", error_message, error_code)),
-            401 => LlmConnectorError::AuthenticationError(format!("Aliyun: {} ({})", error_message, error_code)),
-            403 => LlmConnectorError::PermissionError(format!("Aliyun: {} ({})", error_message, error_code)),
-            429 => LlmConnectorError::RateLimitError(format!("Aliyun: {} ({})", error_message, error_code)),
-            500..=599 => LlmConnectorError::ServerError(format!("Aliyun HTTP {}: {} ({})", status, error_message, error_code)),
-            _ => LlmConnectorError::ProviderError(format!("Aliyun HTTP {}: {} ({})", status, error_message, error_code)),
+            400 => LlmConnectorError::InvalidRequest(format!(
+                "Aliyun: {} ({})",
+                error_message, error_code
+            )),
+            401 => LlmConnectorError::AuthenticationError(format!(
+                "Aliyun: {} ({})",
+                error_message, error_code
+            )),
+            403 => LlmConnectorError::PermissionError(format!(
+                "Aliyun: {} ({})",
+                error_message, error_code
+            )),
+            429 => LlmConnectorError::RateLimitError(format!(
+                "Aliyun: {} ({})",
+                error_message, error_code
+            )),
+            500..=599 => LlmConnectorError::ServerError(format!(
+                "Aliyun HTTP {}: {} ({})",
+                status, error_message, error_code
+            )),
+            _ => LlmConnectorError::ProviderError(format!(
+                "Aliyun HTTP {}: {} ({})",
+                status, error_message, error_code
+            )),
         }
     }
 
@@ -152,11 +170,12 @@ impl ErrorMapper for AliyunErrorMapper {
     }
 
     fn is_retriable_error(error: &LlmConnectorError) -> bool {
-        matches!(error, 
-            LlmConnectorError::RateLimitError(_) |
-            LlmConnectorError::ServerError(_) |
-            LlmConnectorError::TimeoutError(_) |
-            LlmConnectorError::ConnectionError(_)
+        matches!(
+            error,
+            LlmConnectorError::RateLimitError(_)
+                | LlmConnectorError::ServerError(_)
+                | LlmConnectorError::TimeoutError(_)
+                | LlmConnectorError::ConnectionError(_)
         )
     }
 }
@@ -177,14 +196,19 @@ pub struct AliyunProtocol {
 impl AliyunProtocol {
     pub fn new(base_url: Option<&str>) -> Self {
         Self {
-            base_url: Arc::from(base_url.unwrap_or("https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation")),
-            supported_models: Arc::from(vec![
-                "qwen-turbo".to_string(),
-                "qwen-plus".to_string(),
-                "qwen-max".to_string(),
-                "qwen-max-1201".to_string(),
-                "qwen-max-longcontext".to_string(),
-            ].into_boxed_slice()),
+            base_url: Arc::from(base_url.unwrap_or(
+                "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
+            )),
+            supported_models: Arc::from(
+                vec![
+                    "qwen-turbo".to_string(),
+                    "qwen-plus".to_string(),
+                    "qwen-max".to_string(),
+                    "qwen-max-1201".to_string(),
+                    "qwen-max-longcontext".to_string(),
+                ]
+                .into_boxed_slice(),
+            ),
         }
     }
 }
@@ -209,10 +233,7 @@ impl ProviderAdapter for AliyunProtocol {
     }
 
     fn endpoint_url(&self, base_url: &Option<String>) -> String {
-        base_url
-            .as_deref()
-            .unwrap_or(&self.base_url)
-            .to_string()
+        base_url.as_deref().unwrap_or(&self.base_url).to_string()
     }
 
     fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
@@ -247,8 +268,12 @@ impl ProviderAdapter for AliyunProtocol {
             object: "chat.completion".to_string(),
             created: chrono::Utc::now().timestamp() as u64,
             model: "qwen".to_string(), // Aliyun doesn't return model in response
-            choices: response.output.choices.into_iter().enumerate().map(|(index, choice)| {
-                crate::types::Choice {
+            choices: response
+                .output
+                .choices
+                .into_iter()
+                .enumerate()
+                .map(|(index, choice)| crate::types::Choice {
                     index: index as u32,
                     message: Message {
                         role: choice.message.role,
@@ -259,8 +284,8 @@ impl ProviderAdapter for AliyunProtocol {
                     },
                     finish_reason: Some(choice.finish_reason),
                     logprobs: None,
-                }
-            }).collect(),
+                })
+                .collect(),
             usage: Some(Usage {
                 prompt_tokens: response.usage.input_tokens as u32,
                 completion_tokens: response.usage.output_tokens as u32,
@@ -281,8 +306,12 @@ impl ProviderAdapter for AliyunProtocol {
             object: "chat.completion.chunk".to_string(),
             created: chrono::Utc::now().timestamp() as u64,
             model: "qwen".to_string(),
-            choices: response.output.choices.into_iter().enumerate().map(|(index, choice)| {
-                crate::types::StreamingChoice {
+            choices: response
+                .output
+                .choices
+                .into_iter()
+                .enumerate()
+                .map(|(index, choice)| crate::types::StreamingChoice {
                     index: index as u32,
                     delta: crate::types::Delta {
                         role: Some(choice.message.role),
@@ -290,8 +319,8 @@ impl ProviderAdapter for AliyunProtocol {
                         tool_calls: None,
                     },
                     finish_reason: choice.finish_reason,
-                }
-            }).collect(),
+                })
+                .collect(),
             usage: response.usage.map(|usage| Usage {
                 prompt_tokens: usage.input_tokens as u32,
                 completion_tokens: usage.output_tokens as u32,

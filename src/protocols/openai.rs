@@ -3,12 +3,12 @@
 //! This module implements the OpenAI-compatible protocol used by multiple providers.
 //! The OpenAI protocol has become the de facto standard for LLM APIs.
 
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Usage, ToolCall};
 use crate::protocols::core::{ProviderAdapter, StandardErrorMapper};
-use std::sync::Arc;
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, ToolCall, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
 
 #[cfg(feature = "streaming")]
 use crate::types::{Delta, StreamingChoice, StreamingResponse};
@@ -155,16 +155,22 @@ impl OpenAIRequest {
             stream: if stream { Some(true) } else { None },
             stop: request.stop.clone(),
             tools: request.tools.as_ref().map(|tools| {
-                tools.iter().map(|tool| OpenAITool {
-                    r#type: "function".to_string(),
-                    function: OpenAIFunction {
-                        name: tool.function.name.clone(),
-                        description: tool.function.description.clone().unwrap_or_default(),
-                        parameters: Some(tool.function.parameters.clone()),
-                    },
-                }).collect()
+                tools
+                    .iter()
+                    .map(|tool| OpenAITool {
+                        r#type: "function".to_string(),
+                        function: OpenAIFunction {
+                            name: tool.function.name.clone(),
+                            description: tool.function.description.clone().unwrap_or_default(),
+                            parameters: Some(tool.function.parameters.clone()),
+                        },
+                    })
+                    .collect()
             }),
-            tool_choice: request.tool_choice.as_ref().map(|tc| serde_json::to_value(tc).unwrap_or_default()),
+            tool_choice: request
+                .tool_choice
+                .as_ref()
+                .map(|tc| serde_json::to_value(tc).unwrap_or_default()),
         }
     }
 }
@@ -188,18 +194,22 @@ impl OpenAIResponse {
             object: self.object,
             created: self.created,
             model: self.model,
-            choices: self.choices.into_iter().map(|choice| Choice {
-                index: choice.index,
-                message: Message {
-                    role: choice.message.role,
-                    content: choice.message.content.unwrap_or_default(),
-                    name: choice.message.name,
-                    tool_calls: choice.message.tool_calls,
-                    tool_call_id: choice.message.tool_call_id,
-                },
-                finish_reason: choice.finish_reason,
-                logprobs: None,
-            }).collect(),
+            choices: self
+                .choices
+                .into_iter()
+                .map(|choice| Choice {
+                    index: choice.index,
+                    message: Message {
+                        role: choice.message.role,
+                        content: choice.message.content.unwrap_or_default(),
+                        name: choice.message.name,
+                        tool_calls: choice.message.tool_calls,
+                        tool_call_id: choice.message.tool_call_id,
+                    },
+                    finish_reason: choice.finish_reason,
+                    logprobs: None,
+                })
+                .collect(),
             usage: Some(self.usage),
             system_fingerprint: self.system_fingerprint,
         }
@@ -214,15 +224,19 @@ impl OpenAIStreamResponse {
             object: self.object,
             created: self.created,
             model: self.model,
-            choices: self.choices.into_iter().map(|choice| StreamingChoice {
-                index: choice.index,
-                delta: Delta {
-                    role: choice.delta.role,
-                    content: choice.delta.content,
-                    tool_calls: choice.delta.tool_calls,
-                },
-                finish_reason: choice.finish_reason,
-            }).collect(),
+            choices: self
+                .choices
+                .into_iter()
+                .map(|choice| StreamingChoice {
+                    index: choice.index,
+                    delta: Delta {
+                        role: choice.delta.role,
+                        content: choice.delta.content,
+                        tool_calls: choice.delta.tool_calls,
+                    },
+                    finish_reason: choice.finish_reason,
+                })
+                .collect(),
             usage: self.usage,
             system_fingerprint: self.system_fingerprint,
         }
@@ -248,9 +262,7 @@ impl OpenAIProtocol {
         Self {
             name: Arc::from(name),
             base_url: Arc::from(base_url),
-            supported_models: Arc::from(
-                models.iter().map(|s| s.to_string()).collect::<Vec<_>>()
-            ),
+            supported_models: Arc::from(models.iter().map(|s| s.to_string()).collect::<Vec<_>>()),
         }
     }
 }
@@ -302,7 +314,7 @@ pub fn deepseek() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "deepseek",
         "https://api.deepseek.com/v1",
-        vec!["deepseek-chat", "deepseek-coder"]
+        vec!["deepseek-chat", "deepseek-coder"],
     )
 }
 
@@ -311,7 +323,7 @@ pub fn zhipu() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "zhipu",
         "https://open.bigmodel.cn/api/paas/v4",
-        vec!["glm-4", "glm-3-turbo"]
+        vec!["glm-4", "glm-3-turbo"],
     )
 }
 
@@ -320,7 +332,7 @@ pub fn moonshot() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "moonshot",
         "https://api.moonshot.cn/v1",
-        vec!["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"]
+        vec!["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
     )
 }
 
@@ -331,7 +343,7 @@ pub fn volcengine() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "volcengine",
         "https://ark.cn-beijing.volces.com/api/v3",
-        vec!["ep-*"]  // Endpoint IDs start with "ep-"
+        vec!["ep-*"], // Endpoint IDs start with "ep-"
     )
 }
 
@@ -340,7 +352,7 @@ pub fn tencent() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "tencent",
         "https://hunyuan.tencentcloudapi.com/v1",
-        vec!["hunyuan-lite", "hunyuan-standard", "hunyuan-pro"]
+        vec!["hunyuan-lite", "hunyuan-standard", "hunyuan-pro"],
     )
 }
 
@@ -349,7 +361,7 @@ pub fn minimax() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "minimax",
         "https://api.minimax.chat/v1",
-        vec!["abab6.5s-chat", "abab6.5-chat", "abab5.5-chat"]
+        vec!["abab6.5s-chat", "abab6.5-chat", "abab5.5-chat"],
     )
 }
 
@@ -358,7 +370,7 @@ pub fn stepfun() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "stepfun",
         "https://api.stepfun.com/v1",
-        vec!["step-1-8k", "step-1-32k", "step-1-128k"]
+        vec!["step-1-8k", "step-1-32k", "step-1-128k"],
     )
 }
 
@@ -367,7 +379,7 @@ pub fn longcat() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "longcat",
         "https://api.longcat.chat/openai",
-        vec!["LongCat-Flash-Chat", "LongCat-Flash-Thinking"]
+        vec!["LongCat-Flash-Chat", "LongCat-Flash-Thinking"],
     )
 }
 

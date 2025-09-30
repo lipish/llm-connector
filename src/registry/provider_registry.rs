@@ -4,7 +4,7 @@
 
 use crate::config::{ProviderConfig, RegistryConfig};
 use crate::error::LlmConnectorError;
-use crate::protocols::core::{Provider, GenericProvider, ProviderAdapter};
+use crate::protocols::core::{GenericProvider, Provider, ProviderAdapter};
 use std::collections::HashMap;
 
 /// Unified provider registry for managing all LLM providers
@@ -33,24 +33,68 @@ impl ProviderRegistry {
             // Register the provider based on protocol
             match entry.protocol.as_str() {
                 "aliyun" => {
-                    registry.register(&name, internal_config, crate::protocols::aliyun::aliyun())?;
+                    registry.register(
+                        &name,
+                        internal_config,
+                        crate::protocols::aliyun::aliyun(),
+                    )?;
                 }
                 "openai" => {
                     // Determine which OpenAI provider based on name
                     match name.as_str() {
-                        "deepseek" => registry.register(&name, internal_config, crate::protocols::openai::deepseek())?,
-                        "zhipu" => registry.register(&name, internal_config, crate::protocols::openai::zhipu())?,
-                        "moonshot" => registry.register(&name, internal_config, crate::protocols::openai::moonshot())?,
-                        "volcengine" => registry.register(&name, internal_config, crate::protocols::openai::volcengine())?,
-                        "tencent" => registry.register(&name, internal_config, crate::protocols::openai::tencent())?,
-                        "minimax" => registry.register(&name, internal_config, crate::protocols::openai::minimax())?,
-                        "stepfun" => registry.register(&name, internal_config, crate::protocols::openai::stepfun())?,
-                        "longcat" => registry.register(&name, internal_config, crate::protocols::openai::longcat())?,
-                        _ => registry.register(&name, internal_config, crate::protocols::openai::deepseek())?, // default
+                        "deepseek" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::deepseek(),
+                        )?,
+                        "zhipu" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::zhipu(),
+                        )?,
+                        "moonshot" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::moonshot(),
+                        )?,
+                        "volcengine" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::volcengine(),
+                        )?,
+                        "tencent" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::tencent(),
+                        )?,
+                        "minimax" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::minimax(),
+                        )?,
+                        "stepfun" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::stepfun(),
+                        )?,
+                        "longcat" => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::longcat(),
+                        )?,
+                        _ => registry.register(
+                            &name,
+                            internal_config,
+                            crate::protocols::openai::deepseek(),
+                        )?, // default
                     }
                 }
                 "anthropic" => {
-                    registry.register(&name, internal_config, crate::protocols::anthropic::anthropic())?;
+                    registry.register(
+                        &name,
+                        internal_config,
+                        crate::protocols::anthropic::anthropic(),
+                    )?;
                 }
                 _ => {
                     return Err(LlmConnectorError::ConfigError(format!(
@@ -222,7 +266,7 @@ impl Default for ProviderRegistryBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocols::core::{ProviderAdapter, ErrorMapper};
+    use crate::protocols::core::{ErrorMapper, ProviderAdapter};
     use crate::types::{ChatRequest, ChatResponse};
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
@@ -276,6 +320,7 @@ mod tests {
     }
 
     #[derive(Deserialize)]
+    #[allow(dead_code)]
     struct MockResponse {
         id: String,
     }
@@ -306,12 +351,7 @@ mod tests {
     #[test]
     fn test_provider_registration() {
         let mut registry = ProviderRegistry::new();
-        let config = ProviderConfig {
-            api_key: "test-key".to_string(),
-            base_url: None,
-            timeout_ms: Some(5000),
-            proxy: None,
-        };
+        let config = ProviderConfig::new("test-key").with_timeout_ms(5000);
 
         let result = registry.register("mock", config.clone(), MockAdapter);
         assert!(result.is_ok());
@@ -322,12 +362,7 @@ mod tests {
     #[test]
     fn test_provider_retrieval() {
         let mut registry = ProviderRegistry::new();
-        let config = ProviderConfig {
-            api_key: "test-key".to_string(),
-            base_url: None,
-            timeout_ms: Some(5000),
-            proxy: None,
-        };
+        let config = ProviderConfig::new("test-key").with_timeout_ms(5000);
 
         registry
             .register("mock", config.clone(), MockAdapter)
@@ -340,12 +375,7 @@ mod tests {
     #[test]
     fn test_provider_removal() {
         let mut registry = ProviderRegistry::new();
-        let config = ProviderConfig {
-            api_key: "test-key".to_string(),
-            base_url: None,
-            timeout_ms: Some(5000),
-            proxy: None,
-        };
+        let config = ProviderConfig::new("test-key").with_timeout_ms(5000);
 
         registry
             .register("mock", config.clone(), MockAdapter)
@@ -359,12 +389,7 @@ mod tests {
 
     #[test]
     fn test_registry_builder() {
-        let config = ProviderConfig {
-            api_key: "test-key".to_string(),
-            base_url: None,
-            timeout_ms: Some(5000),
-            proxy: None,
-        };
+        let config = ProviderConfig::new("test-key").with_timeout_ms(5000);
 
         let registry = ProviderRegistryBuilder::new()
             .with_provider("mock", config, MockAdapter)

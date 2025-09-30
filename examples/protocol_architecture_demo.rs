@@ -1,29 +1,29 @@
 //! Protocol Architecture Demo
-//! 
+//!
 //! This example demonstrates the new protocol-based architecture where providers
 //! are organized by the API protocol they implement rather than individual names.
 //!
 //! ## Supported Protocols
-//! 
+//!
 //! ### 1. OpenAI Protocol (Most Popular)
 //! Used by: DeepSeek, Zhipu, Moonshot, VolcEngine, Tencent, MiniMax, StepFun
-//! 
-//! ### 2. Anthropic Protocol  
+//!
+//! ### 2. Anthropic Protocol
 //! Used by: Anthropic (Claude)
-//! 
+//!
 //! ### 3. Aliyun Protocol (Custom)
 //! Used by: Aliyun DashScope
 
 use llm_connector::{
     config::ProviderConfig,
+    error::LlmConnectorError,
     protocols::{
-        core::{ProviderAdapter},
-        openai::{openai_providers, OpenAIProtocol},
-        anthropic::{anthropic_providers, AnthropicProtocol},
         aliyun::{aliyun_providers, AliyunProtocol},
+        anthropic::{anthropic_providers, AnthropicProtocol},
+        core::ProviderAdapter,
+        openai::{openai_providers, OpenAIProtocol},
     },
     types::{ChatRequest, Message},
-    error::LlmConnectorError,
 };
 
 #[tokio::main]
@@ -57,25 +57,33 @@ async fn main() -> Result<(), LlmConnectorError> {
     };
 
     // Demo configuration
-    let _config = ProviderConfig {
-        api_key: "demo-key".to_string(),
-        base_url: None,
-        timeout_ms: Some(30000),
-        proxy: None,
-    };
+    let _config = ProviderConfig::new("demo-key").with_timeout_ms(30000);
 
     println!("📋 Protocol Overview");
     println!("====================");
 
     // 1. OpenAI Protocol Demo
     println!("\n🔵 OpenAI Protocol (Most Popular)");
-    println!("   Used by 7 providers: DeepSeek, Zhipu, Moonshot, VolcEngine, Tencent, MiniMax, StepFun");
-    
+    println!(
+        "   Used by 7 providers: DeepSeek, Zhipu, Moonshot, VolcEngine, Tencent, MiniMax, StepFun"
+    );
+
     let openai_providers = openai_providers();
     println!("   Available providers:");
     for (name, protocol) in &openai_providers {
-        println!("   - {}: {} models", name, protocol.supported_models().len());
-        println!("     Models: {:?}", protocol.supported_models().iter().take(2).collect::<Vec<_>>());
+        println!(
+            "   - {}: {} models",
+            name,
+            protocol.supported_models().len()
+        );
+        println!(
+            "     Models: {:?}",
+            protocol
+                .supported_models()
+                .iter()
+                .take(2)
+                .collect::<Vec<_>>()
+        );
         println!("     Endpoint: {}", protocol.endpoint_url(&None));
     }
 
@@ -84,7 +92,7 @@ async fn main() -> Result<(), LlmConnectorError> {
     let deepseek_protocol = OpenAIProtocol::new(
         "deepseek",
         "https://api.deepseek.com/v1",
-        vec!["deepseek-chat", "deepseek-coder"]
+        vec!["deepseek-chat", "deepseek-coder"],
     );
     println!("   ✅ Protocol: {}", deepseek_protocol.name());
     println!("   ✅ Endpoint: {}", deepseek_protocol.endpoint_url(&None));
@@ -93,12 +101,23 @@ async fn main() -> Result<(), LlmConnectorError> {
     // 2. Anthropic Protocol Demo
     println!("\n🟣 Anthropic Protocol");
     println!("   Used by Claude models with different API format");
-    
+
     let anthropic_providers = anthropic_providers();
     println!("   Available providers:");
     for (name, protocol) in &anthropic_providers {
-        println!("   - {}: {} models", name, protocol.supported_models().len());
-        println!("     Models: {:?}", protocol.supported_models().iter().take(2).collect::<Vec<_>>());
+        println!(
+            "   - {}: {} models",
+            name,
+            protocol.supported_models().len()
+        );
+        println!(
+            "     Models: {:?}",
+            protocol
+                .supported_models()
+                .iter()
+                .take(2)
+                .collect::<Vec<_>>()
+        );
         println!("     Endpoint: {}", protocol.endpoint_url(&None));
     }
 
@@ -107,17 +126,35 @@ async fn main() -> Result<(), LlmConnectorError> {
     let anthropic_protocol = AnthropicProtocol::new(None);
     println!("   ✅ Protocol: {}", anthropic_protocol.name());
     println!("   ✅ Endpoint: {}", anthropic_protocol.endpoint_url(&None));
-    println!("   ✅ Models: {:?}", anthropic_protocol.supported_models().iter().take(2).collect::<Vec<_>>());
+    println!(
+        "   ✅ Models: {:?}",
+        anthropic_protocol
+            .supported_models()
+            .iter()
+            .take(2)
+            .collect::<Vec<_>>()
+    );
 
     // 3. Aliyun Protocol Demo
     println!("\n🟡 Aliyun Protocol (Custom)");
     println!("   Used by Aliyun DashScope with nested request structure");
-    
+
     let aliyun_providers = aliyun_providers();
     println!("   Available providers:");
     for (name, protocol) in &aliyun_providers {
-        println!("   - {}: {} models", name, protocol.supported_models().len());
-        println!("     Models: {:?}", protocol.supported_models().iter().take(2).collect::<Vec<_>>());
+        println!(
+            "   - {}: {} models",
+            name,
+            protocol.supported_models().len()
+        );
+        println!(
+            "     Models: {:?}",
+            protocol
+                .supported_models()
+                .iter()
+                .take(2)
+                .collect::<Vec<_>>()
+        );
         println!("     Endpoint: {}", protocol.endpoint_url(&None));
     }
 
@@ -126,7 +163,14 @@ async fn main() -> Result<(), LlmConnectorError> {
     let aliyun_protocol = AliyunProtocol::new(None);
     println!("   ✅ Protocol: {}", aliyun_protocol.name());
     println!("   ✅ Endpoint: {}", aliyun_protocol.endpoint_url(&None));
-    println!("   ✅ Models: {:?}", aliyun_protocol.supported_models().iter().take(2).collect::<Vec<_>>());
+    println!(
+        "   ✅ Models: {:?}",
+        aliyun_protocol
+            .supported_models()
+            .iter()
+            .take(2)
+            .collect::<Vec<_>>()
+    );
 
     println!("\n🎯 Protocol Benefits");
     println!("====================");
@@ -148,6 +192,21 @@ async fn main() -> Result<(), LlmConnectorError> {
     println!("Anthropic-compatible provider: 3 lines of code");
     println!("Custom protocol: ~300 lines (only if truly different)");
 
+    // Demonstrate adding new providers
+    println!("\n📝 Example: Adding New Providers");
+    let new_openai = add_new_openai_provider();
+    println!(
+        "✅ Added new OpenAI-compatible provider: {}",
+        new_openai.name()
+    );
+    println!("   Supported models: {:?}", new_openai.supported_models());
+
+    let new_anthropic = add_new_anthropic_provider();
+    println!(
+        "✅ Added new Anthropic-compatible provider: {}",
+        new_anthropic.name()
+    );
+
     println!("\n✨ Protocol Architecture Demo Complete!");
 
     Ok(())
@@ -159,7 +218,7 @@ fn add_new_openai_provider() -> OpenAIProtocol {
     OpenAIProtocol::new(
         "new_provider",
         "https://api.newprovider.com/v1",
-        vec!["new-model-1", "new-model-2"]
+        vec!["new-model-1", "new-model-2"],
     )
 }
 
@@ -177,21 +236,21 @@ mod tests {
     fn test_protocol_architecture() {
         // Test OpenAI protocol
         let openai_providers = openai_providers();
-        assert_eq!(openai_providers.len(), 7); // 7 providers use OpenAI protocol
-        
+        assert_eq!(openai_providers.len(), 8); // 8 providers use OpenAI protocol (including LongCat)
+
         // Test Anthropic protocol
         let anthropic_providers = anthropic_providers();
         assert_eq!(anthropic_providers.len(), 2); // 2 aliases for Anthropic
-        
+
         // Test Aliyun protocol
         let aliyun_providers = aliyun_providers();
         assert_eq!(aliyun_providers.len(), 3); // 3 aliases for Aliyun
-        
+
         // Test adding new providers
         let new_openai = add_new_openai_provider();
         assert_eq!(new_openai.name(), "new_provider");
         assert_eq!(new_openai.supported_models().len(), 2);
-        
+
         let new_anthropic = add_new_anthropic_provider();
         assert_eq!(new_anthropic.name(), "anthropic");
     }

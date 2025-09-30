@@ -290,10 +290,10 @@ use std::sync::Arc;
 
 // 创建拦截器链
 let chain = InterceptorChain::new()
-    .add(Arc::new(ValidationInterceptor::new()
+    .with_interceptor(Arc::new(ValidationInterceptor::new()
         .with_max_tokens(2000)
         .with_max_messages(10)))
-    .add(Arc::new(SanitizationInterceptor::new()
+    .with_interceptor(Arc::new(SanitizationInterceptor::new()
         .with_remove_system_fingerprint(true)));
 
 // 使用拦截器执行
@@ -334,16 +334,22 @@ while let Some(chunk) = stream.next().await {
 
 查看 [examples](./examples/) 目录获取更多使用示例：
 
-- `longcat_demo.rs` - LongCat API 使用
-- `p0_complete_demo.rs` - P0 改进演示
-- `p1_complete_demo.rs` - P1 改进演示（重试、工厂）
-- `p2_complete_demo.rs` - P2 改进演示（中间件、拦截器）
+- `deepseek_example.rs` - DeepSeek 提供商基础使用
+- `longcat_demo.rs` - LongCat API 完整演示（提供免费额度）
 - `protocol_architecture_demo.rs` - 协议架构概览
+- `test_all_providers.rs` - 测试所有配置的提供商
+- `verify_real_api_calls.rs` - 验证真实 API 调用
+
+**📖 [示例文档](./examples/README.md)** - 所有示例的详细指南
 
 运行示例：
 
 ```bash
-cargo run --example longcat_demo
+# 设置 API 密钥
+export DEEPSEEK_API_KEY="your-api-key"
+
+# 运行示例
+cargo run --example deepseek_example
 ```
 
 ## 📖 文档

@@ -2,8 +2,8 @@
 //!
 //! This module provides middleware for collecting metrics about LLM API usage.
 
-use crate::types::{ChatRequest, ChatResponse};
 use crate::error::LlmConnectorError;
+use crate::types::ChatResponse;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -21,17 +21,17 @@ pub struct Metrics {
     requests_total: AtomicU64,
     requests_success: AtomicU64,
     requests_failed: AtomicU64,
-    
+
     // Token counters
     tokens_prompt: AtomicU64,
     tokens_completion: AtomicU64,
     tokens_total: AtomicU64,
-    
+
     // Timing (in milliseconds)
     total_duration_ms: AtomicU64,
     min_duration_ms: AtomicU64,
     max_duration_ms: AtomicU64,
-    
+
     // Error counters by type
     rate_limit_errors: AtomicU64,
     server_errors: AtomicU64,
@@ -65,34 +65,41 @@ impl Metrics {
     pub fn record_success(&self, response: &ChatResponse, duration: Duration) {
         self.requests_total.fetch_add(1, Ordering::Relaxed);
         self.requests_success.fetch_add(1, Ordering::Relaxed);
-        
+
         // Record token usage
         if let Some(usage) = &response.usage {
-            self.tokens_prompt.fetch_add(usage.prompt_tokens as u64, Ordering::Relaxed);
-            self.tokens_completion.fetch_add(usage.completion_tokens as u64, Ordering::Relaxed);
-            self.tokens_total.fetch_add(usage.total_tokens as u64, Ordering::Relaxed);
+            self.tokens_prompt
+                .fetch_add(usage.prompt_tokens as u64, Ordering::Relaxed);
+            self.tokens_completion
+                .fetch_add(usage.completion_tokens as u64, Ordering::Relaxed);
+            self.tokens_total
+                .fetch_add(usage.total_tokens as u64, Ordering::Relaxed);
         }
-        
+
         // Record timing
         let duration_ms = duration.as_millis() as u64;
-        self.total_duration_ms.fetch_add(duration_ms, Ordering::Relaxed);
-        
+        self.total_duration_ms
+            .fetch_add(duration_ms, Ordering::Relaxed);
+
         // Update min duration
-        self.min_duration_ms.fetch_min(duration_ms, Ordering::Relaxed);
-        
+        self.min_duration_ms
+            .fetch_min(duration_ms, Ordering::Relaxed);
+
         // Update max duration
-        self.max_duration_ms.fetch_max(duration_ms, Ordering::Relaxed);
+        self.max_duration_ms
+            .fetch_max(duration_ms, Ordering::Relaxed);
     }
 
     /// Record a failed request
     pub fn record_failure(&self, error: &LlmConnectorError, duration: Duration) {
         self.requests_total.fetch_add(1, Ordering::Relaxed);
         self.requests_failed.fetch_add(1, Ordering::Relaxed);
-        
+
         // Record timing
         let duration_ms = duration.as_millis() as u64;
-        self.total_duration_ms.fetch_add(duration_ms, Ordering::Relaxed);
-        
+        self.total_duration_ms
+            .fetch_add(duration_ms, Ordering::Relaxed);
+
         // Categorize error
         match error {
             LlmConnectorError::RateLimitError(_) => {
@@ -119,7 +126,7 @@ impl Metrics {
         let success = self.requests_success.load(Ordering::Relaxed);
         let failed = self.requests_failed.load(Ordering::Relaxed);
         let total_duration = self.total_duration_ms.load(Ordering::Relaxed);
-        
+
         MetricsSnapshot {
             requests_total: total,
             requests_success: success,
@@ -132,14 +139,14 @@ impl Metrics {
             tokens_prompt: self.tokens_prompt.load(Ordering::Relaxed),
             tokens_completion: self.tokens_completion.load(Ordering::Relaxed),
             tokens_total: self.tokens_total.load(Ordering::Relaxed),
-            avg_duration_ms: if total > 0 {
-                total_duration / total
-            } else {
-                0
-            },
+            avg_duration_ms: if total > 0 { total_duration / total } else { 0 },
             min_duration_ms: {
                 let min = self.min_duration_ms.load(Ordering::Relaxed);
-                if min == u64::MAX { 0 } else { min }
+                if min == u64::MAX {
+                    0
+                } else {
+                    min
+                }
             },
             max_duration_ms: self.max_duration_ms.load(Ordering::Relaxed),
             rate_limit_errors: self.rate_limit_errors.load(Ordering::Relaxed),
@@ -246,16 +253,13 @@ impl MetricsMiddleware {
     }
 
     /// Execute a request with metrics collection
-    pub async fn execute<F, Fut>(
-        &self,
-        operation: F,
-    ) -> Result<ChatResponse, LlmConnectorError>
+    pub async fn execute<F, Fut>(&self, operation: F) -> Result<ChatResponse, LlmConnectorError>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = Result<ChatResponse, LlmConnectorError>>,
     {
         let start = Instant::now();
-        
+
         match operation().await {
             Ok(response) => {
                 let duration = start.elapsed();
@@ -280,13 +284,13 @@ impl Default for MetricsMiddleware {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Message, Choice, Usage};
+    use crate::types::Usage;
 
     #[test]
     fn test_metrics_creation() {
         let metrics = Metrics::new();
         let snapshot = metrics.snapshot();
-        
+
         assert_eq!(snapshot.requests_total, 0);
         assert_eq!(snapshot.requests_success, 0);
         assert_eq!(snapshot.requests_failed, 0);
@@ -295,7 +299,7 @@ mod tests {
     #[test]
     fn test_record_success() {
         let metrics = Metrics::new();
-        
+
         let response = ChatResponse {
             id: "test".to_string(),
             object: "chat.completion".to_string(),
@@ -313,9 +317,9 @@ mod tests {
             }),
             system_fingerprint: None,
         };
-        
+
         metrics.record_success(&response, Duration::from_millis(100));
-        
+
         let snapshot = metrics.snapshot();
         assert_eq!(snapshot.requests_total, 1);
         assert_eq!(snapshot.requests_success, 1);
@@ -325,10 +329,10 @@ mod tests {
     #[test]
     fn test_record_failure() {
         let metrics = Metrics::new();
-        
+
         let error = LlmConnectorError::RateLimitError("test".to_string());
         metrics.record_failure(&error, Duration::from_millis(50));
-        
+
         let snapshot = metrics.snapshot();
         assert_eq!(snapshot.requests_total, 1);
         assert_eq!(snapshot.requests_failed, 1);

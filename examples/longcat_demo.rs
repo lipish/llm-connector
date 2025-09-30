@@ -23,12 +23,11 @@
 use llm_connector::{
     config::ProviderConfig,
     protocols::{
-        core::{Provider, GenericProvider},
-        openai::longcat,
+        core::{GenericProvider, Provider},
         factory::ProtocolFactoryRegistry,
+        openai::longcat,
     },
     types::{ChatRequest, Message},
-    error::LlmConnectorError,
 };
 
 #[tokio::main]
@@ -37,11 +36,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("===================\n");
 
     // Get API key from environment
-    let api_key = std::env::var("LONGCAT_API_KEY")
-        .unwrap_or_else(|_| {
-            println!("⚠️  LONGCAT_API_KEY not set, using demo key");
-            "demo-key".to_string()
-        });
+    let api_key = std::env::var("LONGCAT_API_KEY").unwrap_or_else(|_| {
+        println!("⚠️  LONGCAT_API_KEY not set, using demo key");
+        "demo-key".to_string()
+    });
 
     // ============================================================================
     // Method 1: Direct Protocol Usage
@@ -49,15 +47,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📋 Method 1: Direct Protocol Usage");
     println!("   Using longcat() function directly\n");
 
-    let config = ProviderConfig::new(&api_key)
-        .with_timeout_ms(30000);
+    let config = ProviderConfig::new(&api_key).with_timeout_ms(30000);
 
     let provider = GenericProvider::new(config.clone(), longcat())?;
-    
+
     println!("   ✅ Provider created");
-    println!("   ├─ Name: {}", provider.adapter().name());
+    println!("   ├─ Name: {}", provider.name());
     println!("   ├─ Base URL: https://api.longcat.chat/openai");
-    println!("   └─ Models: {:?}\n", provider.adapter().supported_models());
+    println!("   └─ Models: {:?}\n", provider.supported_models());
 
     // ============================================================================
     // Method 2: Factory Pattern
@@ -66,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Using ProtocolFactoryRegistry\n");
 
     let registry = ProtocolFactoryRegistry::with_defaults();
-    
+
     // Check if longcat is registered
     if let Some(protocol) = registry.get_protocol_for_provider("longcat") {
         println!("   ✅ LongCat registered in factory");
@@ -98,15 +95,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "LongCat-Flash-Chat".to_string(),
-        messages: vec![
-            Message {
-                role: "user".to_string(),
-                content: "你好！请用一句话介绍一下 LongCat。".to_string(),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-            }
-        ],
+        messages: vec![Message {
+            role: "user".to_string(),
+            content: "你好！请用一句话介绍一下 LongCat。".to_string(),
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }],
         max_tokens: Some(1000),
         temperature: Some(0.7),
         top_p: None,
@@ -133,24 +128,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   1. Set LONGCAT_API_KEY environment variable");
     println!("   2. Uncomment the API call code below\n");
 
-    // Uncomment to make actual API call:
-    // match provider.chat(&request).await {
-    //     Ok(response) => {
-    //         println!("   ✅ Response received:");
-    //         if let Some(choice) = response.choices.first() {
-    //             println!("   {}\n", choice.message.content);
-    //         }
-    //         if let Some(usage) = response.usage {
-    //             println!("   Token usage:");
-    //             println!("   ├─ Prompt: {}", usage.prompt_tokens);
-    //             println!("   ├─ Completion: {}", usage.completion_tokens);
-    //             println!("   └─ Total: {}", usage.total_tokens);
-    //         }
-    //     }
-    //     Err(e) => {
-    //         println!("   ❌ Error: {}", e);
-    //     }
-    // }
+    // Make actual API call:
+    match provider.chat(&request).await {
+        Ok(response) => {
+            println!("   ✅ Response received:");
+            if let Some(choice) = response.choices.first() {
+                println!("   {}\n", choice.message.content);
+            }
+            if let Some(usage) = response.usage {
+                println!("   Token usage:");
+                println!("   ├─ Prompt: {}", usage.prompt_tokens);
+                println!("   ├─ Completion: {}", usage.completion_tokens);
+                println!("   └─ Total: {}", usage.total_tokens);
+            }
+        }
+        Err(e) => {
+            println!("   ❌ Error: {}", e);
+        }
+    }
 
     // ============================================================================
     // API Features
@@ -244,14 +239,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use llm_connector::protocols::core::ProviderAdapter;
 
     #[test]
     fn test_longcat_protocol() {
         let protocol = longcat();
         assert_eq!(protocol.name(), "longcat");
         assert_eq!(protocol.supported_models().len(), 2);
-        assert!(protocol.supported_models().contains(&"LongCat-Flash-Chat".to_string()));
-        assert!(protocol.supported_models().contains(&"LongCat-Flash-Thinking".to_string()));
+        assert!(protocol
+            .supported_models()
+            .contains(&"LongCat-Flash-Chat".to_string()));
+        assert!(protocol
+            .supported_models()
+            .contains(&"LongCat-Flash-Thinking".to_string()));
     }
 
     #[test]

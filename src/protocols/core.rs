@@ -1,10 +1,10 @@
 //! Core provider traits, transport, and error handling
-//! 
+//!
 //! This module contains all the fundamental abstractions needed for provider implementations.
 
+use crate::config::{ProviderConfig, SharedProviderConfig};
 use crate::error::LlmConnectorError;
 use crate::types::{ChatRequest, ChatResponse};
-use crate::config::{ProviderConfig, SharedProviderConfig};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
@@ -24,18 +24,18 @@ use crate::types::{ChatStream, StreamingResponse};
 pub trait Provider: Send + Sync {
     /// Get the provider name
     fn name(&self) -> &str;
-    
+
     /// Get the list of supported models
     fn supported_models(&self) -> Vec<String>;
-    
+
     /// Check if a model is supported
     fn supports_model(&self, model: &str) -> bool {
         self.supported_models().iter().any(|m| m == model)
     }
-    
+
     /// Send a chat completion request
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError>;
-    
+
     /// Send a streaming chat completion request
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError>;
@@ -146,8 +146,12 @@ impl HttpTransport {
         &self,
         url: &str,
         body: &T,
-    ) -> Result<impl futures_util::Stream<Item = Result<reqwest::Bytes, reqwest::Error>>, LlmConnectorError> {
-        let response = self.client
+    ) -> Result<
+        impl futures_util::Stream<Item = Result<reqwest::Bytes, reqwest::Error>>,
+        LlmConnectorError,
+    > {
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", &self.config.api_key))
             .header("Content-Type", "application/json")
@@ -176,23 +180,22 @@ pub struct StandardErrorMapper;
 
 impl ErrorMapper for StandardErrorMapper {
     fn map_http_error(status: u16, body: Value) -> LlmConnectorError {
-        let error_message = body["error"]["message"]
-            .as_str()
-            .unwrap_or("Unknown error");
-        
-        let error_type = body["error"]["type"]
-            .as_str()
-            .unwrap_or("unknown_error");
-            
+        let error_message = body["error"]["message"].as_str().unwrap_or("Unknown error");
+
+        let error_type = body["error"]["type"].as_str().unwrap_or("unknown_error");
+
         match status {
             400 => LlmConnectorError::InvalidRequest(error_message.to_string()),
             401 => LlmConnectorError::AuthenticationError(error_message.to_string()),
             403 => LlmConnectorError::PermissionError(error_message.to_string()),
             404 => LlmConnectorError::NotFoundError(error_message.to_string()),
             429 => LlmConnectorError::RateLimitError(error_message.to_string()),
-            500..=599 => LlmConnectorError::ServerError(format!("HTTP {}: {}", status, error_message)),
+            500..=599 => {
+                LlmConnectorError::ServerError(format!("HTTP {}: {}", status, error_message))
+            }
             _ => LlmConnectorError::ProviderError(format!(
-                "HTTP {}: {} (type: {})", status, error_message, error_type
+                "HTTP {}: {} (type: {})",
+                status, error_message, error_type
             )),
         }
     }
@@ -208,11 +211,12 @@ impl ErrorMapper for StandardErrorMapper {
     }
 
     fn is_retriable_error(error: &LlmConnectorError) -> bool {
-        matches!(error, 
-            LlmConnectorError::RateLimitError(_) |
-            LlmConnectorError::ServerError(_) |
-            LlmConnectorError::TimeoutError(_) |
-            LlmConnectorError::ConnectionError(_)
+        matches!(
+            error,
+            LlmConnectorError::RateLimitError(_)
+                | LlmConnectorError::ServerError(_)
+                | LlmConnectorError::TimeoutError(_)
+                | LlmConnectorError::ConnectionError(_)
         )
     }
 }
@@ -235,9 +239,9 @@ impl<A: ProviderAdapter> GenericProvider<A> {
             config.timeout_ms,
             config.base_url.as_ref(),
         )?;
-        
+
         let transport = HttpTransport::new(client, config);
-        
+
         Ok(Self { adapter, transport })
     }
 }
@@ -255,18 +259,20 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         let url = self.adapter.endpoint_url(&self.transport.config.base_url);
         let request_data = self.adapter.build_request_data(request, false);
-        
+
         let response = self.transport.post(&url, &request_data).await?;
-        
+
         if !response.status().is_success() {
             let status = response.status().as_u16();
             let body: Value = response.json().await.unwrap_or_default();
             return Err(A::ErrorMapperType::map_http_error(status, body));
         }
-        
-        let response_data: A::ResponseType = response.json().await
+
+        let response_data: A::ResponseType = response
+            .json()
+            .await
             .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
-        
+
         Ok(self.adapter.parse_response_data(response_data))
     }
 
@@ -274,13 +280,18 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         use crate::utils::streaming::sse_events;
         use futures_util::StreamExt;
-        
+
         let url = self.adapter.endpoint_url(&self.transport.config.base_url);
         let request_data = self.adapter.build_request_data(request, true);
-        
-        let response = self.transport.client
+
+        let response = self
+            .transport
+            .client
             .post(&url)
-            .header("Authorization", format!("Bearer {}", &self.transport.config.api_key))
+            .header(
+                "Authorization",
+                format!("Bearer {}", &self.transport.config.api_key),
+            )
             .header("Content-Type", "application/json")
             .json(&request_data)
             .send()
@@ -299,7 +310,7 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
                     if data.trim() == "[DONE]" {
                         return None;
                     }
-                    
+
                     match serde_json::from_str::<A::StreamResponseType>(&data) {
                         Ok(stream_response) => {
                             Some(Ok(self.adapter.parse_stream_response_data(stream_response)))

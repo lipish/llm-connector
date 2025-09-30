@@ -22,6 +22,10 @@ reqwest = ["dep:reqwest", "dep:tokio", "dep:futures-util"]
 streaming = ["reqwest", "dep:pin-project-lite"]
 # Configuration support
 config = ["dep:serde_yaml"]
+# YAML configuration support
+yaml = ["config", "dep:serde_yaml"]
+# TOML configuration support (placeholder for future use)
+toml = ["config"]
 
 [dependencies]
 # Core serialization

@@ -2,8 +2,8 @@
 //!
 //! This module provides middleware for logging LLM API requests and responses.
 
-use crate::types::{ChatRequest, ChatResponse};
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse};
 use std::time::Instant;
 
 /// Logging middleware for tracking requests and responses
@@ -67,15 +67,15 @@ impl LoggingMiddleware {
     /// Log before sending a request
     pub fn log_request(&self, provider: &str, request: &ChatRequest) {
         log::info!("Sending request to provider: {}", provider);
-        
+
         if self.log_request_body {
             log::debug!("Request model: {}", request.model);
             log::debug!("Request messages: {} messages", request.messages.len());
-            
+
             if let Some(max_tokens) = request.max_tokens {
                 log::debug!("Request max_tokens: {}", max_tokens);
             }
-            
+
             if let Some(temperature) = request.temperature {
                 log::debug!("Request temperature: {}", temperature);
             }
@@ -83,9 +83,14 @@ impl LoggingMiddleware {
     }
 
     /// Log after receiving a response
-    pub fn log_response(&self, provider: &str, response: &ChatResponse, duration: std::time::Duration) {
+    pub fn log_response(
+        &self,
+        provider: &str,
+        response: &ChatResponse,
+        duration: std::time::Duration,
+    ) {
         log::info!("Received response from provider: {}", provider);
-        
+
         if self.log_timing {
             log::info!("Request duration: {:?}", duration);
         }
@@ -94,7 +99,7 @@ impl LoggingMiddleware {
             log::debug!("Response ID: {}", response.id);
             log::debug!("Response model: {}", response.model);
             log::debug!("Response choices: {}", response.choices.len());
-            
+
             if let Some(first_choice) = response.choices.first() {
                 let content_preview = if first_choice.message.content.len() > 100 {
                     format!("{}...", &first_choice.message.content[..100])
@@ -102,7 +107,7 @@ impl LoggingMiddleware {
                     first_choice.message.content.clone()
                 };
                 log::debug!("Response content preview: {}", content_preview);
-                
+
                 if let Some(finish_reason) = &first_choice.finish_reason {
                     log::debug!("Finish reason: {}", finish_reason);
                 }
@@ -122,8 +127,18 @@ impl LoggingMiddleware {
     }
 
     /// Log an error
-    pub fn log_error(&self, provider: &str, error: &LlmConnectorError, duration: std::time::Duration) {
-        log::error!("Request to {} failed after {:?}: {}", provider, duration, error);
+    pub fn log_error(
+        &self,
+        provider: &str,
+        error: &LlmConnectorError,
+        duration: std::time::Duration,
+    ) {
+        log::error!(
+            "Request to {} failed after {:?}: {}",
+            provider,
+            duration,
+            error
+        );
     }
 
     /// Execute a request with logging
@@ -138,9 +153,9 @@ impl LoggingMiddleware {
         Fut: std::future::Future<Output = Result<ChatResponse, LlmConnectorError>>,
     {
         let start = Instant::now();
-        
+
         self.log_request(provider, request);
-        
+
         match operation().await {
             Ok(response) => {
                 let duration = start.elapsed();
@@ -165,7 +180,7 @@ impl Default for LoggingMiddleware {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Message, Choice, Usage};
+    use crate::types::{Choice, Message, Usage};
 
     #[test]
     fn test_logging_middleware_creation() {
@@ -192,7 +207,7 @@ mod tests {
             .with_response_body(false)
             .with_timing(true)
             .with_usage(true);
-        
+
         assert!(!logger.log_request_body);
         assert!(!logger.log_response_body);
         assert!(logger.log_timing);
@@ -202,7 +217,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_with_logging() {
         let logger = LoggingMiddleware::minimal();
-        
+
         let request = ChatRequest {
             model: "test-model".to_string(),
             messages: vec![Message {
@@ -227,36 +242,38 @@ mod tests {
             stream: None,
         };
 
-        let result = logger.execute("test-provider", &request, || async {
-            Ok(ChatResponse {
-                id: "test-id".to_string(),
-                object: "chat.completion".to_string(),
-                created: 0,
-                model: "test-model".to_string(),
-                choices: vec![Choice {
-                    index: 0,
-                    message: Message {
-                        role: "assistant".to_string(),
-                        content: "Hello!".to_string(),
-                        name: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                    },
-                    finish_reason: Some("stop".to_string()),
-                    logprobs: None,
-                }],
-                usage: Some(Usage {
-                    prompt_tokens: 10,
-                    completion_tokens: 5,
-                    total_tokens: 15,
-                    prompt_cache_hit_tokens: None,
-                    prompt_cache_miss_tokens: None,
-                    prompt_tokens_details: None,
-                    completion_tokens_details: None,
-                }),
-                system_fingerprint: None,
+        let result = logger
+            .execute("test-provider", &request, || async {
+                Ok(ChatResponse {
+                    id: "test-id".to_string(),
+                    object: "chat.completion".to_string(),
+                    created: 0,
+                    model: "test-model".to_string(),
+                    choices: vec![Choice {
+                        index: 0,
+                        message: Message {
+                            role: "assistant".to_string(),
+                            content: "Hello!".to_string(),
+                            name: None,
+                            tool_calls: None,
+                            tool_call_id: None,
+                        },
+                        finish_reason: Some("stop".to_string()),
+                        logprobs: None,
+                    }],
+                    usage: Some(Usage {
+                        prompt_tokens: 10,
+                        completion_tokens: 5,
+                        total_tokens: 15,
+                        prompt_cache_hit_tokens: None,
+                        prompt_cache_miss_tokens: None,
+                        prompt_tokens_details: None,
+                        completion_tokens_details: None,
+                    }),
+                    system_fingerprint: None,
+                })
             })
-        }).await;
+            .await;
 
         assert!(result.is_ok());
     }

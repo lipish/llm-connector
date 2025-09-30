@@ -6,16 +6,16 @@
 //! - Metrics collection
 //! - Custom interceptors
 
-pub mod retry;
+pub mod interceptor;
 pub mod logging;
 pub mod metrics;
-pub mod interceptor;
+pub mod retry;
 
 // Re-export main types
-pub use retry::{RetryMiddleware, RetryPolicyBuilder};
-pub use logging::LoggingMiddleware;
-pub use metrics::{MetricsMiddleware, Metrics, MetricsSnapshot};
 pub use interceptor::{
-    Interceptor, InterceptorChain,
-    HeaderInterceptor, ValidationInterceptor, SanitizationInterceptor,
+    HeaderInterceptor, Interceptor, InterceptorChain, SanitizationInterceptor,
+    ValidationInterceptor,
 };
+pub use logging::LoggingMiddleware;
+pub use metrics::{Metrics, MetricsMiddleware, MetricsSnapshot};
+pub use retry::{RetryMiddleware, RetryPolicyBuilder};

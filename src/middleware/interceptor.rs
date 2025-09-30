@@ -3,8 +3,8 @@
 //! This module provides a flexible interceptor system for modifying requests
 //! and responses before and after they are sent to the LLM provider.
 
-use crate::types::{ChatRequest, ChatResponse};
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -55,7 +55,7 @@ impl InterceptorChain {
     }
 
     /// Add an interceptor to the chain
-    pub fn add(mut self, interceptor: Arc<dyn Interceptor>) -> Self {
+    pub fn with_interceptor(mut self, interceptor: Arc<dyn Interceptor>) -> Self {
         self.interceptors.push(interceptor);
         self
     }
@@ -69,7 +69,10 @@ impl InterceptorChain {
     }
 
     /// Execute all after_response interceptors
-    pub async fn after_response(&self, response: &mut ChatResponse) -> Result<(), LlmConnectorError> {
+    pub async fn after_response(
+        &self,
+        response: &mut ChatResponse,
+    ) -> Result<(), LlmConnectorError> {
         for interceptor in &self.interceptors {
             interceptor.after_response(response).await?;
         }
@@ -206,9 +209,10 @@ impl Interceptor for ValidationInterceptor {
         if let Some(max_tokens) = self.max_tokens {
             if let Some(requested_tokens) = request.max_tokens {
                 if requested_tokens > max_tokens {
-                    return Err(LlmConnectorError::InvalidRequest(
-                        format!("Requested tokens ({}) exceeds maximum ({})", requested_tokens, max_tokens)
-                    ));
+                    return Err(LlmConnectorError::InvalidRequest(format!(
+                        "Requested tokens ({}) exceeds maximum ({})",
+                        requested_tokens, max_tokens
+                    )));
                 }
             }
         }
@@ -216,9 +220,11 @@ impl Interceptor for ValidationInterceptor {
         // Validate max messages
         if let Some(max_messages) = self.max_messages {
             if request.messages.len() > max_messages {
-                return Err(LlmConnectorError::InvalidRequest(
-                    format!("Number of messages ({}) exceeds maximum ({})", request.messages.len(), max_messages)
-                ));
+                return Err(LlmConnectorError::InvalidRequest(format!(
+                    "Number of messages ({}) exceeds maximum ({})",
+                    request.messages.len(),
+                    max_messages
+                )));
             }
         }
 
@@ -271,8 +277,8 @@ mod tests {
     #[tokio::test]
     async fn test_interceptor_chain() {
         let chain = InterceptorChain::new()
-            .add(Arc::new(ValidationInterceptor::new().with_max_tokens(1000)))
-            .add(Arc::new(SanitizationInterceptor::new()));
+            .with_interceptor(Arc::new(ValidationInterceptor::new().with_max_tokens(1000)))
+            .with_interceptor(Arc::new(SanitizationInterceptor::new()));
 
         let request = ChatRequest {
             model: "test".to_string(),
@@ -298,17 +304,19 @@ mod tests {
             stream: None,
         };
 
-        let result = chain.execute(request, |req| async move {
-            Ok(ChatResponse {
-                id: "test".to_string(),
-                object: "chat.completion".to_string(),
-                created: 0,
-                model: req.model,
-                choices: vec![],
-                usage: None,
-                system_fingerprint: Some("test-fingerprint".to_string()),
+        let result = chain
+            .execute(request, |req| async move {
+                Ok(ChatResponse {
+                    id: "test".to_string(),
+                    object: "chat.completion".to_string(),
+                    created: 0,
+                    model: req.model,
+                    choices: vec![],
+                    usage: None,
+                    system_fingerprint: Some("test-fingerprint".to_string()),
+                })
             })
-        }).await;
+            .await;
 
         assert!(result.is_ok());
     }

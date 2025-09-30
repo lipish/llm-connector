@@ -27,7 +27,7 @@
 //! registry.register("deepseek", config, deepseek())?;
 //!
 //! // Get a provider
-//! let provider = registry.get("deepseek").unwrap();
+//! let provider = registry.get_provider("deepseek").unwrap();
 //! # Ok(())
 //! # }
 //! ```

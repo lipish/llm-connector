@@ -1,5 +1,5 @@
 //! Protocol-based provider implementations
-//! 
+//!
 //! This module organizes providers by the API protocol they follow, rather than
 //! by individual provider names. This approach recognizes that many providers
 //! implement the same underlying protocol (especially OpenAI-compatible APIs).
@@ -30,18 +30,18 @@ pub mod factory;
 pub mod openai;
 
 // Re-export core components
-pub use core::{Provider, ProviderAdapter, ErrorMapper, HttpTransport, GenericProvider};
+pub use core::{ErrorMapper, GenericProvider, HttpTransport, Provider, ProviderAdapter};
 
 // Re-export protocols
-pub use openai::{OpenAIProtocol, openai_providers};
-pub use anthropic::{AnthropicProtocol, anthropic_providers};
-pub use aliyun::{AliyunProtocol, aliyun_providers};
+pub use aliyun::{aliyun_providers, AliyunProtocol};
+pub use anthropic::{anthropic_providers, AnthropicProtocol};
+pub use openai::{openai_providers, OpenAIProtocol};
 
 // Re-export factory
 pub use factory::{
-    ProtocolFactory, ProtocolFactoryRegistry,
-    OpenAIProtocolFactory, AnthropicProtocolFactory, AliyunProtocolFactory,
+    AliyunProtocolFactory, AnthropicProtocolFactory, OpenAIProtocolFactory, ProtocolFactory,
+    ProtocolFactoryRegistry,
 };
 
 // Re-export configuration from the unified config module
-pub use crate::config::{ProviderConfig, RetryConfig, RegistryConfig};
+pub use crate::config::{ProviderConfig, RegistryConfig, RetryConfig};
