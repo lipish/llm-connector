@@ -27,13 +27,41 @@ pub enum LlmConnectorError {
     #[error("Provider error: {0}")]
     ProviderError(String),
 
-    /// Streaming-related error
-    #[error("Streaming error: {0}")]
-    StreamingError(String),
+    /// Permission denied error
+    #[error("Permission denied: {0}")]
+    PermissionError(String),
+
+    /// Resource not found error
+    #[error("Not found: {0}")]
+    NotFoundError(String),
+
+    /// Server error (5xx)
+    #[error("Server error: {0}")]
+    ServerError(String),
+
+    /// Connection timeout error
+    #[error("Timeout error: {0}")]
+    TimeoutError(String),
+
+    /// Connection error
+    #[error("Connection error: {0}")]
+    ConnectionError(String),
+
+    /// Maximum retries exceeded
+    #[error("Max retries exceeded: {0}")]
+    MaxRetriesExceeded(String),
+
+    /// Parse error
+    #[error("Parse error: {0}")]
+    ParseError(String),
 
     /// Configuration error
     #[error("Configuration error: {0}")]
     ConfigError(String),
+
+    /// Streaming-related error
+    #[error("Streaming error: {0}")]
+    StreamingError(String),
 
     /// JSON parsing error
     #[error("JSON parsing error: {0}")]
@@ -68,8 +96,14 @@ impl LlmConnectorError {
             LlmConnectorError::NetworkError(_) => 502,
             LlmConnectorError::ProviderError(_) => 502,
             LlmConnectorError::StreamingError(_) => 500,
-            #[cfg(feature = "reqwest")]
+            LlmConnectorError::PermissionError(_) => 403,
+            LlmConnectorError::NotFoundError(_) => 404,
+            LlmConnectorError::ServerError(_) => 500,
+            LlmConnectorError::TimeoutError(_) => 408,
+            LlmConnectorError::ConnectionError(_) => 502,
+            LlmConnectorError::ParseError(_) => 400,
             LlmConnectorError::HttpError(_) => 502,
+            LlmConnectorError::MaxRetriesExceeded(_) => 503,
         }
     }
 

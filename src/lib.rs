@@ -40,17 +40,25 @@
 pub mod client;
 pub mod config;
 pub mod error;
+pub mod middleware;
+pub mod registry;
 pub mod types;
 
 // Provider implementations
-pub mod providers;
+pub mod protocols;
+// Legacy compatibility - will be deprecated in v0.2.0
+pub mod providers {
+    //! Legacy module - use `protocols` instead
+    //! This module will be deprecated in v0.2.0
+    pub use crate::protocols::*;
+}
 
 // Utilities
 pub mod utils;
 
 // Re-exports for convenience
 pub use client::Client;
-pub use config::{Config, ProviderConfig};
+pub use config::{Config, ProviderConfig, RetryConfig, RegistryConfig};
 pub use error::LlmConnectorError;
 pub use types::{
     ChatRequest, ChatResponse, Message, Choice, Usage,

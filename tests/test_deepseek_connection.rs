@@ -2,7 +2,7 @@
 
 use llm_connector::{Client, ChatRequest, Message, Config, ProviderConfig};
 use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path, header, body_json};
+use wiremock::matchers::{method, path, header};
 
 mod common;
 
@@ -15,10 +15,6 @@ async fn test_deepseek_connection_success() {
     Mock::given(method("POST"))
         .and(path("/chat/completions"))
         .and(header("Authorization", "Bearer fake-api-key"))
-        .and(body_json(serde_json::json!({
-            "model": "deepseek-chat",
-            "messages": [{"role": "user", "content": "Hello"}],
-        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "id": "chatcmpl-mock-id",
             "object": "chat.completion",

@@ -18,31 +18,16 @@ llm-connector 配置规范，专注于简单的提供商配置。
 export OPENAI_API_KEY="sk-..."
 export OPENAI_BASE_URL="https://api.openai.com/v1"  # 可选
 export OPENAI_TIMEOUT_MS="30000"                    # 可选
-export OPENAI_INITIAL_REQUEST_MAX_RETRIES="2"       # 可选（阶段一）
-export OPENAI_STREAM_IDLE_TIMEOUT_MS="0"            # 可选（阶段二，默认禁用或 0）
-export OPENAI_STREAM_MAX_RETRIES="0"                # 可选（阶段二，默认禁用或 0）
-export OPENAI_PARSER_TYPE=""                        # 可选（"sse"/"ndjson"，阶段一建议留空自动）
-export OPENAI_FEATURE_FLAGS=""                      # 可选（逗号分隔：例 stream_orchestrator）
 
 # Anthropic
 export ANTHROPIC_API_KEY="sk-ant-..."
 export ANTHROPIC_BASE_URL="https://api.anthropic.com"  # 可选
 export ANTHROPIC_TIMEOUT_MS="30000"                    # 可选
-export ANTHROPIC_INITIAL_REQUEST_MAX_RETRIES="2"       # 可选（阶段一）
-export ANTHROPIC_STREAM_IDLE_TIMEOUT_MS="0"            # 可选（阶段二，默认禁用或 0）
-export ANTHROPIC_STREAM_MAX_RETRIES="0"                # 可选（阶段二，默认禁用或 0）
-export ANTHROPIC_PARSER_TYPE=""                        # 可选（"sse"/"ndjson"，阶段一建议留空自动）
-export ANTHROPIC_FEATURE_FLAGS=""                      # 可选（逗号分隔）
 
 # DeepSeek
 export DEEPSEEK_API_KEY="sk-..."
 export DEEPSEEK_BASE_URL="https://api.deepseek.com/v1"  # 可选
 export DEEPSEEK_TIMEOUT_MS="30000"                      # 可选
-export DEEPSEEK_INITIAL_REQUEST_MAX_RETRIES="2"         # 可选（阶段一）
-export DEEPSEEK_STREAM_IDLE_TIMEOUT_MS="0"              # 可选（阶段二，默认禁用或 0）
-export DEEPSEEK_STREAM_MAX_RETRIES="0"                  # 可选（阶段二，默认禁用或 0）
-export DEEPSEEK_PARSER_TYPE=""                          # 可选（"sse"/"ndjson"，阶段一建议留空自动）
-export DEEPSEEK_FEATURE_FLAGS=""                        # 可选（逗号分隔）
 
 # GLM (智谱)
 export GLM_API_KEY="..."
@@ -50,11 +35,6 @@ export GLM_API_KEY="..."
 export ZHIPU_API_KEY="..."
 export GLM_BASE_URL="https://open.bigmodel.cn/api/paas/v4"  # 可选
 export GLM_TIMEOUT_MS="30000"                               # 可选
-export GLM_INITIAL_REQUEST_MAX_RETRIES="2"                  # 可选（阶段一）
-export GLM_STREAM_IDLE_TIMEOUT_MS="0"                       # 可选（阶段二，默认禁用或 0）
-export GLM_STREAM_MAX_RETRIES="0"                           # 可选（阶段二，默认禁用或 0）
-export GLM_PARSER_TYPE=""                                   # 可选（"sse"/"ndjson"，阶段一建议留空自动）
-export GLM_FEATURE_FLAGS=""                                 # 可选（逗号分隔）
 
 # Qwen (阿里)
 export QWEN_API_KEY="..."
@@ -62,23 +42,13 @@ export QWEN_API_KEY="..."
 export ALIBABA_QWEN_API_KEY="..."
 export QWEN_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"  # 可选
 export QWEN_TIMEOUT_MS="30000"                                            # 可选
-export QWEN_INITIAL_REQUEST_MAX_RETRIES="2"                               # 可选（阶段一）
-export QWEN_STREAM_IDLE_TIMEOUT_MS="0"                                    # 可选（阶段二，默认禁用或 0）
-export QWEN_STREAM_MAX_RETRIES="0"                                        # 可选（阶段二，默认禁用或 0）
-export QWEN_PARSER_TYPE=""                                                # 可选（"sse"/"ndjson"，阶段一建议留空自动）
-export QWEN_FEATURE_FLAGS=""                                              # 可选（逗号分隔）
 
 # Kimi (月之暗面)
 export KIMI_API_KEY="..."
 # 或者
 export MOONSHOT_API_KEY="..."
 export KIMI_BASE_URL="https://api.moonshot.cn/v1"  # 可选
-export KIMI_TIMEOUT_MS="30000"                      # 可选
-export KIMI_INITIAL_REQUEST_MAX_RETRIES="2"         # 可选（阶段一）
-export KIMI_STREAM_IDLE_TIMEOUT_MS="0"              # 可选（阶段二，默认禁用或 0）
-export KIMI_STREAM_MAX_RETRIES="0"                  # 可选（阶段二，默认禁用或 0）
-export KIMI_PARSER_TYPE=""                          # 可选（"sse"/"ndjson"，阶段一建议留空自动）
-export KIMI_FEATURE_FLAGS=""                        # 可选（逗号分隔）
+export KIMI_TIMEOUT_MS="30000"                     # 可选
 ```
 
 ### 2. 代码配置
@@ -116,17 +86,8 @@ let client = Client::with_config(config);
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `api_key` | String | ✅ | - | API 密钥 |
-| `base_url` | Option<String> | ❌ | 提供商默认 URL | API 基础 URL |
-| `timeout_ms` | Option<u64> | ❌ | 30000 | 请求超时时间（毫秒） |
-| `initial_request_max_retries` | Option<u32> | ❌ | None | 初始请求失败重试次数（阶段一启用，仅针对非 2xx/网络瞬时错误） |
-| `stream_idle_timeout_ms` | Option<u64> | ❌ | Disabled | 流空闲超时（阶段二灰度，默认禁用） |
-| `stream_max_retries` | Option<u32> | ❌ | Disabled | 流级最大重试次数（阶段二灰度，默认禁用） |
-| `parser_type` | Option<String> | ❌ | None | 流解析器偏好："sse" 或 "ndjson"（默认自动选择）；阶段一建议保持 None |
-| `feature_flags` | Option<Vec<String>> | ❌ | None | 实验特性开关：示例 "stream_orchestrator"（阶段二灰度） |
-
-#### 流式配置说明（阶段一/阶段二）
-- 阶段一：仅支持 `initial_request_max_retries` 控制初始请求的重试；流级重试与空闲超时默认禁用；`parser_type` 建议保持默认自动。
-- 阶段二：在 feature flag 下可开启 `stream_idle_timeout_ms` 与 `stream_max_retries`，与编排层联动（idle/早关闭重试/退避）；可通过 `parser_type` 强制使用指定解析器；`feature_flags` 控制实验能力启用范围。
+| `base_url` | Option\<String\> | ❌ | 提供商默认 URL | API 基础 URL |
+| `timeout_ms` | Option\<u64\> | ❌ | 30000 | 请求超时时间（毫秒） |
 
 ### 默认 Base URL
 

@@ -1,7 +1,6 @@
 //! Example demonstrating DeepSeek provider usage
 
 use llm_connector::{ChatRequest, Client, Config, Message, ProviderConfig};
-use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -66,13 +65,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config {
         deepseek: Some(ProviderConfig {
-            api_key: env::var("DEEPSEEK_API_KEY").unwrap_or_default(),
-            base_url: None,
+            api_key: "your-deepseek-api-key-here".to_string(),
+            base_url: Some("https://api.deepseek.com".to_string()),
             timeout_ms: Some(30000),
-            proxy: None,
         }),
-        openai: None,
-        zhipu: None,
         ..Default::default()
     };
 

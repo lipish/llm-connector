@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::error::LlmConnectorError;
 use crate::providers::Provider;
-use crate::providers::base::utils;
+use crate::utils;
 use crate::types::{ChatRequest, ChatResponse};
 
 #[cfg(feature = "streaming")]
@@ -41,25 +41,25 @@ impl Client {
     /// Initialize providers based on configuration
     #[cfg(feature = "reqwest")]
     fn initialize_providers(&mut self) {
-        use crate::providers::{GenericProvider, DeepSeekAdapter, AliyunAdapter, ZhipuAdapter};
+        use crate::protocols::{GenericProvider};
 
         // Initialize DeepSeek provider
         if let Some(deepseek_config) = &self.config.deepseek {
-            if let Ok(provider) = GenericProvider::new(deepseek_config.clone(), DeepSeekAdapter) {
+            if let Ok(provider) = GenericProvider::new(deepseek_config.clone(), crate::protocols::openai::deepseek()) {
                 self.providers.insert("deepseek".to_string(), Arc::new(provider));
             }
         }
 
         // Initialize Aliyun provider
         if let Some(aliyun_config) = &self.config.aliyun {
-            if let Ok(provider) = GenericProvider::new(aliyun_config.clone(), AliyunAdapter) {
+            if let Ok(provider) = GenericProvider::new(aliyun_config.clone(), crate::protocols::aliyun::aliyun()) {
                 self.providers.insert("aliyun".to_string(), Arc::new(provider));
             }
         }
 
         // Initialize Zhipu provider
         if let Some(zhipu_config) = &self.config.zhipu {
-            if let Ok(provider) = GenericProvider::new(zhipu_config.clone(), ZhipuAdapter) {
+            if let Ok(provider) = GenericProvider::new(zhipu_config.clone(), crate::protocols::openai::zhipu()) {
                 self.providers.insert("zhipu".to_string(), Arc::new(provider));
             }
         }

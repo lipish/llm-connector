@@ -211,27 +211,6 @@ pub struct Usage {
 }
 ```
 
-## 流式行为规范（阶段一/阶段二）
-
-- 触发方式：当 ChatRequest.stream = true 时使用流式返回；Chat 接口返回完整响应，ChatStream 接口返回增量帧。
-- 解析协议：
-  - SSE：采用事件级解析（sse_data_events），CRLF 归一化、聚合多条 data 行，忽略 "[DONE]" 完成帧，由连接正常结束表示完成（阶段一）。
-  - NDJSON：按行解析（ndjson_events），每行一个 JSON 对象，忽略空行（阶段一最小实现）。
-- 终止语义：
-  - 阶段一：保守策略，以“连接正常结束 = 完成”为主；如提供商在最后一帧包含 finish_reason，则在上层作为完成标记处理。
-  - 阶段二：通过 CompletionSignal 抽象统一（Marker、JsonField、ConnectionClosed），由编排层识别并可选做早关闭重试。
-- ChatStream 产出：统一为 StreamingResponse（chat.completion.chunk），语义对齐 OpenAI：
-  - delta.role：仅在首帧出现；
-  - delta.content：累积追加文本；
-  - delta.tool_calls.arguments：按提供商增量透传；
-  - usage：仅可能在最后一帧出现；
-  - object：固定为 "chat.completion.chunk"。
-- 重试策略：
-  - 阶段一：仅“请求级重试”（初始请求失败：非 2xx / 网络瞬时错误），设最大次数与指数退避；不启用“流级自动重试/空闲超时”。
-  - 阶段二：在 feature flag 下可启用编排层（idle/早关闭重试/退避）。
-- 兼容性：由 Provider 选择解析器（SSE/NDJSON），统一转换为内部 StreamingResponse。
-- 配置参考：环境变量与流式配置说明详见 docs/specs/CONFIG_SCHEMA.md。
-
 ### 流式类型
 
 #### StreamingResponse

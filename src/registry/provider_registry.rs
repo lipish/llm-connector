@@ -1,9 +1,10 @@
-use crate::config::ProviderConfig;
+//! Provider registry implementation
+//!
+//! This module provides the core registry functionality for managing multiple providers.
+
+use crate::config::{ProviderConfig, RegistryConfig};
 use crate::error::LlmConnectorError;
-use crate::providers::base::Provider;
-use crate::providers::config::RegistryConfig;
-use crate::providers::generic::GenericProvider;
-use crate::providers::traits::ProviderAdapter;
+use crate::protocols::core::{Provider, GenericProvider, ProviderAdapter};
 use std::collections::HashMap;
 
 /// Unified provider registry for managing all LLM providers
@@ -25,25 +26,31 @@ impl ProviderRegistry {
     pub fn from_config(config: RegistryConfig) -> Result<Self, LlmConnectorError> {
         let mut registry = Self::new();
 
-        for (name, provider_config) in config.providers {
-            // Convert ProviderConfig to the internal ProviderConfig type
-            let internal_config = ProviderConfig {
-                api_key: provider_config.api_key,
-                base_url: provider_config.base_url,
-                timeout_ms: provider_config.timeout_ms,
-                proxy: provider_config.proxy,
-            };
+        for (name, entry) in config.providers {
+            // Extract the config from the entry
+            let internal_config = entry.config;
 
-            // Register the provider based on name
-            match name.as_str() {
+            // Register the provider based on protocol
+            match entry.protocol.as_str() {
                 "aliyun" => {
-                    registry.register(&name, internal_config, crate::providers::AliyunAdapter)?;
+                    registry.register(&name, internal_config, crate::protocols::aliyun::aliyun())?;
                 }
-                "deepseek" => {
-                    registry.register(&name, internal_config, crate::providers::DeepSeekAdapter)?;
+                "openai" => {
+                    // Determine which OpenAI provider based on name
+                    match name.as_str() {
+                        "deepseek" => registry.register(&name, internal_config, crate::protocols::openai::deepseek())?,
+                        "zhipu" => registry.register(&name, internal_config, crate::protocols::openai::zhipu())?,
+                        "moonshot" => registry.register(&name, internal_config, crate::protocols::openai::moonshot())?,
+                        "volcengine" => registry.register(&name, internal_config, crate::protocols::openai::volcengine())?,
+                        "tencent" => registry.register(&name, internal_config, crate::protocols::openai::tencent())?,
+                        "minimax" => registry.register(&name, internal_config, crate::protocols::openai::minimax())?,
+                        "stepfun" => registry.register(&name, internal_config, crate::protocols::openai::stepfun())?,
+                        "longcat" => registry.register(&name, internal_config, crate::protocols::openai::longcat())?,
+                        _ => registry.register(&name, internal_config, crate::protocols::openai::deepseek())?, // default
+                    }
                 }
-                "zhipu" => {
-                    registry.register(&name, internal_config, crate::providers::ZhipuAdapter)?;
+                "anthropic" => {
+                    registry.register(&name, internal_config, crate::protocols::anthropic::anthropic())?;
                 }
                 _ => {
                     return Err(LlmConnectorError::ConfigError(format!(
@@ -166,14 +173,9 @@ impl ProviderRegistryBuilder {
 
     /// Build from a configuration
     pub fn from_config(mut self, config: RegistryConfig) -> Result<Self, LlmConnectorError> {
-        for (name, provider_config) in config.providers {
-            // Convert ProviderConfig to the internal ProviderConfig type
-            let internal_config = ProviderConfig {
-                api_key: provider_config.api_key,
-                base_url: provider_config.base_url,
-                timeout_ms: provider_config.timeout_ms,
-                proxy: provider_config.proxy,
-            };
+        for (name, entry) in config.providers {
+            // Use the provider_config directly
+            let internal_config = entry.config;
 
             // Register the provider based on name
             match name.as_str() {
@@ -181,21 +183,21 @@ impl ProviderRegistryBuilder {
                     self.registry.register(
                         &name,
                         internal_config,
-                        crate::providers::AliyunAdapter,
+                        crate::protocols::aliyun::aliyun(),
                     )?;
                 }
                 "deepseek" => {
                     self.registry.register(
                         &name,
                         internal_config,
-                        crate::providers::DeepSeekAdapter,
+                        crate::protocols::openai::deepseek(),
                     )?;
                 }
                 "zhipu" => {
                     self.registry.register(
                         &name,
                         internal_config,
-                        crate::providers::ZhipuAdapter,
+                        crate::protocols::openai::zhipu(),
                     )?;
                 }
                 _ => {
@@ -220,7 +222,7 @@ impl Default for ProviderRegistryBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::providers::traits::ProviderAdapter;
+    use crate::protocols::core::{ProviderAdapter, ErrorMapper};
     use crate::types::{ChatRequest, ChatResponse};
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
@@ -233,6 +235,7 @@ mod tests {
     impl ProviderAdapter for MockAdapter {
         type RequestType = MockRequest;
         type ResponseType = MockResponse;
+        #[cfg(feature = "streaming")]
         type StreamResponseType = MockResponse;
         type ErrorMapperType = MockErrorMapper;
 
@@ -279,7 +282,7 @@ mod tests {
 
     struct MockErrorMapper;
 
-    impl crate::providers::errors::ErrorMapper for MockErrorMapper {
+    impl ErrorMapper for MockErrorMapper {
         fn map_http_error(_status: u16, _body: serde_json::Value) -> LlmConnectorError {
             LlmConnectorError::ProviderError("mock error".to_string())
         }

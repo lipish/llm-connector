@@ -8,8 +8,8 @@
 use llm_connector::{
     config::ProviderConfig,
     providers::{
-        AliyunAdapter, DeepSeekAdapter, GenericProvider, ProviderRegistry,
-        ProviderRegistryBuilder, ZhipuAdapter,
+        AliyunAdapter, GenericProvider, ProviderRegistry,
+        ProviderRegistryBuilder, Provider, openai::{deepseek, zhipu},
     },
     types::{ChatRequest, Message},
 };
@@ -142,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("─────────────────────────────────────────────\n");
 
     // DeepSeek
-    let deepseek = GenericProvider::new(config.clone(), DeepSeekAdapter)?;
+    let deepseek = GenericProvider::new(config.clone(), deepseek())?;
     println!("🔄 Switched to: deepseek");
     println!("   Supported models: {:?}", deepseek.supported_models());
 
@@ -152,7 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Supported models: {:?}", aliyun.supported_models());
 
     // Zhipu
-    let zhipu = GenericProvider::new(config.clone(), ZhipuAdapter)?;
+    let zhipu = GenericProvider::new(config.clone(), zhipu())?;
     println!("🔄 Switched to: zhipu");
     println!("   Supported models: {:?}", zhipu.supported_models());
     println!();

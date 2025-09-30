@@ -1,61 +1,17 @@
 //! Utility functions and helpers
 
-// Placeholder for future utility modules
+use crate::error::LlmConnectorError;
+use futures_util::{Stream, StreamExt};
+use std::pin::Pin;
 
-#[cfg(feature = "streaming")]
+/// Streaming utilities
 pub mod streaming {
-    use futures_util::{Stream, StreamExt};
-    use std::pin::Pin;
+    use super::*;
 
-    /// Parse Server-Sent Events (SSE) from an HTTP response and yield the `data:` payload lines.
-    /// This utility handles buffering across network chunks and ignores the terminal `[DONE]` marker.
+    /// Parse Server-Sent Events (SSE) from an HTTP response and yield one JSON string per event.
+    /// This function handles the SSE format where events are separated by double newlines.
     #[inline]
-    pub fn sse_data_lines(
-        response: reqwest::Response,
-    ) -> Pin<Box<dyn Stream<Item = Result<String, crate::error::LlmConnectorError>> + Send>> {
-        let stream = response.bytes_stream();
-
-        let lines_stream = stream
-            .scan(String::new(), move |buffer, chunk_result| {
-                let mut out: Vec<Result<String, crate::error::LlmConnectorError>> = Vec::new();
-                match chunk_result {
-                    Ok(chunk) => {
-                        buffer.push_str(&String::from_utf8_lossy(&chunk));
-                        while let Some(newline_pos) = buffer.find('\n') {
-                            let line_str = buffer.drain(..=newline_pos).collect::<String>();
-                            let line = line_str.trim();
-                            if line.starts_with("data: ") {
-                                let payload = &line[6..];
-                                if payload.trim() != "[DONE]" {
-                                    out.push(Ok(payload.to_string()));
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        out.push(Err(crate::error::LlmConnectorError::NetworkError(
-                            e.to_string(),
-                        )));
-                    }
-                }
-                std::future::ready(Some(out))
-            })
-            .flat_map(futures_util::stream::iter);
-
-        Box::pin(lines_stream)
-    }
-
-    /// Robust SSE parser that emits aggregated `data:` payload per SSE event.
-    ///
-    /// Improvements over `sse_data_lines`:
-    /// - Splits strictly on SSE event boundaries (double-newline: \n\n), with CRLF normalization
-    /// - Aggregates multiple `data:` lines into a single payload, separated by newlines per spec
-    /// - Accepts both `data:` and `data: ` prefixes
-    /// - Ignores the terminal `[DONE]` event gracefully
-    ///
-    /// Returns a stream of complete `data` payloads (one per SSE event).
-    #[inline]
-    pub fn sse_data_events(
+    pub fn sse_events(
         response: reqwest::Response,
     ) -> Pin<Box<dyn Stream<Item = Result<String, crate::error::LlmConnectorError>> + Send>> {
         let stream = response.bytes_stream();
@@ -65,7 +21,6 @@ pub mod streaming {
                 let mut out: Vec<Result<String, crate::error::LlmConnectorError>> = Vec::new();
                 match chunk_result {
                     Ok(chunk) => {
-                        // Normalize CRLF to LF so we can detect \n\n boundaries reliably
                         let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
                         buffer.push_str(&chunk_str);
 
@@ -147,5 +102,33 @@ pub mod streaming {
             .flat_map(futures_util::stream::iter);
 
         Box::pin(lines_stream)
+    }
+}
+
+/// Validate a chat request
+pub fn validate_chat_request(request: &crate::types::ChatRequest) -> Result<(), LlmConnectorError> {
+    if request.messages.is_empty() {
+        return Err(LlmConnectorError::InvalidRequest(
+            "Messages cannot be empty".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Clean model name by removing provider prefix
+pub fn clean_model_name(model: &str) -> &str {
+    if let Some(idx) = model.find('/') {
+        &model[idx + 1..]
+    } else {
+        model
+    }
+}
+
+/// Detect provider from model name
+pub fn detect_provider_from_model(model: &str) -> Option<&str> {
+    if let Some(idx) = model.find('/') {
+        Some(&model[..idx])
+    } else {
+        None
     }
 }
