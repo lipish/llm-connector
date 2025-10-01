@@ -52,13 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📝 Test 1: Simple greeting");
     let request1 = ChatRequest {
         model: "deepseek-chat".to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "Say hello in one sentence.".to_string(),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        }],
+        messages: vec![Message::user("Say hello in one sentence.")],
         max_tokens: Some(50),
         temperature: Some(0.7),
         stream: None,
@@ -101,13 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📝 Test 2: Math question");
     let request2 = ChatRequest {
         model: "deepseek-chat".to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "What is 123 + 456? Just give the number.".to_string(),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        }],
+        messages: vec![Message::user("What is 123 + 456? Just give the number.")],
         max_tokens: Some(50),
         temperature: Some(0.0), // Low temperature for deterministic answer
         stream: None,
@@ -148,13 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📝 Test 3: Creative question (run multiple times to see variation)");
     let request3 = ChatRequest {
         model: "deepseek-chat".to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "Tell me a random fun fact in one sentence.".to_string(),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        }],
+        messages: vec![Message::user("Tell me a random fun fact in one sentence.")],
         max_tokens: Some(100),
         temperature: Some(1.0), // High temperature for variety
         stream: None,

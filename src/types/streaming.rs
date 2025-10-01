@@ -1,6 +1,6 @@
 //! Streaming types for chat completions
 
-use super::request::ToolCall;
+use super::request::{Role, ToolCall};
 use super::response::Usage;
 use serde::{Deserialize, Serialize};
 
@@ -60,11 +60,11 @@ pub struct StreamingChoice {
 }
 
 /// Delta content for streaming
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Delta {
     /// Role of the message (only in first chunk)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
+    pub role: Option<Role>,
 
     /// Incremental content
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -77,15 +77,4 @@ pub struct Delta {
     /// Reasoning content (for o1 models)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_content: Option<String>,
-}
-
-impl Default for Delta {
-    fn default() -> Self {
-        Self {
-            role: None,
-            content: None,
-            tool_calls: None,
-            reasoning_content: None,
-        }
-    }
 }

@@ -1,32 +1,68 @@
 //! Configuration management for LLM providers
 //!
 //! This module provides a unified configuration system for all LLM providers.
-//! It supports:
-//! - Provider-specific configuration
-//! - Retry policies
-//! - Custom headers
-//! - Loading from files (JSON, TOML, YAML)
 //!
-//! # Examples
+//! # Configuration Methods
 //!
-//! ## Creating a simple configuration
+//! ## Method 1: Direct API Key (Recommended)
+//!
+//! The simplest way to configure a provider:
 //!
 //! ```rust
 //! use llm_connector::config::ProviderConfig;
 //!
-//! let config = ProviderConfig::new("your-api-key")
-//!     .with_timeout_ms(5000)
-//!     .with_retry(Default::default());
+//! let config = ProviderConfig::new("your-api-key");
 //! ```
 //!
-//! ## Loading from a file
+//! ## Method 2: Environment Variables
+//!
+//! For development convenience:
+//!
+//! ```rust
+//! use std::env;
+//! use llm_connector::config::ProviderConfig;
+//!
+//! let api_key = env::var("DEEPSEEK_API_KEY").unwrap();
+//! let config = ProviderConfig::new(&api_key);
+//! ```
+//!
+//! ## Method 3: Advanced Configuration
+//!
+//! For custom settings:
+//!
+//! ```rust
+//! use llm_connector::config::{ProviderConfig, RetryConfig};
+//!
+//! let config = ProviderConfig::new("your-api-key")
+//!     .with_base_url("https://api.example.com/v1")
+//!     .with_timeout_ms(30000)
+//!     .with_retry(RetryConfig {
+//!         max_retries: 3,
+//!         initial_backoff_ms: 1000,
+//!         backoff_multiplier: 2.0,
+//!         max_backoff_ms: 30000,
+//!     })
+//!     .with_header("X-Custom-Header", "value");
+//! ```
+//!
+//! ## Method 4: YAML Config File (Optional)
+//!
+//! For multi-provider applications:
 //!
 //! ```rust,no_run
 //! use llm_connector::config::RegistryConfig;
+//! use llm_connector::registry::ProviderRegistry;
 //!
-//! # #[cfg(feature = "config")]
-//! let config = RegistryConfig::from_file("config.json").unwrap();
+//! // Load from YAML file
+//! let config = RegistryConfig::from_yaml_file("config.yaml").unwrap();
+//! let registry = ProviderRegistry::from_config(config).unwrap();
+//!
+//! // Get providers
+//! let deepseek = registry.get("deepseek").unwrap();
+//! let claude = registry.get("claude").unwrap();
 //! ```
+//!
+//! **Note**: YAML config is optional and only recommended for complex multi-provider scenarios.
 
 pub mod loader;
 pub mod provider;

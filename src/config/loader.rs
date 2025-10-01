@@ -1,7 +1,37 @@
-//! Configuration loading from external files
+//! Configuration loading from external files (Optional)
 //!
 //! This module provides utilities for loading provider configurations
-//! from various file formats (JSON, TOML, YAML).
+//! from YAML files. This is **optional** and only recommended for
+//! complex multi-provider scenarios.
+//!
+//! For simple use cases, use direct API key configuration instead.
+//!
+//! # Example
+//!
+//! ```yaml
+//! # config.yaml
+//! providers:
+//!   deepseek:
+//!     protocol: openai
+//!     api_key: your-deepseek-key
+//!     timeout_ms: 30000
+//!   claude:
+//!     protocol: anthropic
+//!     api_key: your-anthropic-key
+//! ```
+//!
+//! ```rust,no_run
+//! use llm_connector::config::RegistryConfig;
+//! use llm_connector::registry::ProviderRegistry;
+//!
+//! // Load from YAML file
+//! let config = RegistryConfig::from_yaml_file("config.yaml").unwrap();
+//! let registry = ProviderRegistry::from_config(config).unwrap();
+//!
+//! // Get providers
+//! let deepseek = registry.get("deepseek").unwrap();
+//! let claude = registry.get("claude").unwrap();
+//! ```
 
 use super::provider::ProviderConfig;
 use serde::{Deserialize, Serialize};

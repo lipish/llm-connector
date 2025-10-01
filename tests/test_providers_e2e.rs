@@ -203,11 +203,7 @@ async fn test_provider_chat_completion(provider_name: &str, model: &str, endpoin
     // Create request
     let request = ChatRequest {
         model: model.to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "Hello".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::user("Hello")],
         ..Default::default()
     };
 

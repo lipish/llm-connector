@@ -34,13 +34,7 @@ async fn main() -> Result<(), LlmConnectorError> {
     // Create a sample request
     let _request = ChatRequest {
         model: "test-model".to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "Hello, how are you?".to_string(),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        }],
+        messages: vec![Message::user("Hello, how are you?")],
         max_tokens: Some(100),
         temperature: Some(0.7),
         top_p: None,

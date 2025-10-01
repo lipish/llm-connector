@@ -17,16 +17,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _request = ChatRequest {
             model: "deepseek-chat".to_string(),
             messages: vec![
-                Message {
-                    role: "system".to_string(),
-                    content: "You are a helpful AI assistant.".to_string(),
-                    ..Default::default()
-                },
-                Message {
-                    role: "user".to_string(),
-                    content: "Hello! Can you tell me about DeepSeek?".to_string(),
-                    ..Default::default()
-                },
+                Message::system("You are a helpful AI assistant."),
+                Message::user("Hello! Can you tell me about DeepSeek?"),
             ],
             temperature: Some(0.7),
             max_tokens: Some(150),
@@ -154,11 +146,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let invalid_request = ChatRequest {
         model: "invalid-model".to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "This should fail".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![
+            Message::user("This should fail")
+        ],
         ..Default::default()
     };
 

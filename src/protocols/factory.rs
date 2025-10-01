@@ -2,6 +2,106 @@
 //!
 //! This module provides a factory pattern for creating protocol adapters dynamically
 //! based on configuration, without hardcoding provider names.
+//!
+//! # Purpose
+//!
+//! The factory pattern allows the `ProviderRegistry` to create providers from YAML
+//! configuration files without knowing the specific provider implementations at compile time.
+//!
+//! # Architecture
+//!
+//! ## Factory Trait
+//!
+//! The `ProtocolFactory` trait defines the interface for creating protocol adapters:
+//! - `protocol_name()` - Returns the protocol identifier (e.g., "openai", "anthropic")
+//! - `supported_providers()` - Lists all providers using this protocol
+//! - `create_adapter()` - Creates a protocol adapter instance
+//!
+//! ## Built-in Factories
+//!
+//! - **`OpenAIProtocolFactory`** - Creates OpenAI-compatible adapters
+//!   - Supports: DeepSeek, Zhipu, Moonshot, VolcEngine, Tencent, MiniMax, StepFun, LongCat
+//!
+//! - **`AnthropicProtocolFactory`** - Creates Anthropic adapters
+//!   - Supports: Claude (Anthropic)
+//!
+//! - **`AliyunProtocolFactory`** - Creates Aliyun adapters
+//!   - Supports: Qwen (Aliyun DashScope)
+//!
+//! ## Factory Registry
+//!
+//! The `ProtocolFactoryRegistry` manages all protocol factories and provides:
+//! - Automatic registration of built-in factories
+//! - Dynamic provider creation from configuration
+//! - Protocol lookup by provider name
+//!
+//! # Example: Using with YAML Config
+//!
+//! ```yaml
+//! # config.yaml
+//! providers:
+//!   deepseek:
+//!     protocol: openai
+//!     api_key: sk-xxx
+//!   claude:
+//!     protocol: anthropic
+//!     api_key: sk-ant-xxx
+//!   qwen:
+//!     protocol: aliyun
+//!     api_key: sk-xxx
+//! ```
+//!
+//! ```rust,no_run
+//! use llm_connector::config::RegistryConfig;
+//! use llm_connector::registry::ProviderRegistry;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Load configuration
+//! let config = RegistryConfig::from_yaml_file("config.yaml")?;
+//!
+//! // Create registry (uses factories internally)
+//! let registry = ProviderRegistry::from_config(config)?;
+//!
+//! // Get providers (created by factories)
+//! let deepseek = registry.get("deepseek").unwrap();
+//! let claude = registry.get("claude").unwrap();
+//! let qwen = registry.get("qwen").unwrap();
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Example: Custom Factory
+//!
+//! ```rust
+//! use llm_connector::protocols::factory::{ProtocolFactory, ProtocolFactoryRegistry};
+//! use llm_connector::config::ProviderConfig;
+//! use llm_connector::error::LlmConnectorError;
+//!
+//! struct MyCustomFactory;
+//!
+//! impl ProtocolFactory for MyCustomFactory {
+//!     fn protocol_name(&self) -> &str {
+//!         "custom"
+//!     }
+//!
+//!     fn supported_providers(&self) -> Vec<&str> {
+//!         vec!["my-provider"]
+//!     }
+//!
+//!     fn create_adapter(
+//!         &self,
+//!         provider_name: &str,
+//!         config: &ProviderConfig,
+//!     ) -> Result<Box<dyn std::any::Any + Send>, LlmConnectorError> {
+//!         // Create your custom adapter
+//!         todo!()
+//!     }
+//! }
+//!
+//! // Register custom factory
+//! let mut registry = ProtocolFactoryRegistry::new();
+//! registry.register(Box::new(MyCustomFactory));
+//! ```
 
 use crate::config::ProviderConfig;
 use crate::error::LlmConnectorError;

@@ -2,13 +2,116 @@
 //!
 //! This module implements the OpenAI-compatible protocol used by multiple providers.
 //! The OpenAI protocol has become the de facto standard for LLM APIs.
+//!
+//! # Supported Providers
+//!
+//! The following providers use the OpenAI-compatible protocol:
+//!
+//! - **DeepSeek** - `deepseek()` - DeepSeek-V3, DeepSeek-Chat
+//! - **Zhipu (GLM)** - `zhipu()` - GLM-4, GLM-4-Plus, GLM-4-Flash
+//! - **Moonshot (Kimi)** - `moonshot()` - Moonshot-v1 series
+//! - **VolcEngine (Doubao)** - `volcengine()` - Doubao models
+//! - **Tencent (Hunyuan)** - `tencent()` - Hunyuan models
+//! - **MiniMax** - `minimax()` - MiniMax models
+//! - **StepFun** - `stepfun()` - Step series models
+//! - **LongCat** - `longcat()` - Free quota available for testing
+//!
+//! # Protocol Details
+//!
+//! ## Endpoint
+//! - Standard: `POST /v1/chat/completions`
+//! - All providers follow the same endpoint structure
+//!
+//! ## Request Format
+//! ```json
+//! {
+//!   "model": "deepseek-chat",
+//!   "messages": [
+//!     {"role": "user", "content": "Hello"}
+//!   ],
+//!   "temperature": 0.7,
+//!   "max_tokens": 1000,
+//!   "stream": false
+//! }
+//! ```
+//!
+//! ## Response Format
+//! ```json
+//! {
+//!   "id": "chatcmpl-123",
+//!   "object": "chat.completion",
+//!   "created": 1677652288,
+//!   "model": "deepseek-chat",
+//!   "choices": [{
+//!     "index": 0,
+//!     "message": {
+//!       "role": "assistant",
+//!       "content": "Hello! How can I help you?"
+//!     },
+//!     "finish_reason": "stop"
+//!   }],
+//!   "usage": {
+//!     "prompt_tokens": 10,
+//!     "completion_tokens": 20,
+//!     "total_tokens": 30
+//!   }
+//! }
+//! ```
+//!
+//! ## Streaming Format
+//! - Uses Server-Sent Events (SSE)
+//! - Each chunk: `data: {"choices": [{"delta": {"content": "..."}}]}`
+//! - Final marker: `data: [DONE]`
+//!
+//! # Example
+//!
+//! ```rust
+//! use llm_connector::{
+//!     config::ProviderConfig,
+//!     protocols::{core::GenericProvider, openai::deepseek},
+//!     types::{ChatRequest, Message},
+//! };
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create DeepSeek provider
+//! let config = ProviderConfig::new("your-api-key");
+//! let provider = GenericProvider::new(config, deepseek())?;
+//!
+//! // Create request
+//! let request = ChatRequest {
+//!     model: "deepseek-chat".to_string(),
+//!     messages: vec![Message {
+//!         role: "user".to_string(),
+//!         content: "Hello!".to_string(),
+//!         ..Default::default()
+//!     }],
+//!     ..Default::default()
+//! };
+//!
+//! // Send request
+//! let response = provider.chat(&request).await?;
+//! println!("Response: {}", response.choices[0].message.content);
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::protocols::core::{ProviderAdapter, StandardErrorMapper};
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, ToolCall, Usage};
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, ToolCall, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+
+/// Parse a role string into a Role enum
+fn parse_role(role: &str) -> Role {
+    match role {
+        "system" => Role::System,
+        "user" => Role::User,
+        "assistant" => Role::Assistant,
+        "tool" => Role::Tool,
+        _ => Role::User, // Default to user for unknown roles
+    }
+}
 
 #[cfg(feature = "streaming")]
 use crate::types::{Delta, StreamingChoice, StreamingResponse};
@@ -178,7 +281,12 @@ impl OpenAIRequest {
 impl From<&Message> for OpenAIMessage {
     fn from(message: &Message) -> Self {
         Self {
-            role: message.role.clone(),
+            role: match message.role {
+                crate::types::Role::System => "system".to_string(),
+                crate::types::Role::User => "user".to_string(),
+                crate::types::Role::Assistant => "assistant".to_string(),
+                crate::types::Role::Tool => "tool".to_string(),
+            },
             content: Some(message.content.clone()),
             name: message.name.clone(),
             tool_calls: message.tool_calls.clone(),
@@ -200,7 +308,7 @@ impl OpenAIResponse {
                 .map(|choice| Choice {
                     index: choice.index,
                     message: Message {
-                        role: choice.message.role,
+                        role: parse_role(&choice.message.role),
                         content: choice.message.content.unwrap_or_default(),
                         name: choice.message.name,
                         tool_calls: choice.message.tool_calls,

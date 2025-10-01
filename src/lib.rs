@@ -19,11 +19,7 @@
 //!     let request = ChatRequest {
 //!         model: "openai/gpt-4".to_string(),
 //!         messages: vec![
-//!             Message {
-//!                 role: "user".to_string(),
-//!                 content: "Hello, how are you?".to_string(),
-//!                 ..Default::default()
-//!             }
+//!             Message::user("Hello, how are you?")
 //!         ],
 //!         ..Default::default()
 //!     };
@@ -53,8 +49,8 @@ pub mod providers {
     pub use crate::protocols::*;
 }
 
-// Utilities
-pub mod utils;
+// Server-Sent Events (SSE) utilities
+pub mod sse;
 
 // Re-exports for convenience
 pub use client::Client;

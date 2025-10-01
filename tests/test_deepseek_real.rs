@@ -50,16 +50,8 @@ async fn test_deepseek_real_chat_completion() {
     let request = ChatRequest {
         model: "deepseek-chat".to_string(),
         messages: vec![
-            Message {
-                role: "system".to_string(),
-                content: "You are a helpful assistant.".to_string(),
-                ..Default::default()
-            },
-            Message {
-                role: "user".to_string(),
-                content: "Hello!".to_string(),
-                ..Default::default()
-            },
+            Message::system("You are a helpful assistant."),
+            Message::user("Hello!"),
         ],
         ..Default::default()
     };

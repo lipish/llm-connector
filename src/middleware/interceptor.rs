@@ -282,13 +282,7 @@ mod tests {
 
         let request = ChatRequest {
             model: "test".to_string(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: "Hello".to_string(),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-            }],
+            messages: vec![Message::user("Hello")],
             max_tokens: Some(100),
             temperature: None,
             top_p: None,

@@ -1,15 +1,123 @@
 //! Aliyun Protocol Implementation
 //!
 //! This module implements the Aliyun DashScope API protocol.
-//! Aliyun uses a custom protocol that differs significantly from both OpenAI and Anthropic.
+//!
+//! # Supported Providers
+//!
+//! - **Aliyun (DashScope)** - `qwen()` - Qwen-Max, Qwen-Plus, Qwen-Turbo
+//!
+//! # Protocol Differences
+//!
+//! Aliyun uses a custom protocol that differs significantly from both OpenAI and Anthropic:
+//!
+//! ## 1. Endpoint
+//! - Aliyun: `POST /services/aigc/text-generation/generation`
+//! - OpenAI: `POST /v1/chat/completions`
+//!
+//! ## 2. Request Structure
+//! - **Nested structure**: Uses `input` and `parameters` objects
+//! - **Model field**: At top level, not in parameters
+//! - **Result format**: Explicit `result_format` field for response type
+//!
+//! ## 3. Response Structure
+//! - **Nested output**: Response data in `output.choices` instead of top-level `choices`
+//! - **Request ID**: Includes `request_id` for tracking
+//! - **Usage**: Different field structure
+//!
+//! ## 4. Authentication
+//! - Uses `Authorization: Bearer <api-key>` header
+//! - API key format: `sk-...`
+//!
+//! # Request Format
+//!
+//! ```json
+//! {
+//!   "model": "qwen-max",
+//!   "input": {
+//!     "messages": [
+//!       {"role": "user", "content": "Hello"}
+//!     ]
+//!   },
+//!   "parameters": {
+//!     "max_tokens": 1000,
+//!     "temperature": 0.7,
+//!     "result_format": "message"
+//!   }
+//! }
+//! ```
+//!
+//! # Response Format
+//!
+//! ```json
+//! {
+//!   "request_id": "req_123",
+//!   "output": {
+//!     "choices": [{
+//!       "message": {
+//!         "role": "assistant",
+//!         "content": "Hello! How can I help you?"
+//!       },
+//!       "finish_reason": "stop"
+//!     }]
+//!   },
+//!   "usage": {
+//!     "input_tokens": 10,
+//!     "output_tokens": 20,
+//!     "total_tokens": 30
+//!   }
+//! }
+//! ```
+//!
+//! # Example
+//!
+//! ```rust
+//! use llm_connector::{
+//!     config::ProviderConfig,
+//!     protocols::{core::GenericProvider, aliyun::qwen},
+//!     types::{ChatRequest, Message},
+//! };
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create Qwen provider
+//! let config = ProviderConfig::new("your-api-key");
+//! let provider = GenericProvider::new(config, qwen())?;
+//!
+//! // Create request
+//! let request = ChatRequest {
+//!     model: "qwen-max".to_string(),
+//!     messages: vec![Message {
+//!         role: "user".to_string(),
+//!         content: "Hello!".to_string(),
+//!         ..Default::default()
+//!     }],
+//!     ..Default::default()
+//! };
+//!
+//! // Send request
+//! let response = provider.chat(&request).await?;
+//! println!("Response: {}", response.choices[0].message.content);
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::error::LlmConnectorError;
 use crate::protocols::core::{ErrorMapper, ProviderAdapter};
-use crate::types::{ChatRequest, ChatResponse, Message, Usage};
+use crate::types::{ChatRequest, ChatResponse, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+
+/// Parse a role string into a Role enum
+fn parse_role(role: &str) -> Role {
+    match role {
+        "system" => Role::System,
+        "user" => Role::User,
+        "assistant" => Role::Assistant,
+        "tool" => Role::Tool,
+        _ => Role::User, // Default to user for unknown roles
+    }
+}
 
 #[cfg(feature = "streaming")]
 use crate::types::StreamingResponse;
@@ -241,7 +349,12 @@ impl ProviderAdapter for AliyunProtocol {
             .messages
             .iter()
             .map(|msg| AliyunMessage {
-                role: msg.role.clone(),
+                role: match msg.role {
+                    Role::System => "system".to_string(),
+                    Role::User => "user".to_string(),
+                    Role::Assistant => "assistant".to_string(),
+                    Role::Tool => "tool".to_string(),
+                },
                 content: msg.content.clone(),
             })
             .collect();
@@ -276,7 +389,7 @@ impl ProviderAdapter for AliyunProtocol {
                 .map(|(index, choice)| crate::types::Choice {
                     index: index as u32,
                     message: Message {
-                        role: choice.message.role,
+                        role: parse_role(&choice.message.role),
                         content: choice.message.content,
                         name: None,
                         tool_calls: None,

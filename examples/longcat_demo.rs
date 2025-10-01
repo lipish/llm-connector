@@ -95,13 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "LongCat-Flash-Chat".to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "你好！请用一句话介绍一下 LongCat。".to_string(),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        }],
+        messages: vec![Message::user("你好！请用一句话介绍一下 LongCat。")],
         max_tokens: Some(1000),
         temperature: Some(0.7),
         top_p: None,

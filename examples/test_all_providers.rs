@@ -127,13 +127,9 @@ where
     println!("   📝 Testing regular chat...");
     let request = ChatRequest {
         model: model.to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "Say 'Hello from {}!' in one sentence.".replace("{}", name),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        }],
+        messages: vec![Message::user(
+            format!("Say 'Hello from {}!' in one sentence.", name)
+        )],
         max_tokens: Some(50),
         temperature: Some(0.7),
         stream: None,
@@ -189,13 +185,7 @@ async fn test_aliyun(model: &str, api_key: &str) {
     println!("   📝 Testing regular chat...");
     let request = ChatRequest {
         model: model.to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "Say 'Hello from Aliyun!' in one sentence.".to_string(),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        }],
+        messages: vec![Message::user("Say 'Hello from Aliyun!' in one sentence.")],
         max_tokens: Some(50),
         temperature: Some(0.7),
         stream: None,

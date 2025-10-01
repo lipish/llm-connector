@@ -2,6 +2,28 @@
 //!
 //! This module defines the configuration structures for LLM providers.
 //! It provides a unified configuration interface that works across all protocols.
+//!
+//! # Examples
+//!
+//! ## Simple configuration
+//!
+//! ```rust
+//! use llm_connector::config::ProviderConfig;
+//!
+//! let config = ProviderConfig::new("your-api-key");
+//! ```
+//!
+//! ## Advanced configuration
+//!
+//! ```rust
+//! use llm_connector::config::{ProviderConfig, RetryConfig};
+//!
+//! let config = ProviderConfig::new("your-api-key")
+//!     .with_base_url("https://api.example.com/v1")
+//!     .with_timeout_ms(30000)
+//!     .with_retry(RetryConfig::default())
+//!     .with_header("X-Custom-Header", "value");
+//! ```
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

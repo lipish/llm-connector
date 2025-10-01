@@ -1,6 +1,57 @@
 //! Core provider traits, transport, and error handling
 //!
 //! This module contains all the fundamental abstractions needed for provider implementations.
+//!
+//! # Architecture
+//!
+//! The module is organized into three main components:
+//!
+//! ## 1. Core Traits
+//!
+//! - **`Provider`**: Public-facing trait for external API consumers
+//!   - Provides high-level methods: `chat()`, `chat_stream()`
+//!   - Used by `Client` and `ProviderRegistry`
+//!
+//! - **`ProviderAdapter`**: Internal trait for protocol implementations
+//!   - Handles protocol-specific request/response transformations
+//!   - Implemented by `OpenAIProtocol`, `AnthropicProtocol`, `AliyunProtocol`
+//!
+//! - **`ErrorMapper`**: Protocol-specific error handling
+//!   - Maps HTTP status codes to appropriate errors
+//!   - Determines which errors are retriable
+//!
+//! ## 2. HTTP Transport
+//!
+//! - **`HttpTransport`**: Shared HTTP client and configuration
+//!   - Uses `Arc` for zero-copy sharing across providers
+//!   - Handles proxy, timeout, and custom headers
+//!
+//! ## 3. Generic Provider
+//!
+//! - **`GenericProvider<A>`**: Universal provider implementation
+//!   - Works with any `ProviderAdapter`
+//!   - Handles HTTP communication, retries, and streaming
+//!   - Single implementation for all protocols
+//!
+//! # Example
+//!
+//! ```rust
+//! use llm_connector::{
+//!     config::ProviderConfig,
+//!     protocols::{core::GenericProvider, openai::deepseek},
+//! };
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create a provider using the generic implementation
+//! let config = ProviderConfig::new("your-api-key");
+//! let provider = GenericProvider::new(config, deepseek())?;
+//!
+//! // The provider implements the Provider trait
+//! println!("Provider: {}", provider.name());
+//! println!("Models: {:?}", provider.supported_models());
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::config::{ProviderConfig, SharedProviderConfig};
 use crate::error::LlmConnectorError;
@@ -278,7 +329,7 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
 
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
-        use crate::utils::streaming::sse_events;
+        use crate::sse::sse_events;
         use futures_util::StreamExt;
 
         let url = self.adapter.endpoint_url(&self.transport.config.base_url);

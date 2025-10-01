@@ -3,6 +3,20 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Role of a message sender
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    /// System message (instructions)
+    System,
+    /// User message
+    User,
+    /// Assistant message
+    Assistant,
+    /// Tool response message
+    Tool,
+}
+
 /// Chat completion request
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ChatRequest {
@@ -65,11 +79,105 @@ pub struct ChatRequest {
     pub response_format: Option<ResponseFormat>,
 }
 
+impl ChatRequest {
+    /// Create a new chat request with the given model
+    pub fn new(model: impl Into<String>) -> Self {
+        Self {
+            model: model.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Set the messages for the request
+    pub fn with_messages(mut self, messages: Vec<Message>) -> Self {
+        self.messages = messages;
+        self
+    }
+
+    /// Add a single message to the request
+    pub fn add_message(mut self, message: Message) -> Self {
+        self.messages.push(message);
+        self
+    }
+
+    /// Set the temperature
+    pub fn with_temperature(mut self, temperature: f32) -> Self {
+        self.temperature = Some(temperature);
+        self
+    }
+
+    /// Set the top_p parameter
+    pub fn with_top_p(mut self, top_p: f32) -> Self {
+        self.top_p = Some(top_p);
+        self
+    }
+
+    /// Set the maximum number of tokens
+    pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
+        self.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// Enable streaming
+    pub fn with_stream(mut self, stream: bool) -> Self {
+        self.stream = Some(stream);
+        self
+    }
+
+    /// Set stop sequences
+    pub fn with_stop(mut self, stop: Vec<String>) -> Self {
+        self.stop = Some(stop);
+        self
+    }
+
+    /// Set presence penalty
+    pub fn with_presence_penalty(mut self, penalty: f32) -> Self {
+        self.presence_penalty = Some(penalty);
+        self
+    }
+
+    /// Set frequency penalty
+    pub fn with_frequency_penalty(mut self, penalty: f32) -> Self {
+        self.frequency_penalty = Some(penalty);
+        self
+    }
+
+    /// Set the user identifier
+    pub fn with_user(mut self, user: impl Into<String>) -> Self {
+        self.user = Some(user.into());
+        self
+    }
+
+    /// Set the random seed
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    /// Set the tools
+    pub fn with_tools(mut self, tools: Vec<Tool>) -> Self {
+        self.tools = Some(tools);
+        self
+    }
+
+    /// Set the tool choice
+    pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
+        self.tool_choice = Some(tool_choice);
+        self
+    }
+
+    /// Set the response format
+    pub fn with_response_format(mut self, format: ResponseFormat) -> Self {
+        self.response_format = Some(format);
+        self
+    }
+}
+
 /// A message in the conversation
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     /// Role of the message sender
-    pub role: String,
+    pub role: Role,
 
     /// Content of the message
     pub content: String,
@@ -85,6 +193,69 @@ pub struct Message {
     /// Tool call ID (for tool responses)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+}
+
+impl Default for Message {
+    fn default() -> Self {
+        Self {
+            role: Role::User,
+            content: String::new(),
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+}
+
+impl Message {
+    /// Create a new message with the given role and content
+    pub fn new(role: Role, content: impl Into<String>) -> Self {
+        Self {
+            role,
+            content: content.into(),
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+
+    /// Create a system message
+    pub fn system(content: impl Into<String>) -> Self {
+        Self::new(Role::System, content)
+    }
+
+    /// Create a user message
+    pub fn user(content: impl Into<String>) -> Self {
+        Self::new(Role::User, content)
+    }
+
+    /// Create an assistant message
+    pub fn assistant(content: impl Into<String>) -> Self {
+        Self::new(Role::Assistant, content)
+    }
+
+    /// Create a tool response message
+    pub fn tool(content: impl Into<String>, tool_call_id: impl Into<String>) -> Self {
+        Self {
+            role: Role::Tool,
+            content: content.into(),
+            tool_call_id: Some(tool_call_id.into()),
+            name: None,
+            tool_calls: None,
+        }
+    }
+
+    /// Set the name of the message sender
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    /// Set tool calls for assistant messages
+    pub fn with_tool_calls(mut self, tool_calls: Vec<ToolCall>) -> Self {
+        self.tool_calls = Some(tool_calls);
+        self
+    }
 }
 
 /// Tool definition
@@ -116,14 +287,43 @@ pub struct Function {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ToolChoice {
-    /// No tools should be called
-    None,
-    /// Let the model decide
-    Auto,
-    /// Tools must be called
-    Required,
+    /// String mode: "none", "auto", or "required"
+    Mode(String),
     /// Specific function to call
-    Function { function: FunctionChoice },
+    Function {
+        /// Type of tool (always "function")
+        #[serde(rename = "type")]
+        tool_type: String,
+        /// Function to call
+        function: FunctionChoice,
+    },
+}
+
+impl ToolChoice {
+    /// No tools should be called
+    pub fn none() -> Self {
+        Self::Mode("none".to_string())
+    }
+
+    /// Let the model decide
+    pub fn auto() -> Self {
+        Self::Mode("auto".to_string())
+    }
+
+    /// Tools must be called
+    pub fn required() -> Self {
+        Self::Mode("required".to_string())
+    }
+
+    /// Call a specific function
+    pub fn function(name: impl Into<String>) -> Self {
+        Self::Function {
+            tool_type: "function".to_string(),
+            function: FunctionChoice {
+                name: name.into(),
+            },
+        }
+    }
 }
 
 /// Specific function choice

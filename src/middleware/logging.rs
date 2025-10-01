@@ -220,13 +220,7 @@ mod tests {
 
         let request = ChatRequest {
             model: "test-model".to_string(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: "Hello".to_string(),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-            }],
+            messages: vec![Message::user("Hello")],
             max_tokens: Some(100),
             temperature: Some(0.7),
             top_p: None,
@@ -251,13 +245,7 @@ mod tests {
                     model: "test-model".to_string(),
                     choices: vec![Choice {
                         index: 0,
-                        message: Message {
-                            role: "assistant".to_string(),
-                            content: "Hello!".to_string(),
-                            name: None,
-                            tool_calls: None,
-                            tool_call_id: None,
-                        },
+                        message: Message::assistant("Hello!"),
                         finish_reason: Some("stop".to_string()),
                         logprobs: None,
                     }],

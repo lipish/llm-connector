@@ -7,7 +7,6 @@ use crate::config::Config;
 use crate::error::LlmConnectorError;
 use crate::providers::Provider;
 use crate::types::{ChatRequest, ChatResponse};
-use crate::utils;
 
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
@@ -86,14 +85,14 @@ impl Client {
     /// Send a chat completion request
     pub async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         // Validate the request
-        utils::validate_chat_request(&request)?;
+        validate_chat_request(&request)?;
 
         // Determine the provider
         let provider = self.get_provider_for_model(&request.model)?;
 
         // Clean the model name (remove provider prefix if present)
         let mut cleaned_request = request;
-        cleaned_request.model = utils::clean_model_name(&cleaned_request.model).to_string();
+        cleaned_request.model = clean_model_name(&cleaned_request.model).to_string();
 
         // Send the request
         provider.chat(&cleaned_request).await
@@ -103,14 +102,14 @@ impl Client {
     #[cfg(feature = "streaming")]
     pub async fn chat_stream(&self, request: ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         // Validate the request
-        utils::validate_chat_request(&request)?;
+        validate_chat_request(&request)?;
 
         // Determine the provider
         let provider = self.get_provider_for_model(&request.model)?;
 
         // Clean the model name (remove provider prefix if present)
         let mut cleaned_request = request;
-        cleaned_request.model = utils::clean_model_name(&cleaned_request.model).to_string();
+        cleaned_request.model = clean_model_name(&cleaned_request.model).to_string();
         cleaned_request.stream = Some(true); // Ensure streaming is enabled
 
         // Send the streaming request
@@ -120,7 +119,7 @@ impl Client {
     /// Get the appropriate provider for a model
     fn get_provider_for_model(&self, model: &str) -> Result<Arc<dyn Provider>, LlmConnectorError> {
         // First try to detect provider from model name
-        let provider_name = utils::detect_provider_from_model(model)
+        let provider_name = detect_provider_from_model(model)
             .ok_or_else(|| LlmConnectorError::UnsupportedModel(model.to_string()))?;
 
         // Get the provider
@@ -155,7 +154,7 @@ impl Client {
     /// Check if a model is supported
     pub fn supports_model(&self, model: &str) -> bool {
         if let Ok(provider) = self.get_provider_for_model(model) {
-            let clean_model = utils::clean_model_name(model);
+            let clean_model = clean_model_name(model);
             provider.supports_model(clean_model)
         } else {
             false
@@ -164,7 +163,37 @@ impl Client {
 
     /// Get provider information for a model
     pub fn get_provider_info(&self, model: &str) -> Option<String> {
-        utils::detect_provider_from_model(model).map(|s| s.to_string())
+        detect_provider_from_model(model).map(|s| s.to_string())
+    }
+}
+
+// Helper functions for client operations
+
+/// Validate a chat request
+fn validate_chat_request(request: &ChatRequest) -> Result<(), LlmConnectorError> {
+    if request.messages.is_empty() {
+        return Err(LlmConnectorError::InvalidRequest(
+            "Messages cannot be empty".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Clean model name by removing provider prefix
+fn clean_model_name(model: &str) -> &str {
+    if let Some(idx) = model.find('/') {
+        &model[idx + 1..]
+    } else {
+        model
+    }
+}
+
+/// Detect provider from model name
+fn detect_provider_from_model(model: &str) -> Option<&str> {
+    if let Some(idx) = model.find('/') {
+        Some(&model[..idx])
+    } else {
+        None
     }
 }
 
@@ -206,11 +235,7 @@ mod tests {
         // Empty model should fail
         let request = ChatRequest {
             model: "".to_string(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: "Hello".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::user("Hello")],
             ..Default::default()
         };
 

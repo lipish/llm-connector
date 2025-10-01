@@ -1,18 +1,115 @@
 //! Anthropic Protocol Implementation
 //!
 //! This module implements the Anthropic Messages API protocol used by Claude models.
-//! The Anthropic protocol differs from OpenAI in several key ways:
-//! - Uses `/v1/messages` endpoint instead of `/chat/completions`
-//! - Response content is an array of content blocks
-//! - Different streaming format
-//! - Different error structure
+//!
+//! # Supported Providers
+//!
+//! - **Anthropic Claude** - `claude()` - Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku
+//!
+//! # Protocol Differences from OpenAI
+//!
+//! The Anthropic protocol has several key differences:
+//!
+//! ## 1. Endpoint
+//! - Anthropic: `POST /v1/messages`
+//! - OpenAI: `POST /v1/chat/completions`
+//!
+//! ## 2. Request Structure
+//! - **System message**: Separate `system` field instead of message with role "system"
+//! - **Max tokens**: Required field (OpenAI makes it optional)
+//! - **Stop sequences**: `stop_sequences` instead of `stop`
+//!
+//! ## 3. Response Structure
+//! - **Content**: Array of content blocks instead of single string
+//! - **Role**: Always "assistant" (no "system" or "user" in responses)
+//! - **Usage**: Different field names (`input_tokens` vs `prompt_tokens`)
+//!
+//! ## 4. Streaming Format
+//! - Different event types: `message_start`, `content_block_delta`, `message_delta`
+//! - More granular streaming events
+//!
+//! # Request Format
+//!
+//! ```json
+//! {
+//!   "model": "claude-3-5-sonnet-20241022",
+//!   "max_tokens": 1024,
+//!   "messages": [
+//!     {"role": "user", "content": "Hello"}
+//!   ],
+//!   "system": "You are a helpful assistant",
+//!   "temperature": 0.7
+//! }
+//! ```
+//!
+//! # Response Format
+//!
+//! ```json
+//! {
+//!   "id": "msg_123",
+//!   "type": "message",
+//!   "role": "assistant",
+//!   "content": [
+//!     {"type": "text", "text": "Hello! How can I help you?"}
+//!   ],
+//!   "model": "claude-3-5-sonnet-20241022",
+//!   "usage": {
+//!     "input_tokens": 10,
+//!     "output_tokens": 20
+//!   }
+//! }
+//! ```
+//!
+//! # Example
+//!
+//! ```rust
+//! use llm_connector::{
+//!     config::ProviderConfig,
+//!     protocols::{core::GenericProvider, anthropic::claude},
+//!     types::{ChatRequest, Message},
+//! };
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create Claude provider
+//! let config = ProviderConfig::new("your-api-key");
+//! let provider = GenericProvider::new(config, claude())?;
+//!
+//! // Create request
+//! let request = ChatRequest {
+//!     model: "claude-3-5-sonnet-20241022".to_string(),
+//!     messages: vec![Message {
+//!         role: "user".to_string(),
+//!         content: "Hello!".to_string(),
+//!         ..Default::default()
+//!     }],
+//!     max_tokens: Some(1024), // Required for Anthropic
+//!     ..Default::default()
+//! };
+//!
+//! // Send request
+//! let response = provider.chat(&request).await?;
+//! println!("Response: {}", response.choices[0].message.content);
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::protocols::core::{ErrorMapper, ProviderAdapter};
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Usage};
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+
+/// Parse a role string into a Role enum
+fn parse_role(role: &str) -> Role {
+    match role {
+        "system" => Role::System,
+        "user" => Role::User,
+        "assistant" => Role::Assistant,
+        "tool" => Role::Tool,
+        _ => Role::User, // Default to user for unknown roles
+    }
+}
 
 #[cfg(feature = "streaming")]
 use crate::types::{Delta, StreamingChoice, StreamingResponse};
@@ -240,14 +337,19 @@ impl AnthropicRequest {
         let (system_message, user_messages): (Vec<_>, Vec<_>) = request
             .messages
             .iter()
-            .partition(|msg| msg.role == "system");
+            .partition(|msg| msg.role == Role::System);
 
         let system = system_message.first().map(|msg| msg.content.clone());
 
         let messages = user_messages
             .iter()
             .map(|msg| AnthropicMessage {
-                role: msg.role.clone(),
+                role: match msg.role {
+                    Role::System => "system".to_string(),
+                    Role::User => "user".to_string(),
+                    Role::Assistant => "assistant".to_string(),
+                    Role::Tool => "tool".to_string(),
+                },
                 content: AnthropicContent::Text(msg.content.clone()),
             })
             .collect();
@@ -299,7 +401,7 @@ impl AnthropicResponse {
             choices: vec![Choice {
                 index: 0,
                 message: Message {
-                    role: self.role,
+                    role: parse_role(&self.role),
                     content,
                     name: None,
                     tool_calls: None,

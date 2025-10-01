@@ -49,11 +49,7 @@ async fn test_deepseek_connection_success() {
     // Create a chat request.
     let request = ChatRequest {
         model: "deepseek-chat".to_string(),
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: "Hello".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::user("Hello")],
         ..Default::default()
     };
 
