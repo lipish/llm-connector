@@ -103,6 +103,14 @@ pub struct Config {
     /// Moonshot configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moonshot: Option<ProviderConfig>,
+
+    /// VolcEngine (Doubao) configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volcengine: Option<ProviderConfig>,
+
+    /// LongCat configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub longcat: Option<ProviderConfig>,
 }
 
 impl Config {
@@ -189,6 +197,12 @@ impl Config {
         }
         if self.moonshot.is_some() {
             providers.push("moonshot".to_string());
+        }
+        if self.volcengine.is_some() {
+            providers.push("volcengine".to_string());
+        }
+        if self.longcat.is_some() {
+            providers.push("longcat".to_string());
         }
         providers
     }

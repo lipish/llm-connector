@@ -94,6 +94,26 @@ impl Client {
             }
         }
 
+        // Initialize VolcEngine provider
+        if let Some(volcengine_config) = &self.config.volcengine {
+            if let Ok(provider) =
+                GenericProvider::new(volcengine_config.clone(), crate::protocols::openai::volcengine())
+            {
+                self.providers
+                    .insert("volcengine".to_string(), Arc::new(provider));
+            }
+        }
+
+        // Initialize LongCat provider
+        if let Some(longcat_config) = &self.config.longcat {
+            if let Ok(provider) =
+                GenericProvider::new(longcat_config.clone(), crate::protocols::openai::longcat())
+            {
+                self.providers
+                    .insert("longcat".to_string(), Arc::new(provider));
+            }
+        }
+
         // TODO: Initialize other providers when they are implemented
         // Example for adding a new provider:
         // if let Some(new_config) = &self.config.new_provider {
