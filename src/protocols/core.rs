@@ -181,10 +181,20 @@ impl HttpTransport {
         url: &str,
         body: &T,
     ) -> Result<reqwest::Response, LlmConnectorError> {
-        self.client
+        let mut request = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", &self.config.api_key))
-            .header("Content-Type", "application/json")
+            .header("Content-Type", "application/json");
+
+        // Apply custom headers if configured
+        if let Some(headers) = &self.config.headers {
+            for (key, value) in headers {
+                request = request.header(key, value);
+            }
+        }
+
+        request
             .json(body)
             .send()
             .await
@@ -201,11 +211,20 @@ impl HttpTransport {
         impl futures_util::Stream<Item = Result<reqwest::Bytes, reqwest::Error>>,
         LlmConnectorError,
     > {
-        let response = self
+        let mut request = self
             .client
             .post(url)
             .header("Authorization", format!("Bearer {}", &self.config.api_key))
-            .header("Content-Type", "application/json")
+            .header("Content-Type", "application/json");
+
+        // Apply custom headers if configured
+        if let Some(headers) = &self.config.headers {
+            for (key, value) in headers {
+                request = request.header(key, value);
+            }
+        }
+
+        let response = request
             .json(body)
             .send()
             .await

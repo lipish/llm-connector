@@ -37,6 +37,13 @@ use super::provider::ProviderConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[cfg(feature = "config")]
+use crate::error::LlmConnectorError;
+#[cfg(feature = "config")]
+use std::fs;
+#[cfg(feature = "config")]
+use std::path::Path;
+
 /// Registry configuration containing multiple providers
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistryConfig {

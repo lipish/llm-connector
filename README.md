@@ -73,9 +73,21 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.1"
+llm-connector = "0.2"
 tokio = { version = "1", features = ["full"] }
 ```
+
+**Optional Features:**
+
+```toml
+[dependencies]
+llm-connector = { version = "0.2", features = ["yaml"] }  # For YAML config file support
+```
+
+Available features:
+- `yaml` - Enable YAML configuration file support (requires `serde_yaml`)
+- `streaming` - Enable streaming response support (enabled by default)
+- `reqwest` - HTTP client support (enabled by default)
 
 ### Basic Usage
 
@@ -182,6 +194,11 @@ let provider = GenericProvider::new(config, deepseek())?;
 
 ### Method 4: YAML Config File (Optional, for Multi-Provider)
 
+**Requires**: Enable the `yaml` feature in your `Cargo.toml`:
+```toml
+llm-connector = { version = "0.2", features = ["yaml"] }
+```
+
 For applications managing multiple providers, you can optionally use a YAML config file:
 
 ```yaml
@@ -209,8 +226,8 @@ let config = RegistryConfig::from_yaml_file("config.yaml")?;
 let registry = ProviderRegistry::from_config(config)?;
 
 // Get providers
-let deepseek = registry.get("deepseek").unwrap();
-let claude = registry.get("claude").unwrap();
+let deepseek = registry.get_provider("deepseek").unwrap();
+let claude = registry.get_provider("claude").unwrap();
 ```
 
 **Note**: YAML config is optional and only recommended for complex multi-provider scenarios. For simple use cases, use Method 1 or 2.
