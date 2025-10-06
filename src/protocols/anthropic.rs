@@ -434,7 +434,6 @@ impl AnthropicResponse {
 #[derive(Debug, Clone)]
 pub struct AnthropicProtocol {
     base_url: Arc<str>,
-    supported_models: Arc<[String]>,
 }
 
 impl AnthropicProtocol {
@@ -444,7 +443,6 @@ impl AnthropicProtocol {
     pub fn new(_api_key: &str) -> Self {
         Self {
             base_url: Arc::from("https://api.anthropic.com"),
-            supported_models: Arc::from(vec![]),
         }
     }
 
@@ -452,7 +450,6 @@ impl AnthropicProtocol {
     pub fn with_url(_api_key: &str, base_url: &str) -> Self {
         Self {
             base_url: Arc::from(base_url),
-            supported_models: Arc::from(vec![]),
         }
     }
 }
@@ -467,10 +464,6 @@ impl ProviderAdapter for AnthropicProtocol {
 
     fn name(&self) -> &str {
         "anthropic"
-    }
-
-    fn supported_models(&self) -> Vec<String> {
-        self.supported_models.to_vec()
     }
 
     fn endpoint_url(&self, base_url: &Option<String>) -> String {

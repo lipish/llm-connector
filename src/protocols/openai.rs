@@ -376,12 +376,6 @@ impl ProviderAdapter for OpenAIProtocol {
         &self.name
     }
 
-    fn supported_models(&self) -> Vec<String> {
-        // Return empty vector - models should be fetched dynamically via API
-        // or users can specify any model name in their requests
-        vec![]
-    }
-
     fn endpoint_url(&self, base_url: &Option<String>) -> String {
         let base = base_url.as_deref().unwrap_or(&self.base_url);
         format!("{}/chat/completions", base)

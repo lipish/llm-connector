@@ -16,20 +16,6 @@ fn test_openai_compatible_client_creation() {
 }
 
 #[test]
-fn test_supported_models_returns_empty() {
-    let client = LlmClient::openai("test-key");
-    let models = client.supported_models();
-    assert!(models.is_empty(), "OpenAI protocol should return empty model list");
-}
-
-#[test]
-fn test_openai_compatible_supported_models_returns_empty() {
-    let client = LlmClient::openai_compatible("test-key", "https://api.example.com/v1");
-    let models = client.supported_models();
-    assert!(models.is_empty(), "OpenAI-compatible protocol should return empty model list");
-}
-
-#[test]
 fn test_chat_request_creation() {
     let request = ChatRequest {
         model: "gpt-4".to_string(),

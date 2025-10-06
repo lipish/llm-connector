@@ -63,7 +63,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         println!("Protocol: {}", client.protocol_name());
-        println!("Supported models (from API): {:?}", client.supported_models());
 
         // Test with first available model
         if let Some(model) = provider_config.models.first() {
@@ -118,7 +117,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let client = LlmClient::aliyun(&provider_config.api_key);
         println!("Protocol: {}", client.protocol_name());
-        println!("Supported models (from API): {:?}", client.supported_models());
 
         if let Some(model) = provider_config.models.first() {
             println!("\n🚀 Testing with model: {}", model);

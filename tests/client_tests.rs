@@ -39,34 +39,6 @@ fn test_ollama_with_custom_url() {
 }
 
 #[test]
-fn test_openai_supported_models_empty() {
-    let client = LlmClient::openai("test");
-    let models = client.supported_models();
-    assert!(models.is_empty(), "OpenAI should return empty models list");
-}
-
-#[test]
-fn test_anthropic_supported_models_empty() {
-    let client = LlmClient::anthropic("test");
-    let models = client.supported_models();
-    assert!(models.is_empty(), "Anthropic should return empty models list");
-}
-
-#[test]
-fn test_aliyun_supported_models_empty() {
-    let client = LlmClient::aliyun("test");
-    let models = client.supported_models();
-    assert!(models.is_empty(), "Aliyun should return empty models list");
-}
-
-#[test]
-fn test_ollama_supported_models_not_empty() {
-    let client = LlmClient::ollama();
-    let models = client.supported_models();
-    assert!(!models.is_empty(), "Ollama should return hardcoded models list");
-}
-
-#[test]
 fn test_multiple_clients_can_coexist() {
     let openai = LlmClient::openai("sk-1");
     let anthropic = LlmClient::anthropic("sk-2");

@@ -2,6 +2,75 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2025-01-06
+
+### ✨ Added
+
+#### Improved Error Messages
+- **Cleaned up authentication error messages** for OpenAI-compatible providers
+  - Removes OpenAI-specific URLs (like "platform.openai.com") from error messages
+  - Adds helpful context: "Please verify your API key is correct and has the necessary permissions"
+  - Makes errors more generic and applicable to all OpenAI-compatible providers (DeepSeek, Zhipu, Moonshot, etc.)
+
+#### New Debug Tools
+- **Added `debug_deepseek.rs` example** for troubleshooting authentication issues
+  - Validates API key format
+  - Tests model fetching and chat requests
+  - Provides specific troubleshooting guidance based on error type
+  - Can accept API key from command line or environment variable
+
+#### Documentation
+- **Added `TROUBLESHOOTING.md`** - Comprehensive troubleshooting guide
+  - Authentication errors and solutions
+  - Connection errors and debugging steps
+  - Rate limit handling
+  - Model not found errors
+  - Provider-specific instructions for DeepSeek, OpenAI, Zhipu, Moonshot
+  - Example code for common scenarios
+
+### 🔧 Changed
+
+#### Simplified API - Removed `supported_models()`
+- **Removed `supported_models()` method** from all traits and implementations
+  - Removed from `Provider` trait
+  - Removed from `ProviderAdapter` trait
+  - Removed from `LlmClient`
+  - Removed from all protocol implementations (OpenAI, Anthropic, Aliyun, Ollama)
+- **Removed `supports_model()` method** from `Provider` trait (was dependent on `supported_models()`)
+- **Removed hardcoded model lists** from protocol structs
+  - Removed `supported_models` field from `AnthropicProtocol`
+  - Removed `supported_models` field from `AliyunProtocol`
+  - Removed `supported_models` field from `OllamaProtocol`
+
+#### Rationale
+- `supported_models()` returned empty `[]` for most protocols (OpenAI, Anthropic, Aliyun)
+- Only Ollama had hardcoded models, which were outdated
+- Users should use `fetch_models()` for real-time model discovery
+- Simplifies the API by removing confusion between two similar methods
+
+#### Migration Guide
+
+**Before:**
+```rust
+let client = LlmClient::openai("sk-...");
+let models = client.supported_models(); // Returns []
+```
+
+**After:**
+```rust
+let client = LlmClient::openai("sk-...");
+let models = client.fetch_models().await?; // Returns actual models from API
+```
+
+For protocols that don't support `fetch_models()` (Anthropic, Aliyun, Ollama), you can use any model name directly in your requests.
+
+### 📝 Updated
+
+- Updated tests to remove `supported_models()` usage
+- Updated examples to demonstrate only `fetch_models()`
+- Updated README.md to remove references to `supported_models()`
+- Simplified documentation and examples
+
 ## [0.2.2] - 2025-01-06
 
 Same as 0.2.1 - version bump for crates.io publication.

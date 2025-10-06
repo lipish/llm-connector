@@ -115,9 +115,7 @@ let client = LlmClient::ollama_at("http://192.168.1.100:11434");
 
 ## Model Discovery
 
-### Fetch Available Models (Online)
-
-Get the latest available models from the API:
+Fetch the latest available models from the API:
 
 ```rust
 let client = LlmClient::openai("sk-...");
@@ -138,30 +136,9 @@ println!("Available models: {:?}", models);
 - Zhipu: `["glm-4.5", "glm-4.5-air", "glm-4.6"]`
 - Moonshot: `["moonshot-v1-32k", "kimi-latest", ...]`
 
-### Static Model List
-
-Get cached/static model list (fast, no API call):
-
-```rust
-let models = client.supported_models();
-```
-
-**Note:** Returns empty `[]` for OpenAI protocol. Use `fetch_models()` instead.
-
-### Comparison: `supported_models()` vs `fetch_models()`
-
-| Feature | `supported_models()` | `fetch_models()` |
-|---------|---------------------|------------------|
-| **Speed** | ⚡ Instant (no API call) | 🌐 Requires API call |
-| **Authentication** | ✅ No API key needed | 🔑 Requires valid API key |
-| **Data Freshness** | ⚠️ Static/cached | ✅ Real-time from API |
-| **OpenAI Protocol** | Returns `[]` | Returns actual models |
-| **Other Protocols** | Returns hardcoded list | Not supported |
-
 **Recommendation:**
-- Use `fetch_models()` when you need the latest model list from OpenAI-compatible providers
-- Use `supported_models()` for quick checks with Anthropic, Aliyun, or Ollama
 - Cache `fetch_models()` results to avoid repeated API calls
+- For protocols that don't support model listing, you can use any model name directly in your requests
 
 ## Request Examples
 

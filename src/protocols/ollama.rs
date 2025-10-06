@@ -190,7 +190,6 @@ impl ErrorMapper for OllamaErrorMapper {
 #[derive(Debug, Clone)]
 pub struct OllamaProtocol {
     base_url: Arc<str>,
-    supported_models: Arc<[String]>,
 }
 
 impl OllamaProtocol {
@@ -198,15 +197,6 @@ impl OllamaProtocol {
     pub fn new() -> Self {
         Self {
             base_url: Arc::from("http://localhost:11434"),
-            supported_models: Arc::from(vec![
-                "llama3.2".to_string(),
-                "llama3.1".to_string(),
-                "llama3".to_string(),
-                "llama2".to_string(),
-                "mistral".to_string(),
-                "mixtral".to_string(),
-                "qwen2.5".to_string(),
-            ]),
         }
     }
 
@@ -214,7 +204,6 @@ impl OllamaProtocol {
     pub fn with_url(base_url: &str) -> Self {
         Self {
             base_url: Arc::from(base_url),
-            supported_models: Arc::from(vec![]), // Empty - users specify models in requests
         }
     }
 }
@@ -227,10 +216,6 @@ impl ProviderAdapter for OllamaProtocol {
 
     fn name(&self) -> &str {
         "ollama"
-    }
-
-    fn supported_models(&self) -> Vec<String> {
-        self.supported_models.to_vec()
     }
 
     fn endpoint_url(&self, base_url: &Option<String>) -> String {

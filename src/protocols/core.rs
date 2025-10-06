@@ -80,19 +80,11 @@ pub trait Provider: Send + Sync {
     /// Get the provider name
     fn name(&self) -> &str;
 
-    /// Get the list of supported models (static/cached)
-    fn supported_models(&self) -> Vec<String>;
-
     /// Fetch available models from the API (online)
     ///
     /// This makes an API call to retrieve the list of available models.
     /// Returns an error if the provider doesn't support model listing or if the API call fails.
     async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError>;
-
-    /// Check if a model is supported
-    fn supports_model(&self, model: &str) -> bool {
-        self.supported_models().iter().any(|m| m == model)
-    }
 
     /// Send a chat completion request
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError>;
@@ -112,7 +104,6 @@ pub trait ProviderAdapter: Send + Sync + Clone + 'static {
     type ErrorMapperType: ErrorMapper;
 
     fn name(&self) -> &str;
-    fn supported_models(&self) -> Vec<String>;
     fn endpoint_url(&self, base_url: &Option<String>) -> String;
 
     /// Get the models endpoint URL (for fetching available models)
@@ -289,21 +280,35 @@ pub struct StandardErrorMapper;
 impl ErrorMapper for StandardErrorMapper {
     fn map_http_error(status: u16, body: Value) -> LlmConnectorError {
         let error_message = body["error"]["message"].as_str().unwrap_or("Unknown error");
-
         let error_type = body["error"]["type"].as_str().unwrap_or("unknown_error");
 
+        // Clean up error message if it contains OpenAI-specific URLs
+        let cleaned_message = if error_message.contains("platform.openai.com") {
+            // Extract just the main error message before the URL
+            if let Some(idx) = error_message.find(". You can find your API key at") {
+                &error_message[..idx]
+            } else {
+                error_message
+            }
+        } else {
+            error_message
+        };
+
         match status {
-            400 => LlmConnectorError::InvalidRequest(error_message.to_string()),
-            401 => LlmConnectorError::AuthenticationError(error_message.to_string()),
-            403 => LlmConnectorError::PermissionError(error_message.to_string()),
-            404 => LlmConnectorError::NotFoundError(error_message.to_string()),
-            429 => LlmConnectorError::RateLimitError(error_message.to_string()),
+            400 => LlmConnectorError::InvalidRequest(cleaned_message.to_string()),
+            401 => LlmConnectorError::AuthenticationError(format!(
+                "{}. Please verify your API key is correct and has the necessary permissions.",
+                cleaned_message
+            )),
+            403 => LlmConnectorError::PermissionError(cleaned_message.to_string()),
+            404 => LlmConnectorError::NotFoundError(cleaned_message.to_string()),
+            429 => LlmConnectorError::RateLimitError(cleaned_message.to_string()),
             500..=599 => {
-                LlmConnectorError::ServerError(format!("HTTP {}: {}", status, error_message))
+                LlmConnectorError::ServerError(format!("HTTP {}: {}", status, cleaned_message))
             }
             _ => LlmConnectorError::ProviderError(format!(
                 "HTTP {}: {} (type: {})",
-                status, error_message, error_type
+                status, cleaned_message, error_type
             )),
         }
     }
@@ -358,10 +363,6 @@ impl<A: ProviderAdapter> GenericProvider<A> {
 impl<A: ProviderAdapter> Provider for GenericProvider<A> {
     fn name(&self) -> &str {
         self.adapter.name()
-    }
-
-    fn supported_models(&self) -> Vec<String> {
-        self.adapter.supported_models()
     }
 
     async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError> {

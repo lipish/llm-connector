@@ -51,16 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &provider_config.base_url,
         );
 
-        // Test static supported_models (should return empty)
-        println!("\n📦 Static supported_models():");
-        let static_models = client.supported_models();
-        println!("   Result: {:?}", static_models);
-        if static_models.is_empty() {
-            println!("   ✅ Returns empty (as expected)");
-        }
-
         // Test online fetch_models
-        println!("\n🌐 Online fetch_models():");
+        println!("\n🌐 fetch_models():");
         match client.fetch_models().await {
             Ok(models) => {
                 println!("   ✅ Success! Found {} models", models.len());
@@ -87,11 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let client = LlmClient::aliyun(&provider_config.api_key);
 
-        println!("\n📦 Static supported_models():");
-        let static_models = client.supported_models();
-        println!("   Result: {:?}", static_models);
-
-        println!("\n🌐 Online fetch_models():");
+        println!("\n🌐 fetch_models():");
         match client.fetch_models().await {
             Ok(models) => {
                 println!("   ✅ Success! Found {} models", models.len());
@@ -110,11 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Provider: Anthropic (test)");
     let anthropic_client = LlmClient::anthropic("test-key");
 
-    println!("\n📦 Static supported_models():");
-    let static_models = anthropic_client.supported_models();
-    println!("   Result: {:?}", static_models);
-
-    println!("\n🌐 Online fetch_models():");
+    println!("\n🌐 fetch_models():");
     match anthropic_client.fetch_models().await {
         Ok(models) => {
             println!("   ✅ Success! Found {} models", models.len());
@@ -128,10 +112,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!("✨ Testing complete!");
     println!("\n📝 Summary:");
-    println!("   - supported_models() returns static/cached models (empty for OpenAI)");
     println!("   - fetch_models() retrieves models online from the API");
     println!("   - OpenAI protocol supports model listing via /v1/models endpoint");
-    println!("   - Other protocols may not support model listing");
+    println!("   - Other protocols (Anthropic, Aliyun, Ollama) do not support model listing");
 
     Ok(())
 }

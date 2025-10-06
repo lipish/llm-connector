@@ -159,11 +159,6 @@ impl LlmClient {
         self.provider.chat_stream(request).await
     }
 
-    /// Get supported models for the current protocol (static/cached)
-    pub fn supported_models(&self) -> Vec<String> {
-        self.provider.supported_models()
-    }
-
     /// Fetch available models from the API (online)
     ///
     /// This makes an API call to retrieve the list of available models.
