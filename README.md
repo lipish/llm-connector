@@ -5,6 +5,15 @@ Minimal Rust library for LLM protocol abstraction.
 Supports 4 protocols: OpenAI, Anthropic, Aliyun, Ollama.
 No complex configuration - just pick a protocol and start chatting.
 
+## 🚨 Having Authentication Issues?
+
+**Test your API keys right now:**
+```bash
+cargo run --example test_keys_yaml
+```
+
+This will tell you exactly what's wrong with your API keys! See [Debugging & Troubleshooting](#debugging--troubleshooting) for more details.
+
 ## ✨ Key Features
 
 - **4 Protocol Support**: OpenAI, Anthropic, Aliyun, Ollama
@@ -22,13 +31,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.2.2"
+llm-connector = "0.2.3"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
-llm-connector = { version = "0.2.2", features = ["streaming"] }
+llm-connector = { version = "0.2.3", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -192,7 +201,7 @@ let request = ChatRequest {
 
 Enable streaming in your `Cargo.toml`:
 ```toml
-llm-connector = { version = "0.2.2", features = ["streaming"] }
+llm-connector = { version = "0.2.3", features = ["streaming"] }
 ```
 
 ```rust
@@ -267,33 +276,83 @@ let client = LlmClient::openai("sk-...");
 // Get protocol name
 println!("Protocol: {}", client.protocol_name());
 
-// Get static models (fast, no API call)
-println!("Static models: {:?}", client.supported_models());
-
 // Fetch models online (requires API call)
 let models = client.fetch_models().await?;
 println!("Available models: {:?}", models);
 ```
 
+## Debugging & Troubleshooting
+
+### Test Your API Keys
+
+Quickly test if your API keys are valid:
+
+```bash
+# Test all keys from keys.yaml
+cargo run --example test_keys_yaml
+
+# Debug DeepSeek specifically
+cargo run --example debug_deepseek -- sk-your-key
+```
+
+The test tool will:
+- ✅ Validate API key format
+- ✅ Test authentication with the provider
+- ✅ Show exactly what's wrong if a key fails
+- ✅ Provide specific fix instructions
+
+### Troubleshooting Guides
+
+- **`TROUBLESHOOTING.md`** - Comprehensive troubleshooting guide
+- **`HOW_TO_TEST_YOUR_KEYS.md`** - How to test your API keys
+- **`TEST_YOUR_DEEPSEEK_KEY.md`** - Quick start for DeepSeek users
+
+### Common Issues
+
+**Authentication Error:**
+```
+❌ Authentication failed: Incorrect API key provided
+```
+
+**Solutions:**
+1. Verify your API key is correct (no extra spaces)
+2. Check if your account has credits
+3. Generate a new API key from your provider's dashboard
+4. Run `cargo run --example test_keys_yaml` to diagnose
+
 ## Recent Changes
 
-### v0.2.1 (Latest)
+### v0.2.3 (Latest)
+
+**🔧 Breaking Changes:**
+- **Removed `supported_models()` method** - Use `fetch_models()` instead
+- **Removed `supports_model()` method** - No longer needed
+
+**✨ New Features:**
+- **Improved error messages** - Removed confusing OpenAI URLs for other providers
+- **New debugging tools:**
+  - `examples/test_keys_yaml.rs` - Test all API keys
+  - `examples/debug_deepseek.rs` - Debug DeepSeek authentication
+- **Comprehensive documentation:**
+  - `TROUBLESHOOTING.md` - Troubleshooting guide
+  - `HOW_TO_TEST_YOUR_KEYS.md` - Testing instructions
+  - `TEST_YOUR_DEEPSEEK_KEY.md` - Quick start guide
+
+**Migration from v0.2.2:**
+```rust
+// ❌ Old (no longer works)
+let models = client.supported_models();
+
+// ✅ New
+let models = client.fetch_models().await?;
+```
+
+### v0.2.2
 
 **✨ New Features:**
 - Added `fetch_models()` for online model discovery
-- OpenAI protocol now supports dynamic model fetching from `/v1/models` endpoint
+- OpenAI protocol supports dynamic model fetching from `/v1/models` endpoint
 - Works with OpenAI-compatible providers (DeepSeek, Zhipu, Moonshot, etc.)
-
-**🔧 Improvements:**
-- Removed hardcoded model lists from OpenAI protocol
-- `supported_models()` now returns empty `[]` for OpenAI (use `fetch_models()` instead)
-- Added `UnsupportedOperation` error for protocols without model listing
-- Added HTTP GET support to transport layer
-
-**📝 Documentation:**
-- Updated README with model discovery examples
-- Added comprehensive examples: `test_fetch_models.rs`, `fetch_models_simple.rs`
-- Created `FETCH_MODELS_FEATURE.md` with detailed documentation
 
 ## Design Philosophy
 
@@ -313,17 +372,35 @@ println!("Available models: {:?}", models);
 Check out the `examples/` directory:
 
 ```bash
-# Test online model fetching with all providers
+# Test your API keys from keys.yaml
+cargo run --example test_keys_yaml
+
+# Debug DeepSeek authentication
+cargo run --example debug_deepseek -- sk-your-key
+
+# Test online model fetching
 cargo run --example test_fetch_models
 
-# Compare supported_models() vs fetch_models()
+# Simple fetch_models() demo
 cargo run --example fetch_models_simple
 
-# Test with your API keys from keys.yaml
+# Test with your API keys
 cargo run --example test_with_keys
 ```
 
 ### Example Descriptions
+
+**`test_keys_yaml.rs`** ⭐ New!
+- Tests all API keys from your `keys.yaml` file
+- Validates API key format and authentication
+- Provides specific troubleshooting for each error
+- **Run this first if you have authentication issues!**
+
+**`debug_deepseek.rs`** ⭐ New!
+- Interactive debugging tool for DeepSeek API
+- Validates API key format
+- Tests model fetching and chat requests
+- Provides detailed troubleshooting guidance
 
 **`test_fetch_models.rs`**
 - Tests `fetch_models()` with all providers from `keys.yaml`
@@ -331,8 +408,8 @@ cargo run --example test_with_keys
 - Displays available models for each provider
 
 **`fetch_models_simple.rs`**
-- Simple comparison between `supported_models()` and `fetch_models()`
-- Demonstrates the difference between static and online model discovery
+- Simple demonstration of `fetch_models()`
+- Shows how to fetch models from OpenAI-compatible providers
 - Includes usage recommendations
 
 **`test_with_keys.rs`**
