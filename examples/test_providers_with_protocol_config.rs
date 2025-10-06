@@ -32,7 +32,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read API keys from keys.yaml
     println!("📖 Reading API keys from keys.yaml...");
     let yaml_content = std::fs::read_to_string("keys.yaml")?;
-    let api_keys: HashMap<String, String> = serde_yaml::from_str(&yaml_content)?;
+
+    // Try to parse as nested format first
+    let api_keys: HashMap<String, String> = if let Ok(config) = serde_yaml::from_str::<ProtocolBasedConfig>(&yaml_content) {
+        println!("✅ Loaded {} providers from nested format", config.providers.len());
+        config.providers.into_iter().map(|(k, v)| (k, v.api_key)).collect()
+    } else {
+        // Fallback to simple format
+        let keys: HashMap<String, String> = serde_yaml::from_str(&yaml_content)?;
+        println!("✅ Loaded {} API keys from simple format", keys.len());
+        keys
+    };
 
     println!("✅ Loaded {} API keys from keys.yaml", api_keys.len());
 
