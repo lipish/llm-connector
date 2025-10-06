@@ -215,7 +215,7 @@ let request = ChatRequest {
 
 Enable streaming in your `Cargo.toml`:
 ```toml
-llm-connector = { version = "0.2.1", features = ["streaming"] }
+llm-connector = { version = "0.2.2", features = ["streaming"] }
 ```
 
 ```rust

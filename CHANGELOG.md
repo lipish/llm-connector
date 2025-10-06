@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2025-01-06
+
+Same as 0.2.1 - version bump for crates.io publication.
+
 ## [0.2.1] - 2025-01-06
 
 ### ✨ Added
