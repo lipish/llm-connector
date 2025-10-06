@@ -417,6 +417,15 @@ impl ProviderAdapter for OpenAIProtocol {
 // Pre-configured Standard Adapters
 // ============================================================================
 
+/// OpenAI provider using OpenAI protocol
+pub fn openai() -> OpenAIProtocol {
+    OpenAIProtocol::new(
+        "openai",
+        "https://api.openai.com/v1",
+        vec!["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo"],
+    )
+}
+
 /// DeepSeek provider using OpenAI protocol
 pub fn deepseek() -> OpenAIProtocol {
     OpenAIProtocol::new(

@@ -42,6 +42,17 @@ impl Client {
     fn initialize_providers(&mut self) {
         use crate::protocols::GenericProvider;
 
+        // Initialize OpenAI provider
+        if let Some(openai_config) = &self.config.openai {
+            if let Ok(provider) = GenericProvider::new(
+                openai_config.clone(),
+                crate::protocols::openai::openai(),
+            ) {
+                self.providers
+                    .insert("openai".to_string(), Arc::new(provider));
+            }
+        }
+
         // Initialize DeepSeek provider
         if let Some(deepseek_config) = &self.config.deepseek {
             if let Ok(provider) = GenericProvider::new(
@@ -70,6 +81,16 @@ impl Client {
             {
                 self.providers
                     .insert("zhipu".to_string(), Arc::new(provider));
+            }
+        }
+
+        // Initialize Kimi (Moonshot) provider
+        if let Some(kimi_config) = &self.config.kimi {
+            if let Ok(provider) =
+                GenericProvider::new(kimi_config.clone(), crate::protocols::openai::moonshot())
+            {
+                self.providers
+                    .insert("kimi".to_string(), Arc::new(provider));
             }
         }
 
