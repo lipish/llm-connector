@@ -438,19 +438,21 @@ pub struct AnthropicProtocol {
 }
 
 impl AnthropicProtocol {
-    pub fn new(base_url: Option<&str>) -> Self {
+    /// Create new Anthropic protocol with API key
+    ///
+    /// Uses default Anthropic base URL: https://api.anthropic.com
+    pub fn new(_api_key: &str) -> Self {
         Self {
-            base_url: Arc::from(base_url.unwrap_or("https://api.anthropic.com")),
-            supported_models: Arc::from(
-                vec![
-                    "claude-3-5-sonnet-20241022".to_string(),
-                    "claude-3-5-haiku-20241022".to_string(),
-                    "claude-3-opus-20240229".to_string(),
-                    "claude-3-sonnet-20240229".to_string(),
-                    "claude-3-haiku-20240307".to_string(),
-                ]
-                .into_boxed_slice(),
-            ),
+            base_url: Arc::from("https://api.anthropic.com"),
+            supported_models: Arc::from(vec![]),
+        }
+    }
+
+    /// Create new Anthropic protocol with custom API key and base URL
+    pub fn with_url(_api_key: &str, base_url: &str) -> Self {
+        Self {
+            base_url: Arc::from(base_url),
+            supported_models: Arc::from(vec![]),
         }
     }
 }
@@ -522,7 +524,7 @@ impl ProviderAdapter for AnthropicProtocol {
 
 /// Create an Anthropic protocol adapter
 pub fn anthropic() -> AnthropicProtocol {
-    AnthropicProtocol::new(None)
+    AnthropicProtocol::new("")
 }
 
 /// Get all providers that use the Anthropic protocol

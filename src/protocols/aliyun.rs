@@ -302,27 +302,24 @@ pub struct AliyunProtocol {
 }
 
 impl AliyunProtocol {
-    pub fn new(base_url: Option<&str>) -> Self {
+    /// Create new Aliyun protocol with API key
+    ///
+    /// Uses default Aliyun DashScope base URL
+    pub fn new(_api_key: &str) -> Self {
         Self {
-            base_url: Arc::from(base_url.unwrap_or(
-                "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
-            )),
-            supported_models: Arc::from(
-                vec![
-                    "qwen-turbo".to_string(),
-                    "qwen-plus".to_string(),
-                    "qwen-max".to_string(),
-                    "qwen-max-1201".to_string(),
-                    "qwen-max-longcontext".to_string(),
-                ]
-                .into_boxed_slice(),
-            ),
+            base_url: Arc::from("https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"),
+            supported_models: Arc::from(vec![]),
+        }
+    }
+
+    /// Create new Aliyun protocol with custom API key and base URL
+    pub fn with_url(_api_key: &str, base_url: &str) -> Self {
+        Self {
+            base_url: Arc::from(base_url),
+            supported_models: Arc::from(vec![]),
         }
     }
 }
-
-// Legacy compatibility
-pub type AliyunAdapter = AliyunProtocol;
 
 #[async_trait]
 impl ProviderAdapter for AliyunProtocol {
@@ -454,7 +451,7 @@ impl ProviderAdapter for AliyunProtocol {
 
 /// Create an Aliyun protocol adapter
 pub fn aliyun() -> AliyunProtocol {
-    AliyunProtocol::new(None)
+    AliyunProtocol::new("")
 }
 
 /// Get all providers that use the Aliyun protocol

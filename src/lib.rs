@@ -1,65 +1,115 @@
 //! # llm-connector
 //!
-//! A lightweight Rust library for protocol adaptation across multiple LLM providers.
+//! Minimal Rust library for LLM protocol abstraction.
 //!
-//! This library focuses solely on converting between different LLM provider APIs
-//! and providing a unified OpenAI-compatible interface.
+//! Supports 4 protocols: OpenAI, Anthropic, Aliyun, Ollama.
+//! No complex configuration - just pick a protocol and start chatting.
 //!
 //! ## Quick Start
 //!
+//! ### OpenAI Protocol
 //! ```rust,no_run
-//! use llm_connector::{Client, ChatRequest, Message};
+//! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Initialize client from environment variables
-//!     let client = Client::from_env();
+//!     // OpenAI
+//!     let client = LlmClient::openai("sk-...");
 //!
-//!     // Create a chat request
 //!     let request = ChatRequest {
-//!         model: "openai/gpt-4".to_string(),
-//!         messages: vec![
-//!             Message::user("Hello, how are you?")
-//!         ],
+//!         model: "gpt-4".to_string(),
+//!         messages: vec![Message::user("Hello!")],
 //!         ..Default::default()
 //!     };
 //!
-//!     // Send request
-//!     let response = client.chat(request).await?;
+//!     let response = client.chat(&request).await?;
 //!     println!("Response: {}", response.choices[0].message.content);
-//!
 //!     Ok(())
 //! }
+//! ```
+//!
+//! ### Anthropic Protocol
+//! ```rust,no_run
+//! use llm_connector::{LlmClient, ChatRequest, Message};
+//!
+//! let client = LlmClient::anthropic("sk-ant-...");
+//! let request = ChatRequest {
+//!     model: "claude-3-5-sonnet-20241022".to_string(),
+//!     messages: vec![Message::user("Hello!")],
+//!     ..Default::default()
+//! };
+//!
+//! let response = client.chat(&request).await?;
+//! println!("Response: {}", response.choices[0].message.content);
+//! ```
+//!
+//! ### Aliyun Protocol (DashScope)
+//! ```rust,no_run
+//! use llm_connector::{LlmClient, ChatRequest, Message};
+//!
+//! let client = LlmClient::aliyun("sk-...");
+//! let request = ChatRequest {
+//!     model: "qwen-turbo".to_string(),
+//!     messages: vec![Message::user("Hello!")],
+//!     ..Default::default()
+//! };
+//!
+//! let response = client.chat(&request).await?;
+//! println!("Response: {}", response.choices[0].message.content);
+//! ```
+//!
+//! ### Ollama Protocol (Local)
+//! ```rust,no_run
+//! use llm_connector::{LlmClient, ChatRequest, Message};
+//!
+//! // Default: localhost:11434
+//! let client = LlmClient::ollama();
+//!
+//! // Custom URL
+//! let client = LlmClient::ollama_at("http://192.168.1.100:11434");
+//!
+//! let request = ChatRequest {
+//!     model: "llama3.2".to_string(),
+//!     messages: vec![Message::user("Hello!")],
+//!     ..Default::default()
+//! };
+//!
+//! let response = client.chat(&request).await?;
+//! println!("Response: {}", response.choices[0].message.content);
+//! ```
+//!
+//! ## Installation
+//!
+//! Add to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! llm-connector = "0.2"
+//! tokio = { version = "1", features = ["full"] }
+//! ```
+//!
+//! Optional features:
+//! ```toml
+//! llm-connector = { version = "0.2", features = ["streaming"] }
 //! ```
 
 // Core modules
 pub mod client;
 pub mod config;
 pub mod error;
-pub mod middleware;
-pub mod registry;
+pub mod protocols;
 pub mod types;
 
-// Provider implementations
-pub mod protocols;
-// Legacy compatibility - will be deprecated in v0.2.0
-pub mod providers {
-    //! Legacy module - use `protocols` instead
-    //! This module will be deprecated in v0.2.0
-    pub use crate::protocols::*;
-}
 
 // Server-Sent Events (SSE) utilities
 pub mod sse;
 
 // Re-exports for convenience
-pub use client::Client;
-pub use config::{Config, ProviderConfig, RegistryConfig, RetryConfig};
+pub use client::LlmClient;
+pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
 pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage};
 
 #[cfg(feature = "streaming")]
 pub use types::{ChatStream, Delta, StreamingChoice, StreamingResponse};
 
-// Provider trait
-pub use providers::Provider;

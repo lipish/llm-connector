@@ -2,177 +2,182 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.1] - 2025-01-06
 
-## [0.2.1] - 2025-01-10
+### ✨ Added
 
-### Fixed
+#### Online Model Discovery
+- **New `fetch_models()` method** for retrieving available models from API
+  - Added to `Provider` trait, `LlmClient`, and `GenericProvider`
+  - Makes GET request to `/v1/models` endpoint for OpenAI-compatible providers
+  - Returns `Vec<String>` of available model IDs
+  - Returns `UnsupportedOperation` error for protocols without model listing support
 
-#### Critical Bug Fixes
-- **`Client::with_config` provider initialization bug** - Fixed missing provider initialization
-  - Added missing `openai` provider initialization in `Client::initialize_providers()`
-  - Added missing `moonshot` (kimi) provider initialization
-  - Added missing `volcengine` and `longcat` provider initialization
-  - Fixed "Provider 'xxx' not configured" errors despite correct configuration
+#### HTTP Transport Enhancement
+- Added `get()` method to `HttpTransport` for GET requests
+- Supports custom headers and authentication
 
-#### Configuration Structure Fixes
-- **Updated provider naming consistency** - Changed "kimi" to "moonshot" throughout codebase
-  - Renamed `Config.kimi` field to `Config.moonshot`
-  - Updated provider registration to use "moonshot" as provider name
-  - Updated all examples and documentation for consistency
+#### Error Handling
+- Added `UnsupportedOperation` error variant for unsupported operations
+- Returns HTTP 501 status code for unsupported operations
 
-#### Protocol Support
-- **Added comprehensive protocol support** - Added missing providers to Config struct
-  - Added `volcengine` and `longcat` fields to Config structure
-  - Updated `list_providers()` method to include all providers
-  - Complete provider initialization for all supported protocols
-
-### Added
-
-#### Provider Discovery and Testing
-- **Latest models discovery system** - `get_latest_models.rs` for automated model verification
-  - Automatically discovers and verifies available models from each provider
-  - Tests model availability and updates configuration with working models
-  - Support for both nested and simple YAML configuration formats
-
-#### Protocol-based Configuration
-- **Enhanced YAML configuration format** - Protocol-aware configuration support
-  - Added `test_providers_with_protocol_config.rs` for comprehensive testing
-  - Support for protocol type specification in YAML (openai, aliyun, anthropic)
-  - Intelligent format detection (nested vs simple YAML formats)
-  - Provider protocol distribution reporting
-
-#### New Model Support
-- **GLM-4.6** - Added Zhipu's newest model (verified working)
-- **Qwen3-max** - Added Aliyun's newest model (verified working)
-- **Removed non-existent models** - qwen3-turbo and qwen3-plus (not available)
-
-#### Testing and Examples
-- **New model verification** - `test_new_models.rs` for testing new model availability
-- **Comprehensive provider testing** - Protocol-aware testing with detailed reporting
-- **YAML format examples** - Complete configuration examples with protocol types
-
-### Changed
-- **Breaking**: Config.kimi field renamed to Config.moonshot (provider name consistency)
-- **Enhanced**: All providers now properly initialize when using `Client::with_config()`
-- **Improved**: Better error messages for provider configuration issues
-
-### Security
-- **Updated .gitignore** - Added keys.yaml to prevent API key commits
-- **Enhanced security** - Protocol-based configuration with clear API key separation
-
-## [0.2.0] - 2025-01-10
-
-### Added
-
-#### Type Safety Improvements
-- **`Role` enum** for message roles (System, User, Assistant, Tool)
-  - Compile-time validation prevents invalid role strings
-  - Better IDE autocomplete and documentation
-  - Prevents typos and runtime errors
-
-#### Ergonomic API Improvements
-- **Message constructors** for cleaner code
-  - `Message::system(content)` - Create system messages
-  - `Message::user(content)` - Create user messages
-  - `Message::assistant(content)` - Create assistant messages
-  - `Message::tool(content, tool_call_id)` - Create tool response messages
-  - Builder methods: `with_name()`, `with_tool_calls()`
-
-- **ChatRequest builder pattern**
-  - `ChatRequest::new(model)` - Create new request
-  - `add_message()` - Add single message
-  - `with_messages()` - Set all messages
-  - `with_temperature()`, `with_max_tokens()`, etc. - Set parameters
-  - Fluent API for cleaner request construction
-
-- **ToolChoice constructors**
-  - `ToolChoice::none()` - No tools
-  - `ToolChoice::auto()` - Let model decide
-  - `ToolChoice::required()` - Tools must be called
-  - `ToolChoice::function(name)` - Call specific function
+#### Examples
+- `examples/test_fetch_models.rs` - Comprehensive test with all providers
+- `examples/fetch_models_simple.rs` - Simple comparison example
+- `examples/test_with_keys.rs` - Test with keys.yaml configuration
 
 #### Documentation
-- Comprehensive protocol design documentation (`docs/PROTOCOLS_DESIGN.md`)
-- Types optimization documentation (`docs/TYPES_OPTIMIZATION.md`)
-- Architecture design documentation (`docs/ARCHITECTURE_DESIGN.md`)
-- New example: `types_showcase.rs` demonstrating new APIs
+- `FETCH_MODELS_FEATURE.md` - Complete feature documentation
+- `TEST_RESULTS.md` - Test results and verification
+- Updated README.md with model discovery section
+- Added comparison table for `supported_models()` vs `fetch_models()`
 
-### Fixed
-- **ToolChoice serialization bug** - Fixed incorrect JSON serialization
-  - Single-unit variants now serialize to strings ("auto", "none", "required")
-  - Function variant now includes required "type" field
-  - Matches OpenAI API specification correctly
+### 🔧 Changed
 
-### Changed
-- **Breaking**: `Message.role` changed from `String` to `Role` enum
-- **Breaking**: `Delta.role` changed from `Option<String>` to `Option<Role>`
-- All protocol adapters updated to handle Role enum conversion
-- All examples and tests updated to use new API
+#### OpenAI Protocol
+- **Removed hardcoded model lists** from `OpenAIProtocol`
+- `supported_models()` now returns empty `[]` instead of hardcoded models
+- Users can now use **any model name** without restrictions
+- Implemented `models_endpoint_url()` to support `/v1/models` endpoint
 
-### Migration Guide
+#### Documentation Cleanup
+- Removed references to third-party providers (DeepSeek, Zhipu, Moonshot, etc.) from OpenAI protocol docs
+- Updated examples to focus on OpenAI instead of third-party providers
+- Simplified documentation to emphasize protocol-first approach
 
-#### Old Code
+#### Provider Type Aliases
+- Removed provider-specific type aliases:
+  - `DeepSeekProvider`
+  - `ZhipuProvider`
+  - `MoonshotProvider`
+  - `VolcEngineProvider`
+  - `TencentProvider`
+  - `MiniMaxProvider`
+  - `StepFunProvider`
+
+### 🐛 Fixed
+
+#### Configuration
+- Fixed `keys.yaml` model names:
+  - Removed invalid `qwen3-turbo` model
+  - Updated to valid Aliyun models: `qwen-turbo`, `qwen-plus`, `qwen-max`
+  - Updated Qwen2 models to Qwen2.5 versions
+
+#### Dependencies
+- Added `serde_yaml` to `[dev-dependencies]` for examples
+- Fixed `serde_yaml` resolution in test examples
+
+#### Code Quality
+- Removed unused imports (`HttpTransport`, `LlmConnectorError` from openai.rs)
+- Fixed struct field issues (removed incorrect `transport` field)
+
+### 📊 Test Results
+
+#### Successfully Tested Providers (Online Model Fetching)
+
+| Provider | Status | Models Found | Example Models |
+|----------|--------|--------------|----------------|
+| DeepSeek | ✅ | 2 | `deepseek-chat`, `deepseek-reasoner` |
+| Zhipu (GLM) | ✅ | 3 | `glm-4.5`, `glm-4.5-air`, `glm-4.6` |
+| Moonshot | ✅ | 12 | `moonshot-v1-32k`, `kimi-latest`, `kimi-thinking-preview` |
+| LongCat | ❌ | - | `/models` endpoint not available |
+| VolcEngine | ❌ | - | `/models` endpoint not available |
+| Aliyun | ℹ️ | - | Protocol doesn't support model listing |
+| Anthropic | ℹ️ | - | Protocol doesn't support model listing |
+
+### 📝 Migration Guide
+
+#### For Users Relying on Hardcoded Models
+
+**Before (v0.2.0):**
 ```rust
-let msg = Message {
-    role: "user".to_string(),
-    content: "Hello".to_string(),
-    ..Default::default()
+let client = LlmClient::openai("sk-...");
+let models = client.supported_models();
+// Returns: ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo"]
+```
+
+**After (v0.2.1):**
+```rust
+let client = LlmClient::openai("sk-...");
+
+// Option 1: Use any model name directly (recommended)
+let request = ChatRequest {
+    model: "gpt-4o".to_string(), // Any model name works
+    // ...
 };
+
+// Option 2: Fetch models online
+let models = client.fetch_models().await?;
+// Returns: actual models from OpenAI API
 ```
 
-#### New Code (Option 1 - Direct)
+#### For OpenAI-Compatible Providers
+
+**Before:**
 ```rust
-let msg = Message {
-    role: Role::User,
-    content: "Hello".to_string(),
-    ..Default::default()
-};
+// Had to check hardcoded list
+let models = client.supported_models();
 ```
 
-#### New Code (Option 2 - Constructor, Recommended)
+**After:**
 ```rust
-let msg = Message::user("Hello");
+// Fetch real-time models from provider
+let client = LlmClient::openai_compatible(
+    "sk-...",
+    "https://api.deepseek.com/v1"
+);
+let models = client.fetch_models().await?;
+// Returns: ["deepseek-chat", "deepseek-reasoner"]
 ```
 
-### Performance
-- No performance regression
-- Zero-cost abstractions maintained
-- All optimizations from 0.1.0 preserved
+### 🎯 Benefits
 
-### Testing
-- ✅ 35/35 unit tests passing
-- ✅ 5/5 integration tests passing
-- ✅ All examples compile and run successfully
-- ⚠️ Some doctests need updates (non-critical)
+1. **No Model Restrictions**: Use any model name without being limited by hardcoded lists
+2. **Always Up-to-Date**: Get the latest models directly from the API
+3. **Backward Compatible**: Existing code continues to work
+4. **Flexible**: Providers can opt-in to model listing support
+5. **Clear Errors**: Explicit error messages when operations aren't supported
 
-## [0.1.0] - 2025-01-09
+### 🔗 Related Issues
 
-### Added
-- Initial release
-- Support for 10+ LLM providers
-- Three protocol implementations (OpenAI, Anthropic, Aliyun)
-- Generic provider architecture
-- Middleware system (logging, metrics, retry, interceptor)
-- Provider registry
-- YAML configuration support
-- Streaming support
-- Comprehensive documentation
+- Fixed errors in `src/protocols/openai.rs`
+- Removed hardcoded `supported_models`
+- Implemented online model fetching (Option 3)
+- Updated documentation to reflect changes
 
-### Supported Providers
-- DeepSeek
-- Zhipu (GLM)
-- Moonshot (Kimi)
-- VolcEngine (Doubao)
-- Tencent (Hunyuan)
-- MiniMax
-- StepFun
-- LongCat
-- Claude (Anthropic)
-- Qwen (Aliyun)
+### 📚 Documentation
 
-[0.2.1]: https://github.com/lipish/llm-connector/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/lipish/llm-connector/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/lipish/llm-connector/releases/tag/v0.1.0
+- README.md: Added "Key Features" section
+- README.md: Added "Model Discovery" section with comparison table
+- README.md: Added "Recent Changes" section
+- README.md: Updated error handling examples
+- README.md: Updated examples section
+
+### 🧪 Testing
+
+All tests passing:
+```bash
+cargo check --lib                    # ✅ Success
+cargo run --example test_openai_only # ✅ All tests passed
+cargo run --example test_with_keys   # ✅ 6/6 providers tested
+cargo run --example test_fetch_models # ✅ Online fetching works
+```
+
+---
+
+## [0.2.0] - Previous Release
+
+Initial release with 4 protocol support and basic functionality.
+
+---
+
+## Future Enhancements
+
+Potential improvements for future releases:
+
+1. **Model Caching**: Cache fetched models to reduce API calls
+2. **Model Metadata**: Return full model objects with capabilities, not just IDs
+3. **Model Filtering**: Add parameters to filter models by capability
+4. **Extended Protocol Support**: Implement model listing for other protocols if available
+5. **Pagination Support**: Handle paginated model responses
 

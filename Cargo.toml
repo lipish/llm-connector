@@ -3,11 +3,11 @@ name = "llm-connector"
 version = "0.2.1"
 edition = "2021"
 authors = ["lipi"]
-description = "A lightweight Rust library for protocol adaptation across multiple LLM providers. Focuses solely on converting between different LLM provider APIs and providing a unified OpenAI-compatible interface."
+description = "Minimal Rust library for LLM protocol abstraction. Supports 4 protocols (OpenAI, Anthropic, Aliyun, Ollama) with unified interface, and dynamic model discovery."
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/lipish/llm-connector"
-keywords = ["llm", "ai", "protocol", "adapter", "openai"]
+keywords = ["llm", "ai", "protocol", "openai", "anthropic"]
 categories = ["api-bindings", "web-programming::http-client"]
 
 [lib]
@@ -56,3 +56,4 @@ serde_yaml = { version = "0.9", optional = true }
 tokio = { version = "1.0", features = ["full"] }
 tokio-test = "0.4"
 wiremock = "0.6"
+serde_yaml = "0.9"

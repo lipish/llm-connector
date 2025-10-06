@@ -2,3 +2,5 @@
 .qoder
 examples/core
 keys.yaml
+.github
+.claude

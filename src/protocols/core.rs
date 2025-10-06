@@ -10,7 +10,7 @@
 //!
 //! - **`Provider`**: Public-facing trait for external API consumers
 //!   - Provides high-level methods: `chat()`, `chat_stream()`
-//!   - Used by `Client` and `ProviderRegistry`
+//!   - Used by `LlmClient`
 //!
 //! - **`ProviderAdapter`**: Internal trait for protocol implementations
 //!   - Handles protocol-specific request/response transformations
@@ -36,19 +36,23 @@
 //! # Example
 //!
 //! ```rust
-//! use llm_connector::{
-//!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, openai::deepseek},
+//! use llm_connector::{LlmClient, ChatRequest, Message};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create client with OpenAI protocol
+//! let client = LlmClient::openai("sk-...");
+//!
+//! // Create request
+//! let request = ChatRequest {
+//!     model: "gpt-4".to_string(),
+//!     messages: vec![Message::user("Hello!")],
+//!     ..Default::default()
 //! };
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create a provider using the generic implementation
-//! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, deepseek())?;
-//!
-//! // The provider implements the Provider trait
-//! println!("Provider: {}", provider.name());
-//! println!("Models: {:?}", provider.supported_models());
+//! // Send request
+//! let response = client.chat(&request).await?;
+//! println!("Response: {}", response.choices[0].message.content);
 //! # Ok(())
 //! # }
 //! ```
@@ -76,8 +80,14 @@ pub trait Provider: Send + Sync {
     /// Get the provider name
     fn name(&self) -> &str;
 
-    /// Get the list of supported models
+    /// Get the list of supported models (static/cached)
     fn supported_models(&self) -> Vec<String>;
+
+    /// Fetch available models from the API (online)
+    ///
+    /// This makes an API call to retrieve the list of available models.
+    /// Returns an error if the provider doesn't support model listing or if the API call fails.
+    async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError>;
 
     /// Check if a model is supported
     fn supports_model(&self, model: &str) -> bool {
@@ -104,6 +114,14 @@ pub trait ProviderAdapter: Send + Sync + Clone + 'static {
     fn name(&self) -> &str;
     fn supported_models(&self) -> Vec<String>;
     fn endpoint_url(&self, base_url: &Option<String>) -> String;
+
+    /// Get the models endpoint URL (for fetching available models)
+    ///
+    /// Returns None if the provider doesn't support model listing
+    fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
+        let _ = base_url;
+        None // Default: no model listing support
+    }
 
     fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType;
     fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse;
@@ -173,6 +191,26 @@ impl HttpTransport {
         client_builder
             .build()
             .map_err(|e| LlmConnectorError::ConfigError(e.to_string()))
+    }
+
+    /// Send GET request
+    pub async fn get(&self, url: &str) -> Result<reqwest::Response, LlmConnectorError> {
+        let mut request = self
+            .client
+            .get(url)
+            .header("Authorization", format!("Bearer {}", &self.config.api_key));
+
+        // Apply custom headers if configured
+        if let Some(headers) = &self.config.headers {
+            for (key, value) in headers {
+                request = request.header(key, value);
+            }
+        }
+
+        request
+            .send()
+            .await
+            .map_err(LlmConnectorError::from)
     }
 
     /// Send POST request with JSON body
@@ -324,6 +362,42 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
 
     fn supported_models(&self) -> Vec<String> {
         self.adapter.supported_models()
+    }
+
+    async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        // Check if the adapter supports model listing
+        let url = self.adapter.models_endpoint_url(&self.transport.config.base_url)
+            .ok_or_else(|| LlmConnectorError::UnsupportedOperation(
+                format!("{} does not support model listing", self.adapter.name())
+            ))?;
+
+        let response = self.transport.get(&url).await?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let body: Value = response.json().await.unwrap_or_default();
+            return Err(A::ErrorMapperType::map_http_error(status, body));
+        }
+
+        // Parse the response - for OpenAI-compatible APIs
+        let models_response: Value = response
+            .json()
+            .await
+            .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+
+        // Extract model IDs from the response
+        // OpenAI format: { "data": [{ "id": "model-name", ... }] }
+        if let Some(data) = models_response.get("data").and_then(|d| d.as_array()) {
+            let models = data
+                .iter()
+                .filter_map(|m| m.get("id").and_then(|id| id.as_str()).map(String::from))
+                .collect();
+            Ok(models)
+        } else {
+            Err(LlmConnectorError::ParseError(
+                "Invalid models response format".to_string()
+            ))
+        }
     }
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {

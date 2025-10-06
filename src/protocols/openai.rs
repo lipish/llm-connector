@@ -1,20 +1,6 @@
 //! OpenAI Protocol Implementation
 //!
-//! This module implements the OpenAI-compatible protocol used by multiple providers.
-//! The OpenAI protocol has become the de facto standard for LLM APIs.
-//!
-//! # Supported Providers
-//!
-//! The following providers use the OpenAI-compatible protocol:
-//!
-//! - **DeepSeek** - `deepseek()` - DeepSeek-V3, DeepSeek-Chat
-//! - **Zhipu (GLM)** - `zhipu()` - GLM-4, GLM-4-Plus, GLM-4-Flash
-//! - **Moonshot (Kimi)** - `moonshot()` - Moonshot-v1 series
-//! - **VolcEngine (Doubao)** - `volcengine()` - Doubao models
-//! - **Tencent (Hunyuan)** - `tencent()` - Hunyuan models
-//! - **MiniMax** - `minimax()` - MiniMax models
-//! - **StepFun** - `stepfun()` - Step series models
-//! - **LongCat** - `longcat()` - Free quota available for testing
+//! This module implements the OpenAI protocol for OpenAI's API.
 //!
 //! # Protocol Details
 //!
@@ -25,7 +11,7 @@
 //! ## Request Format
 //! ```json
 //! {
-//!   "model": "deepseek-chat",
+//!   "model": "gpt-4",
 //!   "messages": [
 //!     {"role": "user", "content": "Hello"}
 //!   ],
@@ -41,7 +27,7 @@
 //!   "id": "chatcmpl-123",
 //!   "object": "chat.completion",
 //!   "created": 1677652288,
-//!   "model": "deepseek-chat",
+//!   "model": "gpt-4",
 //!   "choices": [{
 //!     "index": 0,
 //!     "message": {
@@ -66,22 +52,18 @@
 //! # Example
 //!
 //! ```rust
-//! use llm_connector::{
-//!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, openai::deepseek},
-//!     types::{ChatRequest, Message},
-//! };
+//! use llm_connector::LlmClient;
+//! use llm_connector::types::{ChatRequest, Message, Role};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create DeepSeek provider
-//! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, deepseek())?;
+//! // Create OpenAI client
+//! let client = LlmClient::openai("your-api-key");
 //!
 //! // Create request
 //! let request = ChatRequest {
-//!     model: "deepseek-chat".to_string(),
+//!     model: "gpt-4".to_string(),
 //!     messages: vec![Message {
-//!         role: "user".to_string(),
+//!         role: Role::User,
 //!         content: "Hello!".to_string(),
 //!         ..Default::default()
 //!     }],
@@ -89,7 +71,7 @@
 //! };
 //!
 //! // Send request
-//! let response = provider.chat(&request).await?;
+//! let response = client.chat(&request).await?;
 //! println!("Response: {}", response.choices[0].message.content);
 //! # Ok(())
 //! # }
@@ -181,6 +163,22 @@ pub struct OpenAIResponse {
     pub usage: Usage,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
+}
+
+/// OpenAI model information from /models endpoint
+#[derive(Deserialize, Debug)]
+pub struct OpenAIModel {
+    pub id: String,
+    pub object: String,
+    pub created: u64,
+    pub owned_by: String,
+}
+
+/// OpenAI models response from /models endpoint
+#[derive(Deserialize, Debug)]
+pub struct OpenAIModelsResponse {
+    pub object: String,
+    pub data: Vec<OpenAIModel>,
 }
 
 fn default_object_type() -> String {
@@ -362,21 +360,9 @@ impl OpenAIStreamResponse {
 pub struct OpenAIProtocol {
     name: Arc<str>,
     base_url: Arc<str>,
-    supported_models: Arc<[String]>,
 }
 
-impl OpenAIProtocol {
-    pub fn new(name: &str, base_url: &str, models: Vec<&str>) -> Self {
-        Self {
-            name: Arc::from(name),
-            base_url: Arc::from(base_url),
-            supported_models: Arc::from(models.iter().map(|s| s.to_string()).collect::<Vec<_>>()),
-        }
-    }
-}
 
-// Legacy compatibility
-pub type StandardAdapter = OpenAIProtocol;
 
 #[async_trait]
 impl ProviderAdapter for OpenAIProtocol {
@@ -391,12 +377,19 @@ impl ProviderAdapter for OpenAIProtocol {
     }
 
     fn supported_models(&self) -> Vec<String> {
-        self.supported_models.to_vec()
+        // Return empty vector - models should be fetched dynamically via API
+        // or users can specify any model name in their requests
+        vec![]
     }
 
     fn endpoint_url(&self, base_url: &Option<String>) -> String {
         let base = base_url.as_deref().unwrap_or(&self.base_url);
         format!("{}/chat/completions", base)
+    }
+
+    fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
+        let base = base_url.as_deref().unwrap_or(&self.base_url);
+        Some(format!("{}/models", base))
     }
 
     fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
@@ -414,114 +407,38 @@ impl ProviderAdapter for OpenAIProtocol {
 }
 
 // ============================================================================
-// Pre-configured Standard Adapters
+// OpenAI Protocol Implementation
 // ============================================================================
 
-/// OpenAI provider using OpenAI protocol
-pub fn openai() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "openai",
-        "https://api.openai.com/v1",
-        vec!["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo"],
-    )
+/// OpenAI protocol implementation
+///
+/// Implements the OpenAI API protocol.
+/// Base URL: https://api.openai.com/v1
+
+impl OpenAIProtocol {
+    /// Create new OpenAI protocol
+    ///
+    /// Uses default OpenAI base URL: https://api.openai.com/v1
+    pub fn new(_api_key: &str) -> Self {
+        Self {
+            name: Arc::from("openai"),
+            base_url: Arc::from("https://api.openai.com/v1"),
+        }
+    }
+
+    /// Create new OpenAI protocol with custom base URL
+    ///
+    /// This can be used for OpenAI-compatible endpoints if needed
+    pub fn with_url(_api_key: &str, base_url: &str) -> Self {
+        Self {
+            name: Arc::from("openai"),
+            base_url: Arc::from(base_url),
+        }
+    }
 }
 
-/// DeepSeek provider using OpenAI protocol
-pub fn deepseek() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "deepseek",
-        "https://api.deepseek.com/v1",
-        vec!["deepseek-chat", "deepseek-coder"],
-    )
+impl Default for OpenAIProtocol {
+    fn default() -> Self {
+        Self::new("") // Empty API key, user must set it
+    }
 }
-
-/// Zhipu (GLM) provider using OpenAI protocol
-pub fn zhipu() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "zhipu",
-        "https://open.bigmodel.cn/api/paas/v4",
-        vec!["glm-4", "glm-3-turbo"],
-    )
-}
-
-/// Moonshot provider using OpenAI protocol
-pub fn moonshot() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "moonshot",
-        "https://api.moonshot.cn/v1",
-        vec!["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
-    )
-}
-
-/// VolcEngine (Doubao) provider using OpenAI protocol
-/// Note: VolcEngine uses endpoint IDs as model names
-/// You need to create an endpoint in the console and use its ID
-pub fn volcengine() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "volcengine",
-        "https://ark.cn-beijing.volces.com/api/v3",
-        vec!["ep-*"], // Endpoint IDs start with "ep-"
-    )
-}
-
-/// Tencent Hunyuan provider using OpenAI protocol
-pub fn tencent() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "tencent",
-        "https://hunyuan.tencentcloudapi.com/v1",
-        vec!["hunyuan-lite", "hunyuan-standard", "hunyuan-pro"],
-    )
-}
-
-/// MiniMax provider using OpenAI protocol
-pub fn minimax() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "minimax",
-        "https://api.minimax.chat/v1",
-        vec!["abab6.5s-chat", "abab6.5-chat", "abab5.5-chat"],
-    )
-}
-
-/// StepFun provider using OpenAI protocol
-pub fn stepfun() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "stepfun",
-        "https://api.stepfun.com/v1",
-        vec!["step-1-8k", "step-1-32k", "step-1-128k"],
-    )
-}
-
-/// LongCat provider using OpenAI protocol
-pub fn longcat() -> OpenAIProtocol {
-    OpenAIProtocol::new(
-        "longcat",
-        "https://api.longcat.chat/openai",
-        vec!["LongCat-Flash-Chat", "LongCat-Flash-Thinking"],
-    )
-}
-
-/// Get all providers that use the OpenAI protocol
-pub fn openai_providers() -> Vec<(&'static str, OpenAIProtocol)> {
-    vec![
-        ("deepseek", deepseek()),
-        ("zhipu", zhipu()),
-        ("moonshot", moonshot()),
-        ("volcengine", volcengine()),
-        ("tencent", tencent()),
-        ("minimax", minimax()),
-        ("stepfun", stepfun()),
-        ("longcat", longcat()),
-    ]
-}
-
-// ============================================================================
-// Convenience type aliases
-// ============================================================================
-
-pub type DeepSeekProvider = crate::protocols::core::GenericProvider<OpenAIProtocol>;
-pub type ZhipuProvider = crate::protocols::core::GenericProvider<OpenAIProtocol>;
-pub type MoonshotProvider = crate::protocols::core::GenericProvider<OpenAIProtocol>;
-pub type VolcEngineProvider = crate::protocols::core::GenericProvider<OpenAIProtocol>;
-pub type TencentProvider = crate::protocols::core::GenericProvider<OpenAIProtocol>;
-pub type MiniMaxProvider = crate::protocols::core::GenericProvider<OpenAIProtocol>;
-pub type StepFunProvider = crate::protocols::core::GenericProvider<OpenAIProtocol>;

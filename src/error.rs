@@ -63,6 +63,10 @@ pub enum LlmConnectorError {
     #[error("Streaming error: {0}")]
     StreamingError(String),
 
+    /// Unsupported operation error
+    #[error("Unsupported operation: {0}")]
+    UnsupportedOperation(String),
+
     /// JSON parsing error
     #[error("JSON parsing error: {0}")]
     JsonError(#[from] serde_json::Error),
@@ -102,6 +106,7 @@ impl LlmConnectorError {
             LlmConnectorError::TimeoutError(_) => 408,
             LlmConnectorError::ConnectionError(_) => 502,
             LlmConnectorError::ParseError(_) => 400,
+            LlmConnectorError::UnsupportedOperation(_) => 501,
             LlmConnectorError::HttpError(_) => 502,
             LlmConnectorError::MaxRetriesExceeded(_) => 503,
         }
