@@ -100,9 +100,9 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aliyun: Option<ProviderConfig>,
 
-    /// Kimi (Moonshot) configuration
+    /// Moonshot configuration
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub kimi: Option<ProviderConfig>,
+    pub moonshot: Option<ProviderConfig>,
 }
 
 impl Config {
@@ -187,8 +187,8 @@ impl Config {
         if self.aliyun.is_some() {
             providers.push("aliyun".to_string());
         }
-        if self.kimi.is_some() {
-            providers.push("kimi".to_string());
+        if self.moonshot.is_some() {
+            providers.push("moonshot".to_string());
         }
         providers
     }

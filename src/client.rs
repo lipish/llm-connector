@@ -84,13 +84,13 @@ impl Client {
             }
         }
 
-        // Initialize Kimi (Moonshot) provider
-        if let Some(kimi_config) = &self.config.kimi {
+        // Initialize Moonshot provider
+        if let Some(moonshot_config) = &self.config.moonshot {
             if let Ok(provider) =
-                GenericProvider::new(kimi_config.clone(), crate::protocols::openai::moonshot())
+                GenericProvider::new(moonshot_config.clone(), crate::protocols::openai::moonshot())
             {
                 self.providers
-                    .insert("kimi".to_string(), Arc::new(provider));
+                    .insert("moonshot".to_string(), Arc::new(provider));
             }
         }
 
