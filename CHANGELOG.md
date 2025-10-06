@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-01-10
+
+### Fixed
+
+#### Critical Bug Fixes
+- **`Client::with_config` provider initialization bug** - Fixed missing provider initialization
+  - Added missing `openai` provider initialization in `Client::initialize_providers()`
+  - Added missing `moonshot` (kimi) provider initialization
+  - Added missing `volcengine` and `longcat` provider initialization
+  - Fixed "Provider 'xxx' not configured" errors despite correct configuration
+
+#### Configuration Structure Fixes
+- **Updated provider naming consistency** - Changed "kimi" to "moonshot" throughout codebase
+  - Renamed `Config.kimi` field to `Config.moonshot`
+  - Updated provider registration to use "moonshot" as provider name
+  - Updated all examples and documentation for consistency
+
+#### Protocol Support
+- **Added comprehensive protocol support** - Added missing providers to Config struct
+  - Added `volcengine` and `longcat` fields to Config structure
+  - Updated `list_providers()` method to include all providers
+  - Complete provider initialization for all supported protocols
+
+### Added
+
+#### Provider Discovery and Testing
+- **Latest models discovery system** - `get_latest_models.rs` for automated model verification
+  - Automatically discovers and verifies available models from each provider
+  - Tests model availability and updates configuration with working models
+  - Support for both nested and simple YAML configuration formats
+
+#### Protocol-based Configuration
+- **Enhanced YAML configuration format** - Protocol-aware configuration support
+  - Added `test_providers_with_protocol_config.rs` for comprehensive testing
+  - Support for protocol type specification in YAML (openai, aliyun, anthropic)
+  - Intelligent format detection (nested vs simple YAML formats)
+  - Provider protocol distribution reporting
+
+#### New Model Support
+- **GLM-4.6** - Added Zhipu's newest model (verified working)
+- **Qwen3-max** - Added Aliyun's newest model (verified working)
+- **Removed non-existent models** - qwen3-turbo and qwen3-plus (not available)
+
+#### Testing and Examples
+- **New model verification** - `test_new_models.rs` for testing new model availability
+- **Comprehensive provider testing** - Protocol-aware testing with detailed reporting
+- **YAML format examples** - Complete configuration examples with protocol types
+
+### Changed
+- **Breaking**: Config.kimi field renamed to Config.moonshot (provider name consistency)
+- **Enhanced**: All providers now properly initialize when using `Client::with_config()`
+- **Improved**: Better error messages for provider configuration issues
+
+### Security
+- **Updated .gitignore** - Added keys.yaml to prevent API key commits
+- **Enhanced security** - Protocol-based configuration with clear API key separation
+
 ## [0.2.0] - 2025-01-10
 
 ### Added
@@ -115,6 +172,7 @@ let msg = Message::user("Hello");
 - Claude (Anthropic)
 - Qwen (Aliyun)
 
+[0.2.1]: https://github.com/lipish/llm-connector/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/lipish/llm-connector/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/lipish/llm-connector/releases/tag/v0.1.0
 
