@@ -46,10 +46,10 @@ fn main() {
 
     // 5. ToolChoice constructors
     println!("\n5. ToolChoice Constructors:");
-    let tc1 = ToolChoice::none();
-    let tc2 = ToolChoice::auto();
-    let tc3 = ToolChoice::required();
-    let tc4 = ToolChoice::function("calculate");
+    let _tc1 = ToolChoice::none();
+    let _tc2 = ToolChoice::auto();
+    let _tc3 = ToolChoice::required();
+    let _tc4 = ToolChoice::function("calculate");
 
     println!("   None: created");
     println!("   Auto: created");

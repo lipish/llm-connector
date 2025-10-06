@@ -31,6 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         zhipu: None,
         aliyun: None,
         moonshot: None,
+        volcengine: None,
+        longcat: None,
     };
 
     // Configure DeepSeek
