@@ -213,7 +213,7 @@ pub enum AnthropicResponseContent {
     },
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct AnthropicUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
@@ -234,6 +234,139 @@ pub struct AnthropicStreamResponse {
     pub delta: Option<AnthropicStreamDelta>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<AnthropicUsage>,
+}
+
+/// Anthropic streaming response state manager
+#[cfg(feature = "streaming")]
+#[derive(Debug, Default)]
+pub struct AnthropicStreamState {
+    pub id: Option<String>,
+    pub model: Option<String>,
+    pub role: Option<String>,
+    pub content: Vec<String>,
+    pub usage: Option<AnthropicUsage>,
+    pub finished: bool,
+}
+
+#[cfg(feature = "streaming")]
+impl AnthropicStreamState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn process_event(&mut self, event: AnthropicStreamResponse) -> Option<StreamingResponse> {
+        match event.r#type.as_str() {
+            "message_start" => {
+                if let Some(message) = event.message {
+                    self.id = Some(message.id);
+                    self.model = Some(message.model);
+                    self.role = Some(message.role);
+                    self.usage = Some(message.usage);
+                }
+                None
+            }
+            "content_block_delta" => {
+                if let Some(delta) = event.delta {
+                    if let Some(text) = delta.text {
+                        self.content.push(text.clone());
+                        return Some(StreamingResponse {
+                            id: self.id.clone().unwrap_or_default(),
+                            object: "chat.completion.chunk".to_string(),
+                            created: chrono::Utc::now().timestamp() as u64,
+                            model: self.model.clone().unwrap_or_default(),
+                            choices: vec![StreamingChoice {
+                                index: event.index.unwrap_or(0),
+                                delta: Delta {
+                                    role: self.role.clone().and_then(|r| match r.as_str() {
+                                        "system" => Some(crate::types::Role::System),
+                                        "user" => Some(crate::types::Role::User),
+                                        "assistant" => Some(crate::types::Role::Assistant),
+                                        "tool" => Some(crate::types::Role::Tool),
+                                        _ => Some(crate::types::Role::User),
+                                    }),
+                                    content: Some(text),
+                                    tool_calls: None,
+                                    reasoning_content: None,
+                                },
+                                finish_reason: None,
+                                logprobs: None,
+                            }],
+                            usage: None,
+                            system_fingerprint: None,
+                        });
+                    }
+                }
+                None
+            }
+            "message_delta" => {
+                if let Some(usage) = event.usage {
+                    self.usage = Some(usage);
+                }
+                let finish_reason = if self.finished {
+                    Some("stop".to_string())
+                } else {
+                    None
+                };
+
+                Some(StreamingResponse {
+                    id: self.id.clone().unwrap_or_default(),
+                    object: "chat.completion.chunk".to_string(),
+                    created: chrono::Utc::now().timestamp() as u64,
+                    model: self.model.clone().unwrap_or_default(),
+                    choices: vec![StreamingChoice {
+                        index: 0,
+                        delta: Delta {
+                            role: None,
+                            content: None,
+                            tool_calls: None,
+                            reasoning_content: None,
+                        },
+                        finish_reason,
+                        logprobs: None,
+                    }],
+                    usage: self.usage.clone().map(|usage| Usage {
+                        prompt_tokens: usage.input_tokens,
+                        completion_tokens: usage.output_tokens,
+                        total_tokens: usage.input_tokens + usage.output_tokens,
+                        prompt_cache_hit_tokens: None,
+                        prompt_cache_miss_tokens: None,
+                        prompt_tokens_details: None,
+                        completion_tokens_details: None,
+                    }),
+                    system_fingerprint: None,
+                })
+            }
+            "message_stop" => {
+                self.finished = true;
+                None
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Anthropic streaming response processor
+#[cfg(feature = "streaming")]
+#[derive(Debug, Clone)]
+pub struct AnthropicStreamProcessor {
+    state: Arc<std::sync::Mutex<AnthropicStreamState>>,
+}
+
+#[cfg(feature = "streaming")]
+impl AnthropicStreamProcessor {
+    pub fn new() -> Self {
+        Self {
+            state: Arc::new(std::sync::Mutex::new(AnthropicStreamState::new())),
+        }
+    }
+
+    pub fn process_event(&self, event: AnthropicStreamResponse) -> Option<StreamingResponse> {
+        if let Ok(mut state) = self.state.lock() {
+            state.process_event(event)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(feature = "streaming")]
@@ -434,6 +567,8 @@ impl AnthropicResponse {
 #[derive(Debug, Clone)]
 pub struct AnthropicProtocol {
     base_url: Arc<str>,
+    #[cfg(feature = "streaming")]
+    stream_processor: Arc<AnthropicStreamProcessor>,
 }
 
 impl AnthropicProtocol {
@@ -443,6 +578,8 @@ impl AnthropicProtocol {
     pub fn new(_api_key: &str) -> Self {
         Self {
             base_url: Arc::from("https://api.anthropic.com"),
+            #[cfg(feature = "streaming")]
+            stream_processor: Arc::new(AnthropicStreamProcessor::new()),
         }
     }
 
@@ -450,6 +587,8 @@ impl AnthropicProtocol {
     pub fn with_url(_api_key: &str, base_url: &str) -> Self {
         Self {
             base_url: Arc::from(base_url),
+            #[cfg(feature = "streaming")]
+            stream_processor: Arc::new(AnthropicStreamProcessor::new()),
         }
     }
 }
@@ -471,6 +610,11 @@ impl ProviderAdapter for AnthropicProtocol {
         format!("{}/v1/messages", base)
     }
 
+    fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
+        let base = base_url.as_deref().unwrap_or(&self.base_url);
+        Some(format!("{}/v1/messages", base)) // Anthropic doesn't have models endpoint, return messages endpoint as fallback
+    }
+
     fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
         AnthropicRequest::from_chat_request(request, stream)
     }
@@ -481,33 +625,36 @@ impl ProviderAdapter for AnthropicProtocol {
 
     #[cfg(feature = "streaming")]
     fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> StreamingResponse {
-        // Simplified streaming response conversion
-        // In practice, Anthropic streaming is more complex and requires state management
-        StreamingResponse {
-            id: "anthropic-stream".to_string(),
-            object: "chat.completion.chunk".to_string(),
-            created: chrono::Utc::now().timestamp() as u64,
-            model: "claude".to_string(),
-            choices: vec![StreamingChoice {
-                index: 0,
-                delta: Delta {
-                    role: None,
-                    content: response.delta.and_then(|d| d.text),
-                    tool_calls: None,
-                },
-                finish_reason: None,
-            }],
-            usage: response.usage.map(|usage| Usage {
-                prompt_tokens: usage.input_tokens,
-                completion_tokens: usage.output_tokens,
-                total_tokens: usage.input_tokens + usage.output_tokens,
-                prompt_cache_hit_tokens: None,
-                prompt_cache_miss_tokens: None,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
-            }),
-            system_fingerprint: None,
-        }
+        // Use the stream processor to handle complex Anthropic streaming events
+        self.stream_processor
+            .process_event(response)
+            .unwrap_or_else(|| StreamingResponse {
+                id: "anthropic-stream".to_string(),
+                object: "chat.completion.chunk".to_string(),
+                created: chrono::Utc::now().timestamp() as u64,
+                model: "claude".to_string(),
+                choices: vec![StreamingChoice {
+                    index: 0,
+                    delta: Delta {
+                        role: None,
+                        content: response.delta.and_then(|d| d.text),
+                        tool_calls: None,
+                        reasoning_content: None,
+                    },
+                    finish_reason: None,
+                    logprobs: None,
+                }],
+                usage: response.usage.map(|usage| Usage {
+                    prompt_tokens: usage.input_tokens,
+                    completion_tokens: usage.output_tokens,
+                    total_tokens: usage.input_tokens + usage.output_tokens,
+                    prompt_cache_hit_tokens: None,
+                    prompt_cache_miss_tokens: None,
+                    prompt_tokens_details: None,
+                    completion_tokens_details: None,
+                }),
+                system_fingerprint: None,
+            })
     }
 }
 

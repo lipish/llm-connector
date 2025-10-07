@@ -19,7 +19,8 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 - **4 Protocol Support**: OpenAI, Anthropic, Aliyun, Ollama
 - **No Hardcoded Models**: Use any model name without restrictions
 - **Online Model Discovery**: Fetch available models dynamically from API
-- **Streaming Support**: Real-time streaming responses (optional feature)
+- **Enhanced Streaming Support**: Real-time streaming responses with proper Anthropic event handling
+- **Ollama Model Management**: Full CRUD operations for local models
 - **Unified Interface**: Same API for all protocols
 - **Type-Safe**: Full Rust type safety with async/await
 
@@ -31,7 +32,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.2.3"
+llm-connector = "0.3.0"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -122,6 +123,76 @@ let client = LlmClient::ollama_at("http://192.168.1.100:11434");
 
 **Models**: llama3.2, llama3.1, mistral, mixtral, qwen2.5, etc.
 
+**Features**:
+- ✅ Model listing via `/api/tags`
+- ✅ Model management (pull, push, delete, show details)
+- ✅ Local server support with custom URLs
+- ✅ Enhanced error handling for Ollama-specific operations
+
+## Ollama Model Management
+
+The library now provides comprehensive Ollama model management capabilities:
+
+```rust
+let client = LlmClient::ollama();
+
+// List all installed models
+let models = client.list_ollama_models().await?;
+for model in models {
+    println!("Available model: {}", model);
+}
+
+// Pull a new model
+client.pull_ollama_model("llama3.2").await?;
+
+// Get detailed model information
+let details = client.show_ollama_model("llama3.2").await?;
+println!("Model size: {} bytes", details.size.unwrap_or(0));
+
+// Delete a model
+client.delete_ollama_model("llama3.2").await?;
+```
+
+### Supported Ollama Operations
+- **List Models**: `list_ollama_models()` - Get all locally installed models
+- **Pull Models**: `pull_ollama_model(name)` - Download models from registry
+- **Push Models**: `push_ollama_model(name)` - Upload models to registry
+- **Delete Models**: `delete_ollama_model(name)` - Remove local models
+- **Show Details**: `show_ollama_model(name)` - Get comprehensive model information
+
+## Enhanced Streaming Support
+
+The library now includes improved streaming support for Anthropic with proper event state management:
+
+```rust
+use futures_util::StreamExt;
+
+let client = LlmClient::anthropic("sk-ant-...");
+let request = ChatRequest {
+    model: "claude-3-5-sonnet-20241022".to_string(),
+    messages: vec![Message::user("Hello!")],
+    max_tokens: Some(200),
+    ..Default::default()
+};
+
+let mut stream = client.chat_stream(&request).await?;
+
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;
+    if let Some(choice) = chunk.choices.first() {
+        if let Some(content) = &choice.delta.content {
+            print!("{}", content);
+        }
+    }
+}
+```
+
+### Enhanced Anthropic Streaming Features
+- **State Management**: Proper handling of `message_start`, `content_block_delta`, `message_delta`, `message_stop` events
+- **Event Processing**: Correct parsing of complex Anthropic streaming responses
+- **Usage Tracking**: Real-time token usage statistics during streaming
+- **Error Resilience**: Robust error handling for streaming interruptions
+
 ## Model Discovery
 
 Fetch the latest available models from the API:
@@ -136,9 +207,9 @@ println!("Available models: {:?}", models);
 
 **Supported by:**
 - ✅ OpenAI Protocol (including OpenAI-compatible providers like DeepSeek, Zhipu, Moonshot)
-- ❌ Anthropic Protocol (not supported)
+- ✅ Anthropic Protocol (limited support - returns fallback endpoint)
+- ✅ Ollama Protocol (full support via `/api/tags`)
 - ❌ Aliyun Protocol (not supported)
-- ❌ Ollama Protocol (not supported)
 
 **Example Results:**
 - DeepSeek: `["deepseek-chat", "deepseek-reasoner"]`
@@ -322,7 +393,33 @@ The test tool will:
 
 ## Recent Changes
 
-### v0.2.3 (Latest)
+### v0.3.0 (Latest)
+
+**🚀 Major New Features:**
+- **Complete Ollama Model Management**: Full CRUD operations for local models
+  - `list_ollama_models()` - List all installed models
+  - `pull_ollama_model()` - Download models from registry
+  - `push_ollama_model()` - Upload models to registry
+  - `delete_ollama_model()` - Remove local models
+  - `show_ollama_model()` - Get detailed model information
+- **Enhanced Anthropic Streaming**: Proper event state management
+  - Correct handling of `message_start`, `content_block_delta`, `message_delta`, `message_stop` events
+  - Real-time token usage tracking during streaming
+  - Improved error resilience and state management
+
+**🔧 Improvements:**
+- **Expanded Model Discovery Support**:
+  - Added Ollama model listing via `/api/tags` endpoint
+  - Limited Anthropic model discovery support
+- **Enhanced Client Interface**: New methods for Ollama model management
+- **Updated Examples**: Added comprehensive model management and streaming examples
+
+**📚 Documentation:**
+- Complete rewrite of Ollama section with model management examples
+- Enhanced streaming documentation with code examples
+- Updated feature descriptions and supported operations
+
+### v0.2.3
 
 **🔧 Breaking Changes:**
 - **Removed `supported_models()` method** - Use `fetch_models()` instead
@@ -384,6 +481,12 @@ cargo run --example test_fetch_models
 # Simple fetch_models() demo
 cargo run --example fetch_models_simple
 
+# Ollama model management (NEW!)
+cargo run --example ollama_model_management
+
+# Anthropic streaming (NEW! - requires streaming feature)
+cargo run --example anthropic_streaming --features streaming
+
 # Test with your API keys
 cargo run --example test_with_keys
 ```
@@ -411,6 +514,16 @@ cargo run --example test_with_keys
 - Simple demonstration of `fetch_models()`
 - Shows how to fetch models from OpenAI-compatible providers
 - Includes usage recommendations
+
+**`ollama_model_management.rs`** ⭐ New!
+- Demonstrates complete Ollama model management functionality
+- Shows how to list, pull, delete, and get model details
+- Includes error handling and practical usage examples
+
+**`anthropic_streaming.rs`** ⭐ New!
+- Shows enhanced Anthropic streaming with proper event handling
+- Demonstrates real-time response streaming and usage tracking
+- Includes both regular and streaming chat examples
 
 **`test_with_keys.rs`**
 - Comprehensive test with real API keys

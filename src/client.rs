@@ -183,6 +183,139 @@ impl LlmClient {
     pub fn protocol_name(&self) -> &str {
         self.provider.name()
     }
+
+    // ============================================================================
+    // Ollama Model Management Methods
+    // ============================================================================
+
+    /// List all available Ollama models
+    ///
+    /// Only works with Ollama protocol clients.
+    ///
+    /// ```rust
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::ollama();
+    /// let models = client.list_ollama_models().await?;
+    /// for model in models {
+    ///     println!("Model: {}", model);
+    /// }
+    /// ```
+    pub async fn list_ollama_models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        if self.provider.name() != "ollama" {
+            return Err(LlmConnectorError::UnsupportedOperation(
+                "Model management is only supported for Ollama protocol".to_string()
+            ));
+        }
+
+        // We need to access the OllamaProtocol directly
+        // This is a bit of a hack due to the trait abstraction
+        // In a real implementation, we might want to add these methods to the Provider trait
+        if let Some(ollama_provider) = self.provider.as_any().downcast_ref::<crate::protocols::core::GenericProvider<crate::protocols::ollama::OllamaProtocol>>() {
+            let client = reqwest::Client::new();
+            ollama_provider.adapter().list_models(&client).await
+        } else {
+            Err(LlmConnectorError::UnsupportedOperation(
+                "Failed to access Ollama protocol".to_string()
+            ))
+        }
+    }
+
+    /// Pull a model from Ollama registry
+    ///
+    /// Only works with Ollama protocol clients.
+    ///
+    /// ```rust
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::ollama();
+    /// client.pull_ollama_model("llama3.2").await?;
+    /// println!("Model pulled successfully!");
+    /// ```
+    pub async fn pull_ollama_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
+        if self.provider.name() != "ollama" {
+            return Err(LlmConnectorError::UnsupportedOperation(
+                "Model management is only supported for Ollama protocol".to_string()
+            ));
+        }
+
+        if let Some(ollama_provider) = self.provider.as_any().downcast_ref::<crate::protocols::core::GenericProvider<crate::protocols::ollama::OllamaProtocol>>() {
+            let client = reqwest::Client::new();
+            ollama_provider.adapter().pull_model(&client, model_name).await
+        } else {
+            Err(LlmConnectorError::UnsupportedOperation(
+                "Failed to access Ollama protocol".to_string()
+            ))
+        }
+    }
+
+    /// Push a model to Ollama registry
+    ///
+    /// Only works with Ollama protocol clients.
+    pub async fn push_ollama_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
+        if self.provider.name() != "ollama" {
+            return Err(LlmConnectorError::UnsupportedOperation(
+                "Model management is only supported for Ollama protocol".to_string()
+            ));
+        }
+
+        if let Some(ollama_provider) = self.provider.as_any().downcast_ref::<crate::protocols::core::GenericProvider<crate::protocols::ollama::OllamaProtocol>>() {
+            let client = reqwest::Client::new();
+            ollama_provider.adapter().push_model(&client, model_name).await
+        } else {
+            Err(LlmConnectorError::UnsupportedOperation(
+                "Failed to access Ollama protocol".to_string()
+            ))
+        }
+    }
+
+    /// Delete a model from Ollama
+    ///
+    /// Only works with Ollama protocol clients.
+    ///
+    /// ```rust
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::ollama();
+    /// client.delete_ollama_model("llama3.2").await?;
+    /// println!("Model deleted successfully!");
+    /// ```
+    pub async fn delete_ollama_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
+        if self.provider.name() != "ollama" {
+            return Err(LlmConnectorError::UnsupportedOperation(
+                "Model management is only supported for Ollama protocol".to_string()
+            ));
+        }
+
+        if let Some(ollama_provider) = self.provider.as_any().downcast_ref::<crate::protocols::core::GenericProvider<crate::protocols::ollama::OllamaProtocol>>() {
+            let client = reqwest::Client::new();
+            ollama_provider.adapter().delete_model(&client, model_name).await
+        } else {
+            Err(LlmConnectorError::UnsupportedOperation(
+                "Failed to access Ollama protocol".to_string()
+            ))
+        }
+    }
+
+    /// Get detailed information about an Ollama model
+    ///
+    /// Only works with Ollama protocol clients.
+    pub async fn show_ollama_model(&self, model_name: &str) -> Result<crate::protocols::ollama::OllamaModel, LlmConnectorError> {
+        if self.provider.name() != "ollama" {
+            return Err(LlmConnectorError::UnsupportedOperation(
+                "Model management is only supported for Ollama protocol".to_string()
+            ));
+        }
+
+        if let Some(ollama_provider) = self.provider.as_any().downcast_ref::<crate::protocols::core::GenericProvider<crate::protocols::ollama::OllamaProtocol>>() {
+            let client = reqwest::Client::new();
+            ollama_provider.adapter().show_model(&client, model_name).await
+        } else {
+            Err(LlmConnectorError::UnsupportedOperation(
+                "Failed to access Ollama protocol".to_string()
+            ))
+        }
+    }
 }
 
 #[cfg(test)]

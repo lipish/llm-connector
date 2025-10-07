@@ -92,6 +92,9 @@ pub trait Provider: Send + Sync {
     /// Send a streaming chat completion request
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError>;
+
+    /// Get as Any for downcasting
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// Internal adapter trait for different provider APIs
@@ -237,7 +240,7 @@ impl HttpTransport {
         url: &str,
         body: &T,
     ) -> Result<
-        impl futures_util::Stream<Item = Result<reqwest::Bytes, reqwest::Error>>,
+        impl futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>>,
         LlmConnectorError,
     > {
         let mut request = self
@@ -357,6 +360,11 @@ impl<A: ProviderAdapter> GenericProvider<A> {
 
         Ok(Self { adapter, transport })
     }
+
+    /// Get access to the underlying adapter
+    pub fn adapter(&self) -> &A {
+        &self.adapter
+    }
 }
 
 #[async_trait]
@@ -449,7 +457,7 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
             return Err(A::ErrorMapperType::map_http_error(status, body));
         }
 
-        let mapped_stream = sse_data_events(response).filter_map(|event| async move {
+        let mapped_stream = crate::sse::sse_events(response).filter_map(|event| async move {
             match event {
                 Ok(data) => {
                     if data.trim() == "[DONE]" {
@@ -463,10 +471,14 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
                         Err(e) => Some(Err(LlmConnectorError::ParseError(e.to_string()))),
                     }
                 }
-                Err(e) => Some(Err(LlmConnectorError::StreamError(e.to_string()))),
+                Err(e) => Some(Err(LlmConnectorError::StreamingError(e.to_string()))),
             }
         });
 
         Ok(Box::pin(mapped_stream))
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

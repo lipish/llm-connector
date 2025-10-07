@@ -118,6 +118,62 @@ pub struct OllamaResponse {
     eval_count: Option<u32>,
 }
 
+/// Ollama model information
+#[derive(Deserialize, Debug, Clone)]
+pub struct OllamaModel {
+    pub name: String,
+    pub model: String,
+    pub modified_at: String,
+    pub size: Option<u64>,
+    pub digest: Option<String>,
+    pub details: Option<OllamaModelDetails>,
+    pub expires_at: Option<String>,
+}
+
+/// Ollama model details
+#[derive(Deserialize, Debug, Clone)]
+pub struct OllamaModelDetails {
+    pub format: Option<String>,
+    pub family: Option<String>,
+    pub families: Option<Vec<String>>,
+    pub parameter_size: Option<String>,
+    pub quantization_level: Option<String>,
+}
+
+/// Ollama models list response
+#[derive(Deserialize, Debug)]
+pub struct OllamaModelsResponse {
+    pub models: Vec<OllamaModel>,
+}
+
+/// Ollama model pull/push request
+#[derive(Serialize, Debug)]
+pub struct OllamaModelRequest {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub insecure: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+}
+
+/// Ollama model delete request
+#[derive(Serialize, Debug)]
+pub struct OllamaModelDeleteRequest {
+    pub name: String,
+}
+
+/// Ollama model operation response (for pull/push progress)
+#[derive(Deserialize, Debug)]
+pub struct OllamaModelProgressResponse {
+    pub status: String,
+    #[serde(default)]
+    pub digest: Option<String>,
+    #[serde(default)]
+    pub total: Option<u64>,
+    #[serde(default)]
+    pub completed: Option<u64>,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct OllamaResponseMessage {
     role: String,
@@ -206,12 +262,143 @@ impl OllamaProtocol {
             base_url: Arc::from(base_url),
         }
     }
+
+    /// List all available models
+    pub async fn list_models(&self, client: &reqwest::Client) -> Result<Vec<String>, LlmConnectorError> {
+        let base = &self.base_url;
+        let url = format!("{}/api/tags", base);
+
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| OllamaErrorMapper::map_network_error(e))?;
+
+        if response.status().is_success() {
+            let models_response: OllamaModelsResponse = response.json().await
+                .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+
+            Ok(models_response.models.into_iter().map(|m| m.name).collect())
+        } else {
+            let status = response.status().as_u16();
+            let body = response.json().await.unwrap_or_default();
+            Err(OllamaErrorMapper::map_http_error(status, body))
+        }
+    }
+
+    /// Pull a model from Ollama registry
+    pub async fn pull_model(&self, client: &reqwest::Client, model_name: &str) -> Result<(), LlmConnectorError> {
+        let base = &self.base_url;
+        let url = format!("{}/api/pull", base);
+
+        let request = OllamaModelRequest {
+            name: model_name.to_string(),
+            insecure: None,
+            stream: Some(false),
+        };
+
+        let response = client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| OllamaErrorMapper::map_network_error(e))?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            let status = response.status().as_u16();
+            let body = response.json().await.unwrap_or_default();
+            Err(OllamaErrorMapper::map_http_error(status, body))
+        }
+    }
+
+    /// Push a model to Ollama registry
+    pub async fn push_model(&self, client: &reqwest::Client, model_name: &str) -> Result<(), LlmConnectorError> {
+        let base = &self.base_url;
+        let url = format!("{}/api/push", base);
+
+        let request = OllamaModelRequest {
+            name: model_name.to_string(),
+            insecure: None,
+            stream: Some(false),
+        };
+
+        let response = client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| OllamaErrorMapper::map_network_error(e))?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            let status = response.status().as_u16();
+            let body = response.json().await.unwrap_or_default();
+            Err(OllamaErrorMapper::map_http_error(status, body))
+        }
+    }
+
+    /// Delete a model
+    pub async fn delete_model(&self, client: &reqwest::Client, model_name: &str) -> Result<(), LlmConnectorError> {
+        let base = &self.base_url;
+        let url = format!("{}/api/delete", base);
+
+        let request = OllamaModelDeleteRequest {
+            name: model_name.to_string(),
+        };
+
+        let response = client
+            .delete(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| OllamaErrorMapper::map_network_error(e))?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            let status = response.status().as_u16();
+            let body = response.json().await.unwrap_or_default();
+            Err(OllamaErrorMapper::map_http_error(status, body))
+        }
+    }
+
+    /// Get model details
+    pub async fn show_model(&self, client: &reqwest::Client, model_name: &str) -> Result<OllamaModel, LlmConnectorError> {
+        let base = &self.base_url;
+        let url = format!("{}/api/show", base);
+
+        let request = serde_json::json!({
+            "name": model_name
+        });
+
+        let response = client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| OllamaErrorMapper::map_network_error(e))?;
+
+        if response.status().is_success() {
+            let model_info: OllamaModel = response.json().await
+                .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+            Ok(model_info)
+        } else {
+            let status = response.status().as_u16();
+            let body = response.json().await.unwrap_or_default();
+            Err(OllamaErrorMapper::map_http_error(status, body))
+        }
+    }
 }
 
 #[async_trait]
 impl ProviderAdapter for OllamaProtocol {
     type RequestType = OllamaRequest;
     type ResponseType = OllamaResponse;
+    #[cfg(feature = "streaming")]
+    type StreamResponseType = serde_json::Value; // Ollama streaming is not implemented in this version
     type ErrorMapperType = OllamaErrorMapper;
 
     fn name(&self) -> &str {
@@ -221,6 +408,11 @@ impl ProviderAdapter for OllamaProtocol {
     fn endpoint_url(&self, base_url: &Option<String>) -> String {
         let base = base_url.as_deref().unwrap_or(&self.base_url);
         format!("{}/api/chat", base)
+    }
+
+    fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
+        let base = base_url.as_deref().unwrap_or(&self.base_url);
+        Some(format!("{}/api/tags", base))
     }
 
     fn build_request_data(&self, request: &ChatRequest, _stream: bool) -> Self::RequestType {
@@ -281,6 +473,31 @@ impl ProviderAdapter for OllamaProtocol {
                 prompt_tokens_details: None,
                 completion_tokens_details: None,
             }),
+            system_fingerprint: None,
+        }
+    }
+
+    #[cfg(feature = "streaming")]
+    fn parse_stream_response_data(&self, _response: Self::StreamResponseType) -> crate::types::StreamingResponse {
+        // Ollama streaming is not implemented in this version
+        // Return a placeholder response
+        crate::types::StreamingResponse {
+            id: "ollama-stream".to_string(),
+            object: "chat.completion.chunk".to_string(),
+            created: chrono::Utc::now().timestamp() as u64,
+            model: "ollama".to_string(),
+            choices: vec![crate::types::StreamingChoice {
+                index: 0,
+                delta: crate::types::Delta {
+                    role: None,
+                    content: None,
+                    tool_calls: None,
+                    reasoning_content: None,
+                },
+                finish_reason: None,
+                logprobs: None,
+            }],
+            usage: None,
             system_fingerprint: None,
         }
     }
