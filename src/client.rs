@@ -20,6 +20,7 @@ pub struct LlmClient {
 
 impl LlmClient {
     /// Internal constructor from a provider instance
+    #[allow(dead_code)]
     pub(crate) fn from_provider(provider: Arc<dyn crate::protocols::Provider + Send + Sync>) -> Self {
         Self { provider }
     }

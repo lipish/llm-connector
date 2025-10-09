@@ -32,13 +32,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.3.0"
+llm-connector = "0.3.1"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
-llm-connector = { version = "0.2.3", features = ["streaming"] }
+llm-connector = { version = "0.3.1", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = LlmClient::aliyun("sk-...");
 
     // Ollama (local, no API key needed)
-    let client = LlmClient::ollama();
+    let client = LlmClient::ollama(None);
 
     let request = ChatRequest {
         model: "gpt-4".to_string(),
@@ -134,31 +134,32 @@ let client = LlmClient::ollama(Some("http://192.168.1.100:11434"));
 The library now provides comprehensive Ollama model management capabilities:
 
 ```rust
+use llm_connector::ollama::OllamaModelOps;
 let client = LlmClient::ollama();
 
 // List all installed models
-let models = client.list_ollama_models().await?;
+let models = client.list_models().await?;
 for model in models {
     println!("Available model: {}", model);
 }
 
 // Pull a new model
-client.pull_ollama_model("llama3.2").await?;
+client.pull_model("llama3.2").await?;
 
 // Get detailed model information
-let details = client.show_ollama_model("llama3.2").await?;
+let details = client.show_model("llama3.2").await?;
 println!("Model size: {} bytes", details.size.unwrap_or(0));
 
 // Delete a model
-client.delete_ollama_model("llama3.2").await?;
+client.delete_model("llama3.2").await?;
 ```
 
 ### Supported Ollama Operations
-- **List Models**: `list_ollama_models()` - Get all locally installed models
-- **Pull Models**: `pull_ollama_model(name)` - Download models from registry
-- **Push Models**: `push_ollama_model(name)` - Upload models to registry
-- **Delete Models**: `delete_ollama_model(name)` - Remove local models
-- **Show Details**: `show_ollama_model(name)` - Get comprehensive model information
+- **List Models**: `list_models()` - Get all locally installed models
+- **Pull Models**: `pull_model(name)` - Download models from registry
+- **Push Models**: `push_model(name)` - Upload models to registry
+- **Delete Models**: `delete_model(name)` - Remove local models
+- **Show Details**: `show_model(name)` - Get comprehensive model information
 
 ## Enhanced Streaming Support
 
@@ -272,7 +273,7 @@ let request = ChatRequest {
 
 Enable streaming in your `Cargo.toml`:
 ```toml
-llm-connector = { version = "0.2.3", features = ["streaming"] }
+llm-connector = { version = "0.3.1", features = ["streaming"] }
 ```
 
 ```rust
@@ -393,15 +394,15 @@ The test tool will:
 
 ## Recent Changes
 
-### v0.3.0 (Latest)
+### v0.3.1 (Latest)
 
 **🚀 Major New Features:**
 - **Complete Ollama Model Management**: Full CRUD operations for local models
-  - `list_ollama_models()` - List all installed models
-  - `pull_ollama_model()` - Download models from registry
-  - `push_ollama_model()` - Upload models to registry
-  - `delete_ollama_model()` - Remove local models
-  - `show_ollama_model()` - Get detailed model information
+  - `list_models()` - List all installed models
+  - `pull_model()` - Download models from registry
+  - `push_model()` - Upload models to registry
+  - `delete_model()` - Remove local models
+  - `show_model()` - Get detailed model information
 - **Enhanced Anthropic Streaming**: Proper event state management
   - Correct handling of `message_start`, `content_block_delta`, `message_delta`, `message_stop` events
   - Real-time token usage tracking during streaming
