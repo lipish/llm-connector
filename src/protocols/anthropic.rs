@@ -62,26 +62,23 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! use llm_connector::{
 //!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, anthropic::claude},
+//!     protocols::{core::GenericProvider, anthropic::anthropic},
 //!     types::{ChatRequest, Message},
 //! };
+//! use llm_connector::protocols::Provider;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create Claude provider
 //! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, claude())?;
+//! let provider = GenericProvider::new(config, anthropic())?;
 //!
 //! // Create request
 //! let request = ChatRequest {
 //!     model: "claude-3-5-sonnet-20241022".to_string(),
-//!     messages: vec![Message {
-//!         role: "user".to_string(),
-//!         content: "Hello!".to_string(),
-//!         ..Default::default()
-//!     }],
+//!     messages: vec![Message::user("Hello!")],
 //!     max_tokens: Some(1024), // Required for Anthropic
 //!     ..Default::default()
 //! };

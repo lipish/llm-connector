@@ -35,13 +35,13 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create client with OpenAI protocol
-//! let client = LlmClient::openai("sk-...");
+//! let client = LlmClient::openai("sk-...", None);
 //!
 //! // Create request
 //! let request = ChatRequest {

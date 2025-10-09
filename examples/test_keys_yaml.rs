@@ -126,7 +126,7 @@ async fn test_provider(name: &str, config: &ProviderConfig) {
 async fn test_openai_compatible(name: &str, api_key: &str, base_url: &str) {
     use llm_connector::LlmClient;
     
-    let client = LlmClient::openai_compatible(api_key, base_url);
+    let client = LlmClient::openai(api_key, Some(base_url));
     
     // Test 1: Fetch models
     println!("   Test 1: Fetching models from API...");
@@ -296,7 +296,7 @@ async fn test_ollama(_name: &str, base_url: &str) {
     
     use llm_connector::{LlmClient, ChatRequest, Message};
     
-    let client = LlmClient::ollama_at(base_url);
+    let client = LlmClient::ollama(Some(base_url));
     
     let request = ChatRequest {
         model: "llama3.2".to_string(),

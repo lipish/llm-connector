@@ -48,8 +48,8 @@ use llm_connector::{LlmClient, ChatRequest, Message};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // OpenAI
-    let client = LlmClient::openai("sk-...");
+    // OpenAI (default base URL)
+    let client = LlmClient::openai("sk-...", None);
 
     // Anthropic
     let client = LlmClient::anthropic("sk-ant-...");
@@ -78,11 +78,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Standard OpenAI API format.
 
 ```rust
-// OpenAI
-let client = LlmClient::openai("sk-...");
+// OpenAI (default base URL)
+let client = LlmClient::openai("sk-...", None);
 
-// OpenAI-compatible endpoints (if needed)
-let client = LlmClient::openai_compatible("sk-...", "https://api.example.com/v1");
+// OpenAI-compatible endpoints (custom base URL)
+let client = LlmClient::openai("sk-...", Some("https://api.example.com/v1"));
 ```
 
 **Features:**
@@ -115,10 +115,10 @@ Local LLM server with no API key required.
 
 ```rust
 // Default: localhost:11434
-let client = LlmClient::ollama();
+let client = LlmClient::ollama(None);
 
 // Custom URL
-let client = LlmClient::ollama_at("http://192.168.1.100:11434");
+let client = LlmClient::ollama(Some("http://192.168.1.100:11434"));
 ```
 
 **Models**: llama3.2, llama3.1, mistral, mixtral, qwen2.5, etc.
@@ -336,7 +336,7 @@ export ALIYUN_API_KEY="sk-your-key"
 use std::env;
 
 let api_key = env::var("OPENAI_API_KEY")?;
-let client = LlmClient::openai(&api_key);
+let client = LlmClient::openai(&api_key, None);
 ```
 
 ## Protocol Information

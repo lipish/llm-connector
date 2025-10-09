@@ -51,13 +51,13 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! use llm_connector::LlmClient;
 //! use llm_connector::types::{ChatRequest, Message, Role};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create OpenAI client
-//! let client = LlmClient::openai("your-api-key");
+//! let client = LlmClient::openai("your-api-key", None);
 //!
 //! // Create request
 //! let request = ChatRequest {

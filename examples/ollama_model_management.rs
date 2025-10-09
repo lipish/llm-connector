@@ -3,18 +3,19 @@
 //! 展示如何使用新的 Ollama 模型管理功能
 
 use llm_connector::LlmClient;
+use llm_connector::ollama::OllamaModelOps;
 use tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦙 Ollama 模型管理示例\n");
 
-    // 创建 Ollama 客户端
-    let client = LlmClient::ollama();
+    // 创建 Ollama 客户端（默认本地地址）
+    let client = LlmClient::ollama(None);
 
     // 1. 列出所有可用模型
     println!("📋 列出所有可用模型:");
-    match client.list_ollama_models().await {
+    match client.list_models().await {
         Ok(models) => {
             if models.is_empty() {
                 println!("   没有找到已安装的模型");
@@ -35,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. 获取模型详细信息
     println!("🔍 获取模型详细信息:");
     let model_name = "llama3.2"; // 可以根据你实际拥有的模型修改
-    match client.show_ollama_model(model_name).await {
+    match client.show_model(model_name).await {
         Ok(model_info) => {
             println!("   模型名称: {}", model_info.name);
             println!("   模型 ID: {}", model_info.model);
@@ -70,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 3. 拉取新模型（注释掉以避免实际下载）
     println!("📥 拉取新模型:");
     println!("   // 下面的代码展示了如何拉取新模型");
-    println!("   // client.pull_ollama_model(\"llama3.2:1b\").await?;");
+    println!("   // client.pull_model(\"llama3.2:1b\").await?;");
     println!("   // println!(\"模型拉取成功!\");");
 
     println!();

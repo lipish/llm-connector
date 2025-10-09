@@ -57,9 +57,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Create client
-        let client = LlmClient::openai_compatible(
+        let client = LlmClient::openai(
             &provider_config.api_key,
-            &provider_config.base_url,
+            Some(&provider_config.base_url),
         );
 
         println!("Protocol: {}", client.protocol_name());

@@ -5,13 +5,13 @@ use llm_connector::types::Role;
 
 #[test]
 fn test_openai_client_creation() {
-    let client = LlmClient::openai("test-key");
+    let client = LlmClient::openai("test-key", None);
     assert_eq!(client.protocol_name(), "openai");
 }
 
 #[test]
 fn test_openai_compatible_client_creation() {
-    let client = LlmClient::openai_compatible("test-key", "https://api.example.com/v1");
+    let client = LlmClient::openai("test-key", Some("https://api.example.com/v1"));
     assert_eq!(client.protocol_name(), "openai");
 }
 
@@ -138,7 +138,7 @@ fn test_chat_request_with_all_parameters() {
 
 #[tokio::test]
 async fn test_fetch_models_with_invalid_key() {
-    let client = LlmClient::openai("invalid-key");
+    let client = LlmClient::openai("invalid-key", None);
     
     // This should fail with authentication error
     let result = client.fetch_models().await;
@@ -147,10 +147,7 @@ async fn test_fetch_models_with_invalid_key() {
 
 #[tokio::test]
 async fn test_fetch_models_with_custom_url() {
-    let client = LlmClient::openai_compatible(
-        "test-key",
-        "https://invalid.example.com/v1"
-    );
+    let client = LlmClient::openai("test-key", Some("https://invalid.example.com/v1"));
     
     // This should fail with connection error
     let result = client.fetch_models().await;

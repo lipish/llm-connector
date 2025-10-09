@@ -70,26 +70,23 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! use llm_connector::{
 //!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, aliyun::qwen},
+//!     protocols::{core::GenericProvider, aliyun::aliyun},
 //!     types::{ChatRequest, Message},
 //! };
+//! use llm_connector::protocols::Provider;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create Qwen provider
 //! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, qwen())?;
+//! let provider = GenericProvider::new(config, aliyun())?;
 //!
 //! // Create request
 //! let request = ChatRequest {
 //!     model: "qwen-max".to_string(),
-//!     messages: vec![Message {
-//!         role: "user".to_string(),
-//!         content: "Hello!".to_string(),
-//!         ..Default::default()
-//!     }],
+//!     messages: vec![Message::user("Hello!")],
 //!     ..Default::default()
 //! };
 //!
