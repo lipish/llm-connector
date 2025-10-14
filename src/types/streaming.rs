@@ -168,4 +168,10 @@ impl StreamingResponse {
             }
         }
     }
+
+    /// Convenience: get current chunk content as Option<&str>
+    /// Returns None when the convenience `content` field is empty
+    pub fn get_content(&self) -> Option<&str> {
+        if self.content.is_empty() { None } else { Some(&self.content) }
+    }
 }
