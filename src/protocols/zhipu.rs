@@ -129,7 +129,7 @@ impl Protocol for ZhipuProtocol {
 
     #[cfg(feature = "streaming")]
     fn uses_sse_stream(&self) -> bool {
-        false // Zhipu uses single response format
+        true // Zhipu supports OpenAI-compatible SSE streaming
     }
 
     fn validate_success_body(&self, status: u16, raw: &Value) -> Result<(), LlmConnectorError> {

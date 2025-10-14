@@ -782,18 +782,3 @@ impl crate::protocols::Provider for AliyunProvider {
     }
 }
 
-/// Legacy Aliyun protocol adapter for backward compatibility
-#[deprecated(note = "Use aliyun() function instead")]
-pub fn aliyun_protocol() -> AliyunProtocol {
-    AliyunProtocol::new("")
-}
-
-/// Get all providers that use the Aliyun protocol
-#[deprecated(note = "Use AliyunProvider directly instead")]
-pub fn aliyun_providers() -> Vec<(&'static str, AliyunProtocol)> {
-    vec![
-        ("aliyun", aliyun_protocol()),
-        ("dashscope", aliyun_protocol()),
-        ("qwen", aliyun_protocol()),
-    ]
-}
