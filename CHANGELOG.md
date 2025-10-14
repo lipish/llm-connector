@@ -282,3 +282,11 @@ Notes
 - Use `ChatRequest::new_with_messages(model, messages)` to pass initial message list.
 - `Message::user/assistant/system` are preferred constructors; reasoning fields are auto-populated.
 
+## 0.3.5 - 2025-10-14
+
+Updates
+- Add `StreamingResponse::get_content()` for convenience and API symmetry with `ChatResponse::get_content()`.
+
+Notes
+- No breaking changes; existing code continues to work. You can still access `choices[0].delta.content` directly.
+

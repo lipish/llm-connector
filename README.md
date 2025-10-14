@@ -32,7 +32,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.3.4"
+llm-connector = "0.3.5"
 tokio = { version = "1", features = ["full"] }
 ```
 
