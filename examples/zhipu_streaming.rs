@@ -3,12 +3,10 @@ use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 从环境变量读取 API Key 与 Base URL
+    // 从环境变量读取 API Key
     // Zhipu 官方文档端点（paas v4）：https://open.bigmodel.cn/api/paas/v4
     let api_key = std::env::var("ZHIPU_API_KEY")
         .expect("请设置环境变量 ZHIPU_API_KEY");
-    let base_url = std::env::var("ZHIPU_BASE_URL")
-        .unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".to_string());
 
     // 使用 Zhipu 协议（默认使用官方 paas/v4 端点）
     let client = LlmClient::zhipu(&api_key);

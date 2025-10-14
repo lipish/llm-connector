@@ -18,7 +18,7 @@ use crate::protocols::openai::{OpenAIRequest, OpenAIResponse};
 use crate::protocols::openai::OpenAIStreamResponse;
 
 #[cfg(feature = "streaming")]
-use crate::types::{StreamingResponse, ChatStream};
+use crate::types::ChatStream;
 
 /// Zhipu-specific error mapper
 pub struct ZhipuErrorMapper;
