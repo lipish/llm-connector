@@ -32,6 +32,14 @@ pub struct StreamingResponse {
     /// List of streaming choices
     pub choices: Vec<StreamingChoice>,
 
+    /// Convenience field: current chunk content (from first choice delta)
+    #[serde(default)]
+    pub content: String,
+
+    /// Convenience field: provider-specific reasoning content (e.g., GLM)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
+
     /// Usage statistics (only in final chunk)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
@@ -77,4 +85,87 @@ pub struct Delta {
     /// Reasoning content (for o1 models)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_content: Option<String>,
+
+    /// Reasoning (Qwen/DeepSeek/OpenAI o1 通用键)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
+
+    /// Thought (OpenAI o1 键)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thought: Option<String>,
+
+    /// Thinking (Anthropic 键)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<String>,
+}
+
+impl Delta {
+    /// Convenience: get the first available reasoning-like content in delta
+    pub fn reasoning_any(&self) -> Option<&str> {
+        self.reasoning_content
+            .as_deref()
+            .or(self.reasoning.as_deref())
+            .or(self.thought.as_deref())
+            .or(self.thinking.as_deref())
+    }
+
+    /// Provider-agnostic post-processor: populate reasoning synonyms from raw JSON
+    pub fn populate_reasoning_from_json(&mut self, raw: &serde_json::Value) {
+        fn collect_synonyms(val: &serde_json::Value, acc: &mut std::collections::HashMap<String, String>) {
+            match val {
+                serde_json::Value::Array(arr) => {
+                    for v in arr { collect_synonyms(v, acc); }
+                }
+                serde_json::Value::Object(map) => {
+                    for (k, v) in map {
+                        let key = k.to_ascii_lowercase();
+                        if let serde_json::Value::String(s) = v {
+                            match key.as_str() {
+                                "reasoning_content" | "reasoning" | "thought" | "thinking" => {
+                                    acc.entry(key).or_insert_with(|| s.clone());
+                                }
+                                _ => {}
+                            }
+                        }
+                        collect_synonyms(v, acc);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let mut found = std::collections::HashMap::<String, String>::new();
+        collect_synonyms(raw, &mut found);
+
+        if self.reasoning_content.is_none() {
+            if let Some(v) = found.get("reasoning_content") { self.reasoning_content = Some(v.clone()); }
+        }
+        if self.reasoning.is_none() {
+            if let Some(v) = found.get("reasoning") { self.reasoning = Some(v.clone()); }
+        }
+        if self.thought.is_none() {
+            if let Some(v) = found.get("thought") { self.thought = Some(v.clone()); }
+        }
+        if self.thinking.is_none() {
+            if let Some(v) = found.get("thinking") { self.thinking = Some(v.clone()); }
+        }
+    }
+}
+
+impl StreamingResponse {
+    /// Provider-agnostic post-processor: populate reasoning synonyms into deltas
+    pub fn populate_reasoning_synonyms(&mut self, raw: &serde_json::Value) {
+        for choice in &mut self.choices {
+            choice.delta.populate_reasoning_from_json(raw);
+        }
+        if self.reasoning_content.is_none() {
+            if let Some(reason) = self
+                .choices
+                .iter()
+                .find_map(|c| c.delta.reasoning_any().map(|s| s.to_string()))
+            {
+                self.reasoning_content = Some(reason);
+            }
+        }
+    }
 }

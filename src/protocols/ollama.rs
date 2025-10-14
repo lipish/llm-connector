@@ -443,6 +443,8 @@ impl ProviderAdapter for OllamaProtocol {
     }
 
     fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse {
+        // Convenience content before moving the message content
+        let first_content = response.message.content.clone();
         ChatResponse {
             id: format!("ollama-{}", response.model),
             object: "chat.completion".to_string(),
@@ -456,6 +458,7 @@ impl ProviderAdapter for OllamaProtocol {
                     name: None,
                     tool_calls: None,
                     tool_call_id: None,
+                    ..Default::default()
                 },
                 finish_reason: if response.done {
                     Some("stop".to_string())
@@ -464,6 +467,7 @@ impl ProviderAdapter for OllamaProtocol {
                 },
                 logprobs: None,
             }],
+            content: first_content,
             usage: Some(Usage {
                 prompt_tokens: 0, // Ollama doesn't provide prompt tokens
                 completion_tokens: response.eval_count.unwrap_or(0),
@@ -493,10 +497,13 @@ impl ProviderAdapter for OllamaProtocol {
                     content: None,
                     tool_calls: None,
                     reasoning_content: None,
+                    ..Default::default()
                 },
                 finish_reason: None,
                 logprobs: None,
             }],
+            content: String::new(),
+            reasoning_content: None,
             usage: None,
             system_fingerprint: None,
         }

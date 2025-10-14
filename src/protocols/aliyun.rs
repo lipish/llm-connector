@@ -71,30 +71,22 @@
 //! # Example
 //!
 //! ```rust
-//! use llm_connector::{
-//!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, aliyun::qwen},
-//!     types::{ChatRequest, Message},
-//! };
+//! use llm_connector::{LlmClient};
+//! use llm_connector::types::{ChatRequest, Message};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create Qwen provider
-//! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, qwen())?;
+//! // Create Aliyun client (DashScope)
+//! let client = LlmClient::aliyun("your-api-key");
 //!
 //! // Create request
 //! let request = ChatRequest {
 //!     model: "qwen-max".to_string(),
-//!     messages: vec![Message {
-//!         role: "user".to_string(),
-//!         content: "Hello!".to_string(),
-//!         ..Default::default()
-//!     }],
+//!     messages: vec![Message::user("Hello!")],
 //!     ..Default::default()
 //! };
 //!
 //! // Send request
-//! let response = provider.chat(&request).await?;
+//! let response = client.chat(&request).await?;
 //! println!("Response: {}", response.choices[0].message.content);
 //! # Ok(())
 //! # }
@@ -366,6 +358,13 @@ impl ProviderAdapter for AliyunProtocol {
     }
 
     fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse {
+        // Convenience: capture first choice content before moving choices
+        let first_content = response
+            .output
+            .choices
+            .get(0)
+            .map(|c| c.message.content.clone())
+            .unwrap_or_default();
         ChatResponse {
             id: response.request_id,
             object: "chat.completion".to_string(),
@@ -384,11 +383,13 @@ impl ProviderAdapter for AliyunProtocol {
                         name: None,
                         tool_calls: None,
                         tool_call_id: None,
+                        ..Default::default()
                     },
                     finish_reason: Some(choice.finish_reason),
                     logprobs: None,
                 })
                 .collect(),
+            content: first_content,
             usage: Some(Usage {
                 prompt_tokens: response.usage.input_tokens as u32,
                 completion_tokens: response.usage.output_tokens as u32,
@@ -404,6 +405,13 @@ impl ProviderAdapter for AliyunProtocol {
 
     #[cfg(feature = "streaming")]
     fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> StreamingResponse {
+        // Convenience: capture first chunk content before moving choices
+        let first_chunk_content = response
+            .output
+            .choices
+            .get(0)
+            .map(|c| c.message.content.clone())
+            .unwrap_or_default();
         StreamingResponse {
             id: response.request_id,
             object: "chat.completion.chunk".to_string(),
@@ -421,11 +429,14 @@ impl ProviderAdapter for AliyunProtocol {
                         content: Some(choice.message.content),
                         tool_calls: None,
                         reasoning_content: None,
+                        ..Default::default()
                     },
                     finish_reason: choice.finish_reason,
                     logprobs: None,
                 })
                 .collect(),
+            content: first_chunk_content,
+            reasoning_content: None,
             usage: response.usage.map(|usage| Usage {
                 prompt_tokens: usage.input_tokens as u32,
                 completion_tokens: usage.output_tokens as u32,

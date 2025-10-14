@@ -26,6 +26,7 @@ fn test_chat_request_creation() {
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,
+                ..Default::default()
             }
         ],
         temperature: Some(0.7),

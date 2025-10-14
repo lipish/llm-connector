@@ -63,31 +63,23 @@
 //! # Example
 //!
 //! ```rust
-//! use llm_connector::{
-//!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, anthropic::claude},
-//!     types::{ChatRequest, Message},
-//! };
+//! use llm_connector::LlmClient;
+//! use llm_connector::types::{ChatRequest, Message};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create Claude provider
-//! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, claude())?;
+//! // Create Anthropic client (Claude)
+//! let client = LlmClient::anthropic("your-api-key");
 //!
 //! // Create request
 //! let request = ChatRequest {
 //!     model: "claude-3-5-sonnet-20241022".to_string(),
-//!     messages: vec![Message {
-//!         role: "user".to_string(),
-//!         content: "Hello!".to_string(),
-//!         ..Default::default()
-//!     }],
+//!     messages: vec![Message::user("Hello!")],
 //!     max_tokens: Some(1024), // Required for Anthropic
 //!     ..Default::default()
 //! };
 //!
 //! // Send request
-//! let response = provider.chat(&request).await?;
+//! let response = client.chat(&request).await?;
 //! println!("Response: {}", response.choices[0].message.content);
 //! # Ok(())
 //! # }
@@ -284,13 +276,16 @@ impl AnthropicStreamState {
                                         "tool" => Some(crate::types::Role::Tool),
                                         _ => Some(crate::types::Role::User),
                                     }),
-                                    content: Some(text),
+                                    content: Some(text.clone()),
                                     tool_calls: None,
                                     reasoning_content: None,
+                                    ..Default::default()
                                 },
                                 finish_reason: None,
                                 logprobs: None,
                             }],
+                            content: text,
+                            reasoning_content: None,
                             usage: None,
                             system_fingerprint: None,
                         });
@@ -320,10 +315,13 @@ impl AnthropicStreamState {
                             content: None,
                             tool_calls: None,
                             reasoning_content: None,
+                            ..Default::default()
                         },
                         finish_reason,
                         logprobs: None,
                     }],
+                    content: self.content.join(""),
+                    reasoning_content: None,
                     usage: self.usage.clone().map(|usage| Usage {
                         prompt_tokens: usage.input_tokens,
                         completion_tokens: usage.output_tokens,
@@ -526,6 +524,9 @@ impl AnthropicResponse {
             .collect::<Vec<_>>()
             .join("");
 
+        // Convenience field mirrors the first choice content
+        let first_content = content.clone();
+
         ChatResponse {
             id: self.id,
             object: "chat.completion".to_string(),
@@ -539,10 +540,12 @@ impl AnthropicResponse {
                     name: None,
                     tool_calls: None,
                     tool_call_id: None,
+                    ..Default::default()
                 },
                 finish_reason: self.stop_reason,
                 logprobs: None,
             }],
+            content: first_content,
             usage: Some(Usage {
                 prompt_tokens: self.usage.input_tokens,
                 completion_tokens: self.usage.output_tokens,
@@ -636,13 +639,19 @@ impl ProviderAdapter for AnthropicProtocol {
                     index: 0,
                     delta: Delta {
                         role: None,
-                        content: response.delta.and_then(|d| d.text),
+                        content: response.delta.as_ref().and_then(|d| d.text.clone()),
                         tool_calls: None,
                         reasoning_content: None,
+                        ..Default::default()
                     },
                     finish_reason: None,
                     logprobs: None,
                 }],
+                content: response
+                    .delta
+                    .and_then(|d| d.text)
+                    .unwrap_or_default(),
+                reasoning_content: None,
                 usage: response.usage.clone().map(|usage| Usage {
                     prompt_tokens: usage.input_tokens,
                     completion_tokens: usage.output_tokens,

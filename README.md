@@ -32,7 +32,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.3.1"
+llm-connector = "0.3.3"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -353,6 +353,35 @@ let models = client.fetch_models().await?;
 println!("Available models: {:?}", models);
 ```
 
+## Reasoning Synonyms
+
+Many providers return hidden or provider-specific keys for model reasoning content (chain-of-thought). To simplify usage across providers, we normalize four common keys:
+
+- `reasoning_content`, `reasoning`, `thought`, `thinking`
+
+Post-processing automatically scans raw JSON and fills these optional fields on both regular messages (`Message`) and streaming deltas (`Delta`). You can read the first available value via a convenience method:
+
+```rust
+// Non-streaming
+let msg = &response.choices[0].message;
+if let Some(reason) = msg.reasoning_any() {
+    println!("Reasoning: {}", reason);
+}
+
+// Streaming
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;
+    if let Some(reason) = chunk.choices[0].delta.reasoning_any() {
+        println!("Reasoning (stream): {}", reason);
+    }
+}
+```
+
+Notes:
+- Fields remain `None` if the provider does not return any reasoning keys.
+- The normalization is provider-agnostic and applied uniformly to OpenAI, Anthropic, Aliyun (Qwen), Zhipu (GLM), and DeepSeek flows (including streaming).
+- `StreamingResponse` also backfills its top-level `reasoning_content` from the first delta that contains reasoning.
+
 ## Debugging & Troubleshooting
 
 ### Test Your API Keys
@@ -476,9 +505,6 @@ cargo run --example test_keys_yaml
 # Debug DeepSeek authentication
 cargo run --example debug_deepseek -- sk-your-key
 
-# Test online model fetching
-cargo run --example test_fetch_models
-
 # Simple fetch_models() demo
 cargo run --example fetch_models_simple
 
@@ -488,8 +514,8 @@ cargo run --example ollama_model_management
 # Anthropic streaming (NEW! - requires streaming feature)
 cargo run --example anthropic_streaming --features streaming
 
-# Test with your API keys
-cargo run --example test_with_keys
+# LongCat demo (OpenAI/Anthropic compatible)
+cargo run --example longcat_dual
 ```
 
 ### Example Descriptions
@@ -506,11 +532,6 @@ cargo run --example test_with_keys
 - Tests model fetching and chat requests
 - Provides detailed troubleshooting guidance
 
-**`test_fetch_models.rs`**
-- Tests `fetch_models()` with all providers from `keys.yaml`
-- Shows which providers support online model listing
-- Displays available models for each provider
-
 **`fetch_models_simple.rs`**
 - Simple demonstration of `fetch_models()`
 - Shows how to fetch models from OpenAI-compatible providers
@@ -526,10 +547,8 @@ cargo run --example test_with_keys
 - Demonstrates real-time response streaming and usage tracking
 - Includes both regular and streaming chat examples
 
-**`test_with_keys.rs`**
-- Comprehensive test with real API keys
-- Tests chat completion for all providers
-- Verifies API connectivity and responses
+**Removed redundant examples**
+- `test_fetch_models.rs` and `test_with_keys.rs` were overlapping with other examples and have been removed.
 
 ## Contributing
 

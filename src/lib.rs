@@ -14,7 +14,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // OpenAI
-//!     let client = LlmClient::openai("sk-...");
+//!     let client = LlmClient::openai("sk-...", None);
 //!
 //!     let request = ChatRequest {
 //!         model: "gpt-4".to_string(),
@@ -32,50 +32,62 @@
 //! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
-//! let client = LlmClient::anthropic("sk-ant-...");
-//! let request = ChatRequest {
-//!     model: "claude-3-5-sonnet-20241022".to_string(),
-//!     messages: vec![Message::user("Hello!")],
-//!     ..Default::default()
-//! };
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = LlmClient::anthropic("sk-ant-...");
+//!     let request = ChatRequest {
+//!         model: "claude-3-5-sonnet-20241022".to_string(),
+//!         messages: vec![Message::user("Hello!")],
+//!         ..Default::default()
+//!     };
 //!
-//! let response = client.chat(&request).await?;
-//! println!("Response: {}", response.choices[0].message.content);
+//!     let response = client.chat(&request).await?;
+//!     println!("Response: {}", response.choices[0].message.content);
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ### Aliyun Protocol (DashScope)
 //! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
-//! let client = LlmClient::aliyun("sk-...");
-//! let request = ChatRequest {
-//!     model: "qwen-turbo".to_string(),
-//!     messages: vec![Message::user("Hello!")],
-//!     ..Default::default()
-//! };
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = LlmClient::aliyun("sk-...");
+//!     let request = ChatRequest {
+//!         model: "qwen-turbo".to_string(),
+//!         messages: vec![Message::user("Hello!")],
+//!         ..Default::default()
+//!     };
 //!
-//! let response = client.chat(&request).await?;
-//! println!("Response: {}", response.choices[0].message.content);
+//!     let response = client.chat(&request).await?;
+//!     println!("Response: {}", response.choices[0].message.content);
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ### Ollama Protocol (Local)
 //! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
-//! // Default: localhost:11434
-//! let client = LlmClient::ollama();
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Default: localhost:11434
+//!     let client = LlmClient::ollama(None);
 //!
-//! // Custom URL
-//! let client = LlmClient::ollama_at("http://192.168.1.100:11434");
+//!     // Custom URL
+//!     let client = LlmClient::ollama(Some("http://192.168.1.100:11434"));
 //!
-//! let request = ChatRequest {
-//!     model: "llama3.2".to_string(),
-//!     messages: vec![Message::user("Hello!")],
-//!     ..Default::default()
-//! };
+//!     let request = ChatRequest {
+//!         model: "llama3.2".to_string(),
+//!         messages: vec![Message::user("Hello!")],
+//!         ..Default::default()
+//!     };
 //!
-//! let response = client.chat(&request).await?;
-//! println!("Response: {}", response.choices[0].message.content);
+//!     let response = client.chat(&request).await?;
+//!     println!("Response: {}", response.choices[0].message.content);
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## Installation

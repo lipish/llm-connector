@@ -21,6 +21,11 @@ pub struct ChatResponse {
     /// List of completion choices
     pub choices: Vec<Choice>,
 
+    /// Convenience field: first choice content
+    /// Extracted from `choices[0].message.content` if present
+    #[serde(default)]
+    pub content: String,
+
     /// Usage statistics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
@@ -91,4 +96,31 @@ pub struct CompletionTokensDetails {
     /// Number of reasoning tokens (for o1 models)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_tokens: Option<u32>,
+}
+
+impl ChatResponse {
+    /// Convenience: prompt tokens or 0
+    pub fn prompt_tokens(&self) -> u32 {
+        self.usage.as_ref().map(|u| u.prompt_tokens).unwrap_or(0)
+    }
+
+    /// Convenience: completion tokens or 0
+    pub fn completion_tokens(&self) -> u32 {
+        self.usage
+            .as_ref()
+            .map(|u| u.completion_tokens)
+            .unwrap_or(0)
+    }
+
+    /// Convenience: total tokens or 0
+    pub fn total_tokens(&self) -> u32 {
+        self.usage.as_ref().map(|u| u.total_tokens).unwrap_or(0)
+    }
+
+    /// Provider-agnostic post-processor: populate reasoning synonyms into messages
+    pub fn populate_reasoning_synonyms(&mut self, raw: &serde_json::Value) {
+        for choice in &mut self.choices {
+            choice.message.populate_reasoning_from_json(raw);
+        }
+    }
 }

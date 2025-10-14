@@ -25,6 +25,7 @@ fn test_message_serialization() {
         name: None,
         tool_calls: None,
         tool_call_id: None,
+        ..Default::default()
     };
 
     let json = serde_json::to_value(&message).unwrap();
@@ -50,6 +51,7 @@ fn test_message_with_name() {
         name: Some("John".to_string()),
         tool_calls: None,
         tool_call_id: None,
+        ..Default::default()
     };
 
     let json = serde_json::to_value(&message).unwrap();
@@ -228,5 +230,39 @@ fn test_types_are_clone() {
     };
     let cloned_request = request.clone();
     assert_eq!(request.model, cloned_request.model);
+}
+
+#[test]
+fn test_message_populate_reasoning_from_json() {
+    let mut message = Message::assistant("result");
+    let raw = serde_json::json!({
+        "choices": [{
+            "message": {
+                "reasoning": "chain-of-thought",
+                "thinking": "anthropic-thought",
+                "thought": "o1-thought",
+                "reasoning_content": "glm-reasoning"
+            }
+        }]
+    });
+    message.populate_reasoning_from_json(&raw);
+    assert_eq!(message.reasoning.as_deref(), Some("chain-of-thought"));
+    assert_eq!(message.thinking.as_deref(), Some("anthropic-thought"));
+    assert_eq!(message.thought.as_deref(), Some("o1-thought"));
+    assert_eq!(message.reasoning_content.as_deref(), Some("glm-reasoning"));
+}
+
+#[test]
+fn test_delta_populate_reasoning_from_json() {
+    let mut delta = llm_connector::types::Delta::default();
+    let raw = serde_json::json!({
+        "delta": {
+            "thinking": "hidden",
+            "reasoning": "explanation"
+        }
+    });
+    delta.populate_reasoning_from_json(&raw);
+    assert_eq!(delta.thinking.as_deref(), Some("hidden"));
+    assert_eq!(delta.reasoning.as_deref(), Some("explanation"));
 }
 

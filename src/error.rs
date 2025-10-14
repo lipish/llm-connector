@@ -63,9 +63,17 @@ pub enum LlmConnectorError {
     #[error("Streaming error: {0}")]
     StreamingError(String),
 
+    /// Streaming not supported by provider/model
+    #[error("Streaming not supported: {0}")]
+    StreamingNotSupported(String),
+
     /// Unsupported operation error
     #[error("Unsupported operation: {0}")]
     UnsupportedOperation(String),
+
+    /// Generic API error returned by provider
+    #[error("API error: {0}")]
+    ApiError(String),
 
     /// JSON parsing error
     #[error("JSON parsing error: {0}")]
@@ -100,6 +108,7 @@ impl LlmConnectorError {
             LlmConnectorError::NetworkError(_) => 502,
             LlmConnectorError::ProviderError(_) => 502,
             LlmConnectorError::StreamingError(_) => 500,
+            LlmConnectorError::StreamingNotSupported(_) => 501,
             LlmConnectorError::PermissionError(_) => 403,
             LlmConnectorError::NotFoundError(_) => 404,
             LlmConnectorError::ServerError(_) => 500,
@@ -107,6 +116,7 @@ impl LlmConnectorError {
             LlmConnectorError::ConnectionError(_) => 502,
             LlmConnectorError::ParseError(_) => 400,
             LlmConnectorError::UnsupportedOperation(_) => 501,
+            LlmConnectorError::ApiError(_) => 500,
             LlmConnectorError::HttpError(_) => 502,
             LlmConnectorError::MaxRetriesExceeded(_) => 503,
         }

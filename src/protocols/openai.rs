@@ -57,7 +57,7 @@
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create OpenAI client
-//! let client = LlmClient::openai("your-api-key");
+//! let client = LlmClient::openai("your-api-key", None);
 //!
 //! // Create request
 //! let request = ChatRequest {
@@ -295,6 +295,12 @@ impl From<&Message> for OpenAIMessage {
 
 impl OpenAIResponse {
     pub fn to_chat_response(self) -> ChatResponse {
+        let first_content = self
+            .choices
+            .get(0)
+            .and_then(|c| c.message.content.clone())
+            .unwrap_or_default();
+
         ChatResponse {
             id: self.id,
             object: self.object,
@@ -311,11 +317,13 @@ impl OpenAIResponse {
                         name: choice.message.name,
                         tool_calls: choice.message.tool_calls,
                         tool_call_id: choice.message.tool_call_id,
+                        ..Default::default()
                     },
                     finish_reason: choice.finish_reason,
                     logprobs: None,
                 })
                 .collect(),
+            content: first_content,
             usage: Some(self.usage),
             system_fingerprint: self.system_fingerprint,
         }
@@ -325,6 +333,12 @@ impl OpenAIResponse {
 #[cfg(feature = "streaming")]
 impl OpenAIStreamResponse {
     pub fn to_streaming_response(self) -> StreamingResponse {
+        let first_chunk_content = self
+            .choices
+            .get(0)
+            .and_then(|c| c.delta.content.clone())
+            .unwrap_or_default();
+
         StreamingResponse {
             id: self.id,
             object: self.object,
@@ -344,11 +358,14 @@ impl OpenAIStreamResponse {
                         content: choice.delta.content,
                         tool_calls: choice.delta.tool_calls,
                         reasoning_content: None,
+                        ..Default::default()
                     },
                     finish_reason: choice.finish_reason,
                     logprobs: None,
                 })
                 .collect(),
+            content: first_chunk_content,
+            reasoning_content: None,
             usage: self.usage,
             system_fingerprint: self.system_fingerprint,
         }

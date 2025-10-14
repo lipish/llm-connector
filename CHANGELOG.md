@@ -253,4 +253,20 @@ Potential improvements for future releases:
 3. **Model Filtering**: Add parameters to filter models by capability
 4. **Extended Protocol Support**: Implement model listing for other protocols if available
 5. **Pagination Support**: Handle paginated model responses
+## [0.3.3] - 2025-10-14
+
+### ✨ Added
+- README: Added “Reasoning Synonyms” section with normalized keys and usage examples (`reasoning_any()`), covering non-streaming and streaming.
+
+### 🔧 Changed
+- Examples: Removed outdated examples using deprecated `openai_compatible` (`examples/test_fetch_models.rs`, `examples/test_with_keys.rs`).
+- Examples: Updated DeepSeek and fetch models example to use `LlmClient::openai(api_key, Some(base_url))`.
+- Docs: Fixed doctests across `lib.rs`, `protocols/core.rs`, `protocols/openai.rs`, `protocols/aliyun.rs`, `protocols/anthropic.rs` to match current API.
+- Docs: Replaced obsolete imports like `protocols::aliyun::qwen` and `protocols::anthropic::claude` with `LlmClient::aliyun(...)` and `LlmClient::anthropic(...)`.
+- Docs: Standardized message initialization to `Message::user(...)` or `Role` enums where appropriate.
+
+### ✅ Validation
+- `cargo build --examples` passes.
+- `cargo test` (library and integration with `streaming` feature) passes.
+- `cargo test --doc` passes (13 passed, 0 failed, 4 ignored).
 

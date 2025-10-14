@@ -88,6 +88,15 @@ impl ChatRequest {
         }
     }
 
+    /// Create a new chat request with model and initial messages
+    pub fn new_with_messages(model: impl Into<String>, messages: Vec<Message>) -> Self {
+        Self {
+            model: model.into(),
+            messages,
+            ..Default::default()
+        }
+    }
+
     /// Set the messages for the request
     pub fn with_messages(mut self, messages: Vec<Message>) -> Self {
         self.messages = messages;
@@ -193,6 +202,22 @@ pub struct Message {
     /// Tool call ID (for tool responses)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+
+    /// Provider-specific reasoning content (GLM 风格)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
+
+    /// Provider-specific reasoning (Qwen/DeepSeek/OpenAI o1 通用键)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
+
+    /// Provider-specific thought (OpenAI o1 键)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thought: Option<String>,
+
+    /// Provider-specific thinking (Anthropic 键)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<String>,
 }
 
 impl Default for Message {
@@ -203,6 +228,10 @@ impl Default for Message {
             name: None,
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
+            reasoning: None,
+            thought: None,
+            thinking: None,
         }
     }
 }
@@ -216,6 +245,10 @@ impl Message {
             name: None,
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
+            reasoning: None,
+            thought: None,
+            thinking: None,
         }
     }
 
@@ -234,6 +267,58 @@ impl Message {
         Self::new(Role::Assistant, content)
     }
 
+    /// Convenience: get the first available reasoning-like content
+    pub fn reasoning_any(&self) -> Option<&str> {
+        self.reasoning_content
+            .as_deref()
+            .or(self.reasoning.as_deref())
+            .or(self.thought.as_deref())
+            .or(self.thinking.as_deref())
+    }
+
+    /// Provider-agnostic post-processor: populate reasoning synonyms from raw JSON
+    /// Scans nested JSON objects/arrays and fills each synonym field if present.
+    pub fn populate_reasoning_from_json(&mut self, raw: &serde_json::Value) {
+        fn collect_synonyms(val: &serde_json::Value, acc: &mut std::collections::HashMap<String, String>) {
+            match val {
+                serde_json::Value::Array(arr) => {
+                    for v in arr { collect_synonyms(v, acc); }
+                }
+                serde_json::Value::Object(map) => {
+                    for (k, v) in map {
+                        let key = k.to_ascii_lowercase();
+                        if let serde_json::Value::String(s) = v {
+                            match key.as_str() {
+                                "reasoning_content" | "reasoning" | "thought" | "thinking" => {
+                                    acc.entry(key).or_insert_with(|| s.clone());
+                                }
+                                _ => {}
+                            }
+                        }
+                        collect_synonyms(v, acc);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let mut found = std::collections::HashMap::<String, String>::new();
+        collect_synonyms(raw, &mut found);
+
+        if self.reasoning_content.is_none() {
+            if let Some(v) = found.get("reasoning_content") { self.reasoning_content = Some(v.clone()); }
+        }
+        if self.reasoning.is_none() {
+            if let Some(v) = found.get("reasoning") { self.reasoning = Some(v.clone()); }
+        }
+        if self.thought.is_none() {
+            if let Some(v) = found.get("thought") { self.thought = Some(v.clone()); }
+        }
+        if self.thinking.is_none() {
+            if let Some(v) = found.get("thinking") { self.thinking = Some(v.clone()); }
+        }
+    }
+
     /// Create a tool response message
     pub fn tool(content: impl Into<String>, tool_call_id: impl Into<String>) -> Self {
         Self {
@@ -242,6 +327,7 @@ impl Message {
             tool_call_id: Some(tool_call_id.into()),
             name: None,
             tool_calls: None,
+            ..Default::default()
         }
     }
 

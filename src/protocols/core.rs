@@ -35,13 +35,13 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create client with OpenAI protocol
-//! let client = LlmClient::openai("sk-...");
+//! let client = LlmClient::openai("sk-...", None);
 //!
 //! // Create request
 //! let request = ChatRequest {
@@ -421,12 +421,19 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
             return Err(A::ErrorMapperType::map_http_error(status, body));
         }
 
-        let response_data: A::ResponseType = response
-            .json()
+        // Read body once, then parse into both typed and raw JSON
+        let text = response
+            .text()
             .await
             .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+        let raw: Value = serde_json::from_str(&text).unwrap_or_default();
+        let response_data: A::ResponseType = serde_json::from_str(&text)
+            .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
 
-        Ok(self.adapter.parse_response_data(response_data))
+        let mut chat_response = self.adapter.parse_response_data(response_data);
+        // Provider-agnostic synonym extraction
+        chat_response.populate_reasoning_synonyms(&raw);
+        Ok(chat_response)
     }
 
     #[cfg(feature = "streaming")]
@@ -471,7 +478,11 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
 
                         match serde_json::from_str::<A::StreamResponseType>(&data) {
                             Ok(stream_response) => {
-                                Some(Ok(adapter.parse_stream_response_data(stream_response)))
+                                let raw: Value = serde_json::from_str(&data).unwrap_or_default();
+                                let mut sr = adapter.parse_stream_response_data(stream_response);
+                                // Provider-agnostic synonym extraction
+                                sr.populate_reasoning_synonyms(&raw);
+                                Some(Ok(sr))
                             }
                             Err(e) => Some(Err(LlmConnectorError::ParseError(e.to_string()))),
                         }
