@@ -117,6 +117,17 @@ impl ChatResponse {
         self.usage.as_ref().map(|u| u.total_tokens).unwrap_or(0)
     }
 
+    /// Convenience: get usage safely as a tuple (prompt, completion, total)
+    pub fn get_usage_safe(&self) -> (u32, u32, u32) {
+        (self.prompt_tokens(), self.completion_tokens(), self.total_tokens())
+    }
+
+    /// Convenience: get first choice content as Option<&str>
+    /// Returns None if the convenience `content` field is empty
+    pub fn get_content(&self) -> Option<&str> {
+        if self.content.is_empty() { None } else { Some(&self.content) }
+    }
+
     /// Provider-agnostic post-processor: populate reasoning synonyms into messages
     pub fn populate_reasoning_synonyms(&mut self, raw: &serde_json::Value) {
         for choice in &mut self.choices {

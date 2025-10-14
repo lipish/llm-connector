@@ -12,3 +12,7 @@ pub use response::*;
 
 #[cfg(feature = "streaming")]
 pub use streaming::*;
+
+// Compatibility alias for users expecting ChatMessage
+// ChatMessage is the same as Message
+pub type ChatMessage = request::Message;
