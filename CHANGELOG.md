@@ -269,4 +269,16 @@ Potential improvements for future releases:
 - `cargo build --examples` passes.
 - `cargo test` (library and integration with `streaming` feature) passes.
 - `cargo test --doc` passes (13 passed, 0 failed, 4 ignored).
+## 0.3.4 - 2025-10-14
+
+Updates
+- Add compatibility alias `types::ChatMessage = Message` to ease migration.
+- Add `ChatResponse::get_usage_safe()` returning `(prompt, completion, total)`.
+- Add `ChatResponse::get_content()` returning the first choice content as `Option<&str>`.
+- README install snippet updated to `0.3.4`.
+
+Notes
+- `ChatRequest::new(model)` remains as minimal constructor.
+- Use `ChatRequest::new_with_messages(model, messages)` to pass initial message list.
+- `Message::user/assistant/system` are preferred constructors; reasoning fields are auto-populated.
 
