@@ -6,13 +6,14 @@
 use std::sync::Arc;
 
 use crate::error::LlmConnectorError;
-use crate::protocols::{GenericProvider, OpenAIProtocol, AnthropicProtocol, AliyunProtocol, OllamaProtocol};
+use crate::protocols::{OpenAIProtocol, AnthropicProtocol, aliyun, ollama, ollama_with_url, zhipu_default};
+use crate::protocols::core::GenericProvider;
 use crate::config::ProviderConfig;
 use crate::types::{ChatRequest, ChatResponse};
 
 /// Minimal LLM Client
 ///
-/// Supports 4 protocols: OpenAI, Anthropic, Aliyun, Ollama
+/// Supports 5 protocols: OpenAI, Anthropic, Aliyun, Zhipu, Ollama
 /// No complex configuration needed - just pick a protocol and start.
 pub struct LlmClient {
     provider: Arc<dyn crate::protocols::Provider + Send + Sync>,
@@ -44,7 +45,7 @@ impl LlmClient {
     /// ```
     pub fn openai(api_key: &str, base_url: Option<&str>) -> Self {
         let base = base_url.unwrap_or("https://api.openai.com/v1");
-        let protocol = OpenAIProtocol::with_url(api_key, base);
+        let protocol = OpenAIProtocol::with_url(base);
         let config = ProviderConfig::new(api_key)
             .with_base_url(base);
         let provider = GenericProvider::new(config, protocol)
@@ -60,24 +61,19 @@ impl LlmClient {
     /// let client = LlmClient::aliyun("sk-...");
     /// ```
     pub fn aliyun(api_key: &str) -> Self {
-        let protocol = AliyunProtocol::new(api_key);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url("https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation");
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create Aliyun provider");
+        let provider = aliyun(api_key);
         Self { provider: Arc::new(provider) }
     }
 
-    /// Create new client with Ollama protocol (single constructor)
+    /// Create new client with Ollama protocol
     ///
     /// Default base URL: `http://localhost:11434`. Pass `Some(url)` to override.
     pub fn ollama(base_url: Option<&str>) -> Self {
-        let base = base_url.unwrap_or("http://localhost:11434");
-        let protocol = OllamaProtocol::with_url(base);
-        let config = ProviderConfig::new("") // Ollama doesn't need API key
-            .with_base_url(base);
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create Ollama provider");
+        let provider = if let Some(base) = base_url {
+            ollama_with_url(base)
+        } else {
+            ollama()
+        };
         Self { provider: Arc::new(provider) }
     }
 
@@ -94,12 +90,12 @@ impl LlmClient {
         let config = ProviderConfig::new(api_key).with_base_url(base_url);
 
         if anthropic {
-            let protocol = AnthropicProtocol::with_url(api_key, base_url);
+            let protocol = AnthropicProtocol::with_url(base_url);
             let provider = GenericProvider::new(config, protocol)
                 .expect("Failed to create LongCat Anthropic-compatible provider");
             Self { provider: Arc::new(provider) }
         } else {
-            let protocol = OpenAIProtocol::with_url(api_key, base_url);
+            let protocol = OpenAIProtocol::with_url(base_url);
             let provider = GenericProvider::new(config, protocol)
                 .expect("Failed to create LongCat OpenAI-compatible provider");
             Self { provider: Arc::new(provider) }
@@ -115,7 +111,7 @@ impl LlmClient {
     /// let client = LlmClient::anthropic("sk-ant-...");
     /// ```
     pub fn anthropic(api_key: &str) -> Self {
-        let protocol = AnthropicProtocol::new(api_key);
+        let protocol = AnthropicProtocol::new();
         let config = ProviderConfig::new(api_key)
             .with_base_url("https://api.anthropic.com");
         let provider = GenericProvider::new(config, protocol)
@@ -123,6 +119,21 @@ impl LlmClient {
         Self {
             provider: Arc::new(provider),
         }
+    }
+
+    /// Create new client with Zhipu protocol
+    ///
+    /// Uses the default PaaS v4 endpoint: `https://open.bigmodel.cn/api/paas/v4`
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::zhipu("sk-...");
+    /// ```
+    pub fn zhipu(api_key: &str) -> Self {
+        let provider = zhipu_default(api_key)
+            .expect("Failed to create Zhipu provider");
+        Self { provider: Arc::new(provider) }
     }
 
     /// Send a chat completion request
@@ -190,6 +201,7 @@ mod tests {
         let _openai = LlmClient::openai("test-key", None);
         let _anthropic = LlmClient::anthropic("test-key");
         let _aliyun = LlmClient::aliyun("test-key");
+        let _zhipu = LlmClient::zhipu("test-key");
         let _ollama = LlmClient::ollama(None);
     }
 
@@ -203,6 +215,9 @@ mod tests {
 
         let aliyun_client = LlmClient::aliyun("test-key");
         assert_eq!(aliyun_client.protocol_name(), "aliyun");
+
+        let zhipu_client = LlmClient::zhipu("test-key");
+        assert_eq!(zhipu_client.protocol_name(), "zhipu");
 
         let ollama_client = LlmClient::ollama(None);
         assert_eq!(ollama_client.protocol_name(), "ollama");

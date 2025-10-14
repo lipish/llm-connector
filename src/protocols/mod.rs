@@ -22,15 +22,21 @@ pub mod anthropic;
 pub mod core;
 pub mod ollama;
 pub mod openai;
+pub mod zhipu;
 
 // Re-export core components
 pub use core::{ErrorMapper, GenericProvider, HttpTransport, Provider, ProviderAdapter};
 
-// Re-export protocols
-pub use aliyun::AliyunProtocol;
+// Re-export new Protocol architecture
+pub use crate::core::{Protocol, ErrorMapper as ProtocolErrorMapper};
+pub use crate::core::provider::{Provider as NewProvider, ProtocolProvider};
+
+// Re-export protocols (both old and new for compatibility)
+pub use aliyun::{AliyunProvider, aliyun, aliyun_with_url};
 pub use anthropic::AnthropicProtocol;
-pub use ollama::OllamaProtocol;
+pub use ollama::{OllamaProvider, ollama, ollama_with_url};
 pub use openai::OpenAIProtocol;
+pub use zhipu::{ZhipuProtocol, zhipu, zhipu_default};
 
 // Re-export configuration
 pub use crate::config::ProviderConfig;

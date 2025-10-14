@@ -56,13 +56,17 @@
 //! }
 //! ```
 
+use crate::core::Provider;
+use crate::core::protocol::ProtocolError;
 use crate::error::LlmConnectorError;
-use crate::protocols::core::{ErrorMapper, ProviderAdapter};
 use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+
+#[cfg(feature = "streaming")]
+use crate::types::{ChatStream, StreamingResponse};
 
 /// Parse a role string into a Role enum
 fn parse_role(role: &str) -> Role {
@@ -202,7 +206,7 @@ pub struct OllamaStreamResponse {
 
 pub struct OllamaErrorMapper;
 
-impl ErrorMapper for OllamaErrorMapper {
+impl crate::core::protocol::ProtocolError for OllamaErrorMapper {
     fn map_http_error(status: u16, body: Value) -> LlmConnectorError {
         let error_message = body["error"]
             .as_str()
@@ -255,36 +259,41 @@ impl ErrorMapper for OllamaErrorMapper {
 }
 
 // ============================================================================
-// Ollama Protocol Adapter
+// Ollama Provider
 // ============================================================================
 
-/// Ollama Protocol implementation for local LLM servers
+/// Ollama Provider implementation for local LLM servers
 #[derive(Debug, Clone)]
-pub struct OllamaProtocol {
+pub struct OllamaProvider {
+    name: Arc<str>,
     base_url: Arc<str>,
+    client: reqwest::Client,
 }
 
-impl OllamaProtocol {
-    /// Create new Ollama protocol with default localhost:11434
+impl OllamaProvider {
+    /// Create new Ollama provider with default localhost:11434
     pub fn new() -> Self {
         Self {
+            name: Arc::from("ollama"),
             base_url: Arc::from("http://localhost:11434"),
+            client: reqwest::Client::new(),
         }
     }
 
-    /// Create new Ollama protocol with custom URL
+    /// Create new Ollama provider with custom URL
     pub fn with_url(base_url: &str) -> Self {
         Self {
+            name: Arc::from("ollama"),
             base_url: Arc::from(base_url),
+            client: reqwest::Client::new(),
         }
     }
 
     /// List all available models
-    pub async fn list_models(&self, client: &reqwest::Client) -> Result<Vec<String>, LlmConnectorError> {
-        let base = &self.base_url;
-        let url = format!("{}/api/tags", base);
+    pub async fn list_models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        let url = format!("{}/api/tags", self.base_url);
 
-        let response = client
+        let response = self.client
             .get(&url)
             .send()
             .await
@@ -303,9 +312,8 @@ impl OllamaProtocol {
     }
 
     /// Pull a model from Ollama registry
-    pub async fn pull_model(&self, client: &reqwest::Client, model_name: &str) -> Result<(), LlmConnectorError> {
-        let base = &self.base_url;
-        let url = format!("{}/api/pull", base);
+    pub async fn pull_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
+        let url = format!("{}/api/pull", self.base_url);
 
         let request = OllamaModelRequest {
             name: model_name.to_string(),
@@ -313,7 +321,7 @@ impl OllamaProtocol {
             stream: Some(false),
         };
 
-        let response = client
+        let response = self.client
             .post(&url)
             .json(&request)
             .send()
@@ -330,9 +338,8 @@ impl OllamaProtocol {
     }
 
     /// Push a model to Ollama registry
-    pub async fn push_model(&self, client: &reqwest::Client, model_name: &str) -> Result<(), LlmConnectorError> {
-        let base = &self.base_url;
-        let url = format!("{}/api/push", base);
+    pub async fn push_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
+        let url = format!("{}/api/push", self.base_url);
 
         let request = OllamaModelRequest {
             name: model_name.to_string(),
@@ -340,7 +347,7 @@ impl OllamaProtocol {
             stream: Some(false),
         };
 
-        let response = client
+        let response = self.client
             .post(&url)
             .json(&request)
             .send()
@@ -357,15 +364,14 @@ impl OllamaProtocol {
     }
 
     /// Delete a model
-    pub async fn delete_model(&self, client: &reqwest::Client, model_name: &str) -> Result<(), LlmConnectorError> {
-        let base = &self.base_url;
-        let url = format!("{}/api/delete", base);
+    pub async fn delete_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
+        let url = format!("{}/api/delete", self.base_url);
 
         let request = OllamaModelDeleteRequest {
             name: model_name.to_string(),
         };
 
-        let response = client
+        let response = self.client
             .delete(&url)
             .json(&request)
             .send()
@@ -382,15 +388,14 @@ impl OllamaProtocol {
     }
 
     /// Get model details
-    pub async fn show_model(&self, client: &reqwest::Client, model_name: &str) -> Result<OllamaModel, LlmConnectorError> {
-        let base = &self.base_url;
-        let url = format!("{}/api/show", base);
+    pub async fn show_model(&self, model_name: &str) -> Result<OllamaModel, LlmConnectorError> {
+        let url = format!("{}/api/show", self.base_url);
 
         let request = serde_json::json!({
             "name": model_name
         });
 
-        let response = client
+        let response = self.client
             .post(&url)
             .json(&request)
             .send()
@@ -407,31 +412,9 @@ impl OllamaProtocol {
             Err(OllamaErrorMapper::map_http_error(status, body))
         }
     }
-}
 
-#[async_trait]
-impl ProviderAdapter for OllamaProtocol {
-    type RequestType = OllamaRequest;
-    type ResponseType = OllamaResponse;
-    #[cfg(feature = "streaming")]
-    type StreamResponseType = OllamaStreamResponse;
-    type ErrorMapperType = OllamaErrorMapper;
-
-    fn name(&self) -> &str {
-        "ollama"
-    }
-
-    fn endpoint_url(&self, base_url: &Option<String>) -> String {
-        let base = base_url.as_deref().unwrap_or(&self.base_url);
-        format!("{}/api/chat", base)
-    }
-
-    fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
-        let base = base_url.as_deref().unwrap_or(&self.base_url);
-        Some(format!("{}/api/tags", base))
-    }
-
-    fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
+    /// Build Ollama request from generic request
+    fn build_request(&self, request: &ChatRequest, stream: bool) -> OllamaRequest {
         let messages = request
             .messages
             .iter()
@@ -458,8 +441,8 @@ impl ProviderAdapter for OllamaProtocol {
         }
     }
 
-    fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse {
-        // Convenience content before moving the message content
+    /// Parse Ollama response to generic response
+    fn parse_response(&self, response: OllamaResponse) -> ChatResponse {
         let first_content = response.message.content.clone();
         ChatResponse {
             id: format!("ollama-{}", response.model),
@@ -498,10 +481,10 @@ impl ProviderAdapter for OllamaProtocol {
     }
 
     #[cfg(feature = "streaming")]
-    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> crate::types::StreamingResponse {
+    fn parse_stream_response(&self, response: OllamaStreamResponse) -> StreamingResponse {
         let content = response.message.content.clone();
         let role = parse_role(&response.message.role);
-        crate::types::StreamingResponse {
+        StreamingResponse {
             id: format!("ollama-{}", response.model),
             object: "chat.completion.chunk".to_string(),
             created: chrono::Utc::now().timestamp() as u64,
@@ -524,19 +507,200 @@ impl ProviderAdapter for OllamaProtocol {
             system_fingerprint: None,
         }
     }
+}
+
+impl Default for OllamaProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Provider for OllamaProvider {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
+        let ollama_request = self.build_request(request, false);
+        let url = format!("{}/api/chat", self.base_url);
+
+        let response = self.client
+            .post(&url)
+            .json(&ollama_request)
+            .send()
+            .await
+            .map_err(|e| OllamaErrorMapper::map_network_error(e))?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let body: Value = response.json().await.unwrap_or_default();
+            return Err(OllamaErrorMapper::map_http_error(status, body));
+        }
+
+        let text = response
+            .text()
+            .await
+            .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+
+        let ollama_response: OllamaResponse = serde_json::from_str(&text)
+            .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+
+        Ok(self.parse_response(ollama_response))
+    }
 
     #[cfg(feature = "streaming")]
-    fn uses_sse_stream(&self) -> bool { false }
+    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
+        use futures_util::stream;
+
+        let ollama_request = self.build_request(request, true);
+        let url = format!("{}/api/chat", self.base_url);
+
+        let response = self.client
+            .post(&url)
+            .json(&ollama_request)
+            .send()
+            .await
+            .map_err(|e| OllamaErrorMapper::map_network_error(e))?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let body: Value = response.json().await.unwrap_or_default();
+            return Err(OllamaErrorMapper::map_http_error(status, body));
+        }
+
+        // For now, return a single response stream for Ollama
+        let text = response
+            .text()
+            .await
+            .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+
+        let ollama_response: OllamaResponse = serde_json::from_str(&text)
+            .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+
+        let streaming_response = self.parse_stream_response(OllamaStreamResponse {
+            model: ollama_response.model,
+            created_at: Some(ollama_response._created_at),
+            message: ollama_response.message,
+            done: ollama_response.done,
+            done_reason: None,
+            eval_count: ollama_response.eval_count,
+        });
+
+        let single_chunk_stream = stream::once(async { Ok(streaming_response) });
+        Ok(Box::pin(single_chunk_stream))
+    }
+
+    async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        self.list_models().await
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// Bridge implementation: Implement old Provider trait for OllamaProvider
+/// This allows gradual migration from the old architecture to the new one
+#[async_trait]
+impl crate::protocols::Provider for OllamaProvider {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
+        Provider::chat(self, request).await
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
+        Provider::chat_stream(self, request).await
+    }
+
+    async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        Provider::fetch_models(self).await
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // ============================================================================
 // Convenience Functions
 // ============================================================================
 
-/// Create an Ollama protocol adapter
-pub fn ollama() -> OllamaProtocol {
-    OllamaProtocol::new()
+/// Create an Ollama provider
+pub fn ollama() -> OllamaProvider {
+    OllamaProvider::new()
 }
 
-/// Ollama provider type alias
-pub type OllamaProvider = crate::protocols::core::GenericProvider<OllamaProtocol>;
+/// Create an Ollama provider with custom URL
+pub fn ollama_with_url(base_url: &str) -> OllamaProvider {
+    OllamaProvider::with_url(base_url)
+}
+
+#[cfg(feature = "deprecated")]
+#[deprecated(note = "Use OllamaProvider instead")]
+pub struct OllamaProtocol {
+    inner: OllamaProvider,
+}
+
+#[cfg(feature = "deprecated")]
+#[deprecated(note = "Use OllamaProvider instead")]
+impl OllamaProtocol {
+    #[deprecated(note = "Use OllamaProvider::new() instead")]
+    pub fn new() -> Self {
+        Self {
+            inner: OllamaProvider::new(),
+        }
+    }
+
+    #[deprecated(note = "Use OllamaProvider::with_url() instead")]
+    pub fn with_url(base_url: &str) -> Self {
+        Self {
+            inner: OllamaProvider::with_url(base_url),
+        }
+    }
+}
+
+#[cfg(feature = "deprecated")]
+#[async_trait]
+#[deprecated(note = "Use Provider implementation instead")]
+impl crate::protocols::core::ProviderAdapter for OllamaProtocol {
+    type RequestType = OllamaRequest;
+    type ResponseType = OllamaResponse;
+    #[cfg(feature = "streaming")]
+    type StreamResponseType = OllamaStreamResponse;
+    type ErrorMapperType = OllamaErrorMapper;
+
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn endpoint_url(&self, _base_url: &Option<String>) -> String {
+        format!("{}/api/chat", self.inner.base_url)
+    }
+
+    fn models_endpoint_url(&self, _base_url: &Option<String>) -> Option<String> {
+        Some(format!("{}/api/tags", self.inner.base_url))
+    }
+
+    fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
+        self.inner.build_request(request, stream)
+    }
+
+    fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse {
+        self.inner.parse_response(response)
+    }
+
+    #[cfg(feature = "streaming")]
+    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> crate::types::StreamingResponse {
+        self.inner.parse_stream_response(response)
+    }
+
+    #[cfg(feature = "streaming")]
+    fn uses_sse_stream(&self) -> bool {
+        false
+    }
+}

@@ -1,12 +1,12 @@
 //! OpenAI Protocol Implementation
 //!
-//! This module implements the OpenAI protocol for OpenAI's API.
+//! This module implements the pure OpenAI API specification.
 //!
 //! # Protocol Details
 //!
 //! ## Endpoint
 //! - Standard: `POST /v1/chat/completions`
-//! - All providers follow the same endpoint structure
+//! - Models: `GET /v1/models`
 //!
 //! ## Request Format
 //! ```json
@@ -48,40 +48,13 @@
 //! - Uses Server-Sent Events (SSE)
 //! - Each chunk: `data: {"choices": [{"delta": {"content": "..."}}]}`
 //! - Final marker: `data: [DONE]`
-//!
-//! # Example
-//!
-//! ```rust
-//! use llm_connector::LlmClient;
-//! use llm_connector::types::{ChatRequest, Message, Role};
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create OpenAI client
-//! let client = LlmClient::openai("your-api-key", None);
-//!
-//! // Create request
-//! let request = ChatRequest {
-//!     model: "gpt-4".to_string(),
-//!     messages: vec![Message {
-//!         role: Role::User,
-//!         content: "Hello!".to_string(),
-//!         ..Default::default()
-//!     }],
-//!     ..Default::default()
-//! };
-//!
-//! // Send request
-//! let response = client.chat(&request).await?;
-//! println!("Response: {}", response.choices[0].message.content);
-//! # Ok(())
-//! # }
-//! ```
 
-use crate::protocols::core::{ProviderAdapter, StandardErrorMapper};
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, ToolCall, Usage};
+use crate::core::Protocol;
+use crate::core::error::StandardErrorMapper;
+use crate::types::{ChatRequest as Request, ChatResponse as Response, Role, ToolCall, Usage};
+use crate::protocols::ProviderAdapter;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::sync::Arc;
 
 /// Parse a role string into a Role enum
@@ -95,14 +68,11 @@ fn parse_role(role: &str) -> Role {
     }
 }
 
-#[cfg(feature = "streaming")]
-use crate::types::{Delta, StreamingChoice, StreamingResponse};
-
 // ============================================================================
-// OpenAI-Compatible Request/Response Structures
+// OpenAI Protocol Request/Response Types
 // ============================================================================
 
-/// Standard OpenAI-compatible chat completion request
+/// Standard OpenAI chat completion request
 #[derive(Serialize, Debug, Clone)]
 pub struct OpenAIRequest {
     pub model: String,
@@ -120,7 +90,7 @@ pub struct OpenAIRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<OpenAITool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_choice: Option<Value>,
+    pub tool_choice: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -147,14 +117,13 @@ pub struct OpenAIFunction {
     pub name: String,
     pub description: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<Value>,
+    pub parameters: Option<serde_json::Value>,
 }
 
-/// Standard OpenAI-compatible chat completion response
+/// Standard OpenAI chat completion response
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponse {
     pub id: String,
-    /// Object type - optional for compatibility with providers like Zhipu
     #[serde(default = "default_object_type")]
     pub object: String,
     pub created: u64,
@@ -163,26 +132,6 @@ pub struct OpenAIResponse {
     pub usage: Usage,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
-}
-
-/// OpenAI model information from /models endpoint
-#[derive(Deserialize, Debug)]
-pub struct OpenAIModel {
-    pub id: String,
-    pub object: String,
-    pub created: u64,
-    pub owned_by: String,
-}
-
-/// OpenAI models response from /models endpoint
-#[derive(Deserialize, Debug)]
-pub struct OpenAIModelsResponse {
-    pub object: String,
-    pub data: Vec<OpenAIModel>,
-}
-
-fn default_object_type() -> String {
-    "chat.completion".to_string()
 }
 
 #[derive(Deserialize, Debug)]
@@ -206,12 +155,13 @@ pub struct OpenAIResponseMessage {
     pub tool_call_id: Option<String>,
 }
 
-/// Standard OpenAI-compatible streaming response
+/// OpenAI streaming response
 #[cfg(feature = "streaming")]
 #[derive(Deserialize, Debug, Clone)]
 pub struct OpenAIStreamResponse {
     pub id: String,
-    pub object: String,
+    #[serde(default)]
+    pub object: Option<String>,
     pub created: u64,
     pub model: String,
     pub choices: Vec<OpenAIStreamChoice>,
@@ -241,77 +191,78 @@ pub struct OpenAIStreamDelta {
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
+fn default_object_type() -> String {
+    "chat.completion".to_string()
+}
+
+/// Dummy streaming type for when streaming feature is not enabled
+#[cfg(not(feature = "streaming"))]
+#[derive(Debug, Clone)]
+pub struct OpenAIStreamResponse;
+
 // ============================================================================
-// Conversion Utilities
+// Compatibility Methods (used by other protocols)
 // ============================================================================
 
 impl OpenAIRequest {
-    pub fn from_chat_request(request: &ChatRequest, stream: bool) -> Self {
+    /// Create OpenAI request from generic chat request
+    pub fn from_chat_request(request: &crate::types::ChatRequest, stream: bool) -> Self {
         Self {
             model: request.model.clone(),
-            messages: request.messages.iter().map(OpenAIMessage::from).collect(),
+            messages: request.messages.iter().map(|msg| {
+                let content = if msg.content.is_empty() { None } else { Some(msg.content.clone()) };
+                OpenAIMessage {
+                    role: match msg.role {
+                        crate::types::Role::System => "system".to_string(),
+                        crate::types::Role::User => "user".to_string(),
+                        crate::types::Role::Assistant => "assistant".to_string(),
+                        crate::types::Role::Tool => "tool".to_string(),
+                    },
+                    content,
+                    name: msg.name.clone(),
+                    tool_calls: msg.tool_calls.clone(),
+                    tool_call_id: msg.tool_call_id.clone(),
+                }
+            }).collect(),
             max_tokens: request.max_tokens,
             temperature: request.temperature,
             top_p: request.top_p,
             stream: if stream { Some(true) } else { None },
             stop: request.stop.clone(),
             tools: request.tools.as_ref().map(|tools| {
-                tools
-                    .iter()
-                    .map(|tool| OpenAITool {
-                        r#type: "function".to_string(),
-                        function: OpenAIFunction {
-                            name: tool.function.name.clone(),
-                            description: tool.function.description.clone().unwrap_or_default(),
-                            parameters: Some(tool.function.parameters.clone()),
-                        },
-                    })
-                    .collect()
+                tools.iter().map(|tool| OpenAITool {
+                    r#type: "function".to_string(),
+                    function: OpenAIFunction {
+                        name: tool.function.name.clone(),
+                        description: tool.function.description.clone().unwrap_or_default(),
+                        parameters: Some(tool.function.parameters.clone()),
+                    },
+                }).collect()
             }),
-            tool_choice: request
-                .tool_choice
-                .as_ref()
+            tool_choice: request.tool_choice.as_ref()
                 .map(|tc| serde_json::to_value(tc).unwrap_or_default()),
         }
     }
 }
 
-impl From<&Message> for OpenAIMessage {
-    fn from(message: &Message) -> Self {
-        Self {
-            role: match message.role {
-                crate::types::Role::System => "system".to_string(),
-                crate::types::Role::User => "user".to_string(),
-                crate::types::Role::Assistant => "assistant".to_string(),
-                crate::types::Role::Tool => "tool".to_string(),
-            },
-            content: Some(message.content.clone()),
-            name: message.name.clone(),
-            tool_calls: message.tool_calls.clone(),
-            tool_call_id: message.tool_call_id.clone(),
-        }
-    }
-}
-
 impl OpenAIResponse {
-    pub fn to_chat_response(self) -> ChatResponse {
+    /// Convert to generic chat response
+    pub fn to_chat_response(self) -> crate::types::ChatResponse {
         let first_content = self
             .choices
-            .get(0)
+            .first()
             .and_then(|c| c.message.content.clone())
             .unwrap_or_default();
 
-        ChatResponse {
+        crate::types::ChatResponse {
             id: self.id,
             object: self.object,
             created: self.created,
             model: self.model,
-            choices: self
-                .choices
-                .into_iter()
-                .map(|choice| Choice {
+            choices: self.choices.into_iter().map(|choice| {
+                crate::types::Choice {
                     index: choice.index,
-                    message: Message {
+                    message: crate::types::Message {
                         role: parse_role(&choice.message.role),
                         content: choice.message.content.unwrap_or_default(),
                         name: choice.message.name,
@@ -321,8 +272,8 @@ impl OpenAIResponse {
                     },
                     finish_reason: choice.finish_reason,
                     logprobs: None,
-                })
-                .collect(),
+                }
+            }).collect(),
             content: first_content,
             usage: Some(self.usage),
             system_fingerprint: self.system_fingerprint,
@@ -332,29 +283,24 @@ impl OpenAIResponse {
 
 #[cfg(feature = "streaming")]
 impl OpenAIStreamResponse {
-    pub fn to_streaming_response(self) -> StreamingResponse {
+    /// Convert to streaming response
+    pub fn to_streaming_response(self) -> crate::types::StreamingResponse {
         let first_chunk_content = self
             .choices
-            .get(0)
+            .first()
             .and_then(|c| c.delta.content.clone())
             .unwrap_or_default();
 
-        StreamingResponse {
+        crate::types::StreamingResponse {
             id: self.id,
-            object: self.object,
+            object: self.object.unwrap_or_else(|| "chat.completion.chunk".to_string()),
             created: self.created,
             model: self.model,
-            choices: self
-                .choices
-                .into_iter()
-                .map(|choice| StreamingChoice {
+            choices: self.choices.into_iter().map(|choice| {
+                crate::types::StreamingChoice {
                     index: choice.index,
-                    delta: Delta {
-                        role: choice
-                            .delta
-                            .role
-                            .as_ref()
-                            .map(|r| parse_role(r)),
+                    delta: crate::types::Delta {
+                        role: choice.delta.role.as_ref().map(|r| parse_role(r)),
                         content: choice.delta.content,
                         tool_calls: choice.delta.tool_calls,
                         reasoning_content: None,
@@ -362,8 +308,8 @@ impl OpenAIStreamResponse {
                     },
                     finish_reason: choice.finish_reason,
                     logprobs: None,
-                })
-                .collect(),
+                }
+            }).collect(),
             content: first_chunk_content,
             reasoning_content: None,
             usage: self.usage,
@@ -373,70 +319,21 @@ impl OpenAIStreamResponse {
 }
 
 // ============================================================================
-// Standard Adapter for OpenAI-compatible providers
+// OpenAI Protocol Implementation
 // ============================================================================
 
-/// OpenAI Protocol implementation
+/// Pure OpenAI protocol implementation
 ///
-/// Uses Arc for efficient sharing of strings across clones.
-#[derive(Debug, Clone)]
+/// Implements the official OpenAI API specification exactly.
+#[derive(Debug)]
 pub struct OpenAIProtocol {
     name: Arc<str>,
     base_url: Arc<str>,
 }
 
-
-
-#[async_trait]
-impl ProviderAdapter for OpenAIProtocol {
-    type RequestType = OpenAIRequest;
-    type ResponseType = OpenAIResponse;
-    #[cfg(feature = "streaming")]
-    type StreamResponseType = OpenAIStreamResponse;
-    type ErrorMapperType = StandardErrorMapper;
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn endpoint_url(&self, base_url: &Option<String>) -> String {
-        let base = base_url.as_deref().unwrap_or(&self.base_url);
-        format!("{}/chat/completions", base)
-    }
-
-    fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
-        let base = base_url.as_deref().unwrap_or(&self.base_url);
-        Some(format!("{}/models", base))
-    }
-
-    fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
-        OpenAIRequest::from_chat_request(request, stream)
-    }
-
-    fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse {
-        response.to_chat_response()
-    }
-
-    #[cfg(feature = "streaming")]
-    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> StreamingResponse {
-        response.to_streaming_response()
-    }
-}
-
-// ============================================================================
-// OpenAI Protocol Implementation
-// ============================================================================
-
-/// OpenAI protocol implementation
-///
-/// Implements the OpenAI API protocol.
-/// Base URL: https://api.openai.com/v1
-
 impl OpenAIProtocol {
-    /// Create new OpenAI protocol
-    ///
-    /// Uses default OpenAI base URL: https://api.openai.com/v1
-    pub fn new(_api_key: &str) -> Self {
+    /// Create new OpenAI protocol with default base URL
+    pub fn new() -> Self {
         Self {
             name: Arc::from("openai"),
             base_url: Arc::from("https://api.openai.com/v1"),
@@ -445,8 +342,8 @@ impl OpenAIProtocol {
 
     /// Create new OpenAI protocol with custom base URL
     ///
-    /// This can be used for OpenAI-compatible endpoints if needed
-    pub fn with_url(_api_key: &str, base_url: &str) -> Self {
+    /// This can be used for OpenAI-compatible endpoints
+    pub fn with_url(base_url: &str) -> Self {
         Self {
             name: Arc::from("openai"),
             base_url: Arc::from(base_url),
@@ -456,6 +353,231 @@ impl OpenAIProtocol {
 
 impl Default for OpenAIProtocol {
     fn default() -> Self {
-        Self::new("") // Empty API key, user must set it
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Protocol for OpenAIProtocol {
+    type Request = OpenAIRequest;
+    type Response = OpenAIResponse;
+    type StreamResponse = OpenAIStreamResponse;
+    type Error = StandardErrorMapper;
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn endpoint(&self, base_url: &str) -> String {
+        format!("{}/chat/completions", base_url)
+    }
+
+    fn models_endpoint(&self, base_url: &str) -> Option<String> {
+        Some(format!("{}/models", base_url))
+    }
+
+    fn build_request(&self, request: &Request, stream: bool) -> Self::Request {
+        Self::Request {
+            model: request.model.clone(),
+            messages: request.messages.iter().map(|msg| {
+                let content = if msg.content.is_empty() { None } else { Some(msg.content.clone()) };
+                OpenAIMessage {
+                    role: match msg.role {
+                        Role::System => "system".to_string(),
+                        Role::User => "user".to_string(),
+                        Role::Assistant => "assistant".to_string(),
+                        Role::Tool => "tool".to_string(),
+                    },
+                    content,
+                    name: msg.name.clone(),
+                    tool_calls: msg.tool_calls.clone(),
+                    tool_call_id: msg.tool_call_id.clone(),
+                }
+            }).collect(),
+            max_tokens: request.max_tokens,
+            temperature: request.temperature,
+            top_p: request.top_p,
+            stream: if stream { Some(true) } else { None },
+            stop: request.stop.clone(),
+            tools: request.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| OpenAITool {
+                    r#type: "function".to_string(),
+                    function: OpenAIFunction {
+                        name: tool.function.name.clone(),
+                        description: tool.function.description.clone().unwrap_or_default(),
+                        parameters: Some(tool.function.parameters.clone()),
+                    },
+                }).collect()
+            }),
+            tool_choice: request.tool_choice.as_ref()
+                .map(|tc| serde_json::to_value(tc).unwrap_or_default()),
+        }
+    }
+
+    fn parse_response(&self, response: Self::Response) -> Response {
+        let first_content = response
+            .choices
+            .first()
+            .and_then(|c| c.message.content.clone())
+            .unwrap_or_default();
+
+        Response {
+            id: response.id,
+            object: response.object,
+            created: response.created,
+            model: response.model,
+            choices: response.choices.into_iter().map(|choice| {
+                crate::types::Choice {
+                    index: choice.index,
+                    message: crate::types::Message {
+                        role: parse_role(&choice.message.role),
+                        content: choice.message.content.unwrap_or_default(),
+                        name: choice.message.name,
+                        tool_calls: choice.message.tool_calls,
+                        tool_call_id: choice.message.tool_call_id,
+                        ..Default::default()
+                    },
+                    finish_reason: choice.finish_reason,
+                    logprobs: None,
+                }
+            }).collect(),
+            content: first_content,
+            usage: Some(response.usage),
+            system_fingerprint: response.system_fingerprint,
+        }
+    }
+
+    #[cfg(feature = "streaming")]
+    fn parse_stream_response(&self, response: Self::StreamResponse) -> crate::types::ChatStream {
+        use futures_util::stream;
+
+        let first_chunk_content = response
+            .choices
+            .first()
+            .and_then(|c| c.delta.content.clone())
+            .unwrap_or_default();
+
+        let streaming_response = crate::types::StreamingResponse {
+            id: response.id,
+            object: response.object.unwrap_or_else(|| "chat.completion.chunk".to_string()),
+            created: response.created,
+            model: response.model,
+            choices: response.choices.into_iter().map(|choice| {
+                crate::types::StreamingChoice {
+                    index: choice.index,
+                    delta: crate::types::Delta {
+                        role: choice.delta.role.as_ref().map(|r| parse_role(r)),
+                        content: choice.delta.content,
+                        tool_calls: choice.delta.tool_calls,
+                        reasoning_content: None,
+                        ..Default::default()
+                    },
+                    finish_reason: choice.finish_reason,
+                    logprobs: None,
+                }
+            }).collect(),
+            content: first_chunk_content,
+            reasoning_content: None,
+            usage: response.usage,
+            system_fingerprint: response.system_fingerprint,
+        };
+
+        // Convert single response to a stream with one chunk
+        let single_chunk_stream = stream::once(async { Ok(streaming_response) });
+        Box::pin(single_chunk_stream)
+    }
+
+    #[cfg(feature = "streaming")]
+    fn uses_sse_stream(&self) -> bool {
+        true
+    }
+}
+
+// ============================================================================
+// Compatibility Layer (Temporary during migration)
+// ============================================================================
+
+impl Clone for OpenAIProtocol {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            base_url: self.base_url.clone(),
+        }
+    }
+}
+
+impl ProviderAdapter for OpenAIProtocol {
+    type RequestType = OpenAIRequest;
+    type ResponseType = OpenAIResponse;
+    #[cfg(feature = "streaming")]
+    type StreamResponseType = OpenAIStreamResponse;
+    type ErrorMapperType = crate::protocols::core::StandardErrorMapper;
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn endpoint_url(&self, base_url: &Option<String>) -> String {
+        match base_url {
+            Some(url) => format!("{}/chat/completions", url),
+            None => format!("{}/chat/completions", &self.base_url),
+        }
+    }
+
+    fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
+        Some(match base_url {
+            Some(url) => format!("{}/models", url),
+            None => format!("{}/models", &self.base_url),
+        })
+    }
+
+    fn build_request_data(&self, request: &crate::types::ChatRequest, stream: bool) -> Self::RequestType {
+        // Use the new Protocol implementation
+        <Self as Protocol>::build_request(self, request, stream)
+    }
+
+    fn parse_response_data(&self, response: Self::ResponseType) -> crate::types::ChatResponse {
+        // Use the new Protocol implementation
+        <Self as Protocol>::parse_response(self, response)
+    }
+
+    #[cfg(feature = "streaming")]
+    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> crate::types::StreamingResponse {
+        // Direct implementation for compatibility
+        let first_chunk_content = response
+            .choices
+            .first()
+            .and_then(|c| c.delta.content.clone())
+            .unwrap_or_default();
+
+        crate::types::StreamingResponse {
+            id: response.id,
+            object: response.object.unwrap_or_else(|| "chat.completion.chunk".to_string()),
+            created: response.created,
+            model: response.model,
+            choices: response.choices.into_iter().map(|choice| {
+                crate::types::StreamingChoice {
+                    index: choice.index,
+                    delta: crate::types::Delta {
+                        role: choice.delta.role.as_ref().map(|r| parse_role(r)),
+                        content: choice.delta.content,
+                        tool_calls: choice.delta.tool_calls,
+                        reasoning_content: None,
+                        ..Default::default()
+                    },
+                    finish_reason: choice.finish_reason,
+                    logprobs: None,
+                }
+            }).collect(),
+            content: first_chunk_content,
+            reasoning_content: None,
+            usage: response.usage,
+            system_fingerprint: response.system_fingerprint,
+        }
+    }
+
+    #[cfg(feature = "streaming")]
+    fn uses_sse_stream(&self) -> bool {
+        true
     }
 }

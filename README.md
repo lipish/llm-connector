@@ -2,7 +2,7 @@
 
 Minimal Rust library for LLM protocol abstraction.
 
-Supports 4 protocols: OpenAI, Anthropic, Aliyun, Ollama.
+Supports 5 protocols: OpenAI, Anthropic, Zhipu, Aliyun, Ollama.
 No complex configuration - just pick a protocol and start chatting.
 
 ## 🚨 Having Authentication Issues?
@@ -16,7 +16,7 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 
 ## ✨ Key Features
 
-- **4 Protocol Support**: OpenAI, Anthropic, Aliyun, Ollama
+- **5 Protocol Support**: OpenAI, Anthropic, Zhipu, Aliyun, Ollama
 - **No Hardcoded Models**: Use any model name without restrictions
 - **Online Model Discovery**: Fetch available models dynamically from API
 - **Enhanced Streaming Support**: Real-time streaming responses with proper Anthropic event handling
@@ -101,7 +101,16 @@ let client = LlmClient::anthropic("sk-ant-...");
 
 **Models**: claude-3-5-sonnet-20241022, claude-3-opus, claude-3-haiku
 
-### 3. Aliyun Protocol (DashScope)
+### 3. Zhipu Protocol (ChatGLM)
+OpenAI-compatible format with Zhipu-specific error handling.
+
+```rust
+let client = LlmClient::zhipu("sk-...");
+```
+
+**Models**: glm-4, glm-4-flash, glm-4-air, glm-4-plus, glm-4x
+
+### 4. Aliyun Protocol (DashScope)
 Custom protocol for Qwen models.
 
 ```rust

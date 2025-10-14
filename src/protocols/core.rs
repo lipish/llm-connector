@@ -125,6 +125,10 @@ pub trait ProviderAdapter: Send + Sync + Clone + 'static {
 
     #[cfg(feature = "streaming")]
     fn uses_sse_stream(&self) -> bool { true }
+
+    /// Optional hook: validate success body when HTTP status is OK but provider returns error in JSON
+    /// Default: no-op (assume body is valid)
+    fn validate_success_body(&self, _status: u16, _raw: &Value) -> Result<(), LlmConnectorError> { Ok(()) }
 }
 
 /// Error mapping trait for provider-specific error handling
@@ -415,6 +419,11 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         let url = self.adapter.endpoint_url(&self.transport.config.base_url);
         let request_data = self.adapter.build_request_data(request, false);
+        if std::env::var("LLM_DEBUG_REQUEST_RAW").map(|v| v == "1").unwrap_or(false) {
+            if let Ok(j) = serde_json::to_string(&request_data) {
+                eprintln!("[request-raw] {}", j);
+            }
+        }
 
         let response = self.transport.post(&url, &request_data).await?;
 
@@ -425,18 +434,107 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
         }
 
         // Read body once, then parse into both typed and raw JSON
+        let status_code = response.status().as_u16();
         let text = response
             .text()
             .await
             .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+        if std::env::var("LLM_DEBUG_RESPONSE_RAW").map(|v| v == "1").unwrap_or(false) {
+            eprintln!("[response-raw] {}", text);
+        }
         let raw: Value = serde_json::from_str(&text).unwrap_or_default();
-        let response_data: A::ResponseType = serde_json::from_str(&text)
-            .map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
 
-        let mut chat_response = self.adapter.parse_response_data(response_data);
-        // Provider-agnostic synonym extraction
-        chat_response.populate_reasoning_synonyms(&raw);
-        Ok(chat_response)
+        // Allow protocol-specific validation of body-level errors under HTTP 200
+        if let Err(err) = self.adapter.validate_success_body(status_code, &raw) {
+            return Err(err);
+        }
+
+        // Try strict typed parse first
+        match serde_json::from_str::<A::ResponseType>(&text) {
+            Ok(response_data) => {
+                let mut chat_response = self.adapter.parse_response_data(response_data);
+                // Provider-agnostic synonym extraction
+                chat_response.populate_reasoning_synonyms(&raw);
+                Ok(chat_response)
+            }
+            Err(e) => {
+                // Fallback: best-effort extraction to avoid hard failure on minor incompatibilities
+                if std::env::var("LLM_DEBUG_PARSE_FALLBACK").map(|v| v == "1").unwrap_or(false) {
+                    eprintln!("[parse-fallback] strict parse failed: {}\nbody: {}", e, text);
+                }
+
+                // Extract common fields with defaults
+                let model = raw.get("model").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let id = raw
+                    .get("id")
+                    .or_else(|| raw.get("request_id"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let object = raw
+                    .get("object")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("chat.completion")
+                    .to_string();
+                let created = raw.get("created").and_then(|v| v.as_u64()).unwrap_or(0);
+
+                // Try to read usage if present
+                let usage = raw
+                    .get("usage")
+                    .and_then(|u| serde_json::from_value::<crate::types::Usage>(u.clone()).ok());
+
+                // Extract first choice content if available
+                let (choice_msg, finish_reason) = if let Some(choices) = raw.get("choices").and_then(|c| c.as_array()) {
+                    let first = choices.get(0);
+                    let content = first
+                        .and_then(|c| c.get("message"))
+                        .and_then(|m| m.get("content"))
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let fr = first
+                        .and_then(|c| c.get("finish_reason"))
+                        .and_then(|s| s.as_str())
+                        .map(|s| s.to_string());
+                    (crate::types::Message::assistant(content), fr)
+                } else {
+                    (crate::types::Message::assistant(String::new()), None)
+                };
+
+                let choices = vec![crate::types::Choice {
+                    index: 0,
+                    message: choice_msg,
+                    finish_reason,
+                    logprobs: None,
+                }];
+
+                let mut chat_response = crate::types::ChatResponse {
+                    id,
+                    object,
+                    created,
+                    model,
+                    choices,
+                    content: raw
+                        .get("choices")
+                        .and_then(|c| c.as_array())
+                        .and_then(|arr| arr.get(0))
+                        .and_then(|c0| c0.get("message"))
+                        .and_then(|m| m.get("content"))
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    usage,
+                    system_fingerprint: raw
+                        .get("system_fingerprint")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                };
+
+                // Populate reasoning fields from raw JSON
+                chat_response.populate_reasoning_synonyms(&raw);
+                Ok(chat_response)
+            }
+        }
     }
 
     #[cfg(feature = "streaming")]
@@ -481,6 +579,10 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
             async move {
                 match event {
                     Ok(data) => {
+                        // 原始事件调试：设置环境变量 LLM_DEBUG_STREAM_RAW=1 启用
+                        if std::env::var("LLM_DEBUG_STREAM_RAW").map(|v| v == "1").unwrap_or(false) {
+                            eprintln!("[stream-raw] {}", data);
+                        }
                         if data.trim() == "[DONE]" { return None; }
 
                         match serde_json::from_str::<A::StreamResponseType>(&data) {
@@ -491,7 +593,56 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
                                 sr.populate_reasoning_synonyms(&raw);
                                 Some(Ok(sr))
                             }
-                            Err(e) => Some(Err(LlmConnectorError::ParseError(e.to_string()))),
+                            Err(_e) => {
+                                // Fallback: best-effort mapping to StreamingResponse to avoid interrupting stream
+                                let raw: Value = serde_json::from_str(&data).unwrap_or_default();
+                                let model = raw
+                                    .get("model")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown")
+                                    .to_string();
+                                let id = raw
+                                    .get("id")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_else(|| format!("{}-{}", adapter.name(), model));
+
+                                let content_opt = raw
+                                    .pointer("/choices/0/delta/content")
+                                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                                    .or_else(|| raw.pointer("/message/content").and_then(|v| v.as_str().map(|s| s.to_string())));
+                                let content = content_opt.unwrap_or_default();
+
+                                let finish_reason = raw
+                                    .pointer("/choices/0/finish_reason")
+                                    .and_then(|v| v.as_str().map(|s| s.to_string()));
+
+                                let mut sr = crate::types::StreamingResponse {
+                                    id,
+                                    object: "chat.completion.chunk".to_string(),
+                                    created: chrono::Utc::now().timestamp() as u64,
+                                    model,
+                                    choices: vec![crate::types::StreamingChoice {
+                                        index: 0,
+                                        delta: crate::types::Delta {
+                                            role: None,
+                                            content: if content.is_empty() { None } else { Some(content.clone()) },
+                                            tool_calls: None,
+                                            reasoning_content: None,
+                                            ..Default::default()
+                                        },
+                                        finish_reason,
+                                        logprobs: None,
+                                    }],
+                                    content,
+                                    reasoning_content: None,
+                                    usage: None,
+                                    system_fingerprint: None,
+                                };
+                                // Provider-agnostic synonym extraction from raw JSON
+                                sr.populate_reasoning_synonyms(&raw);
+                                Some(Ok(sr))
+                            }
                         }
                     }
                     Err(e) => Some(Err(LlmConnectorError::StreamingError(e.to_string()))),

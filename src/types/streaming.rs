@@ -21,6 +21,7 @@ pub struct StreamingResponse {
     pub id: String,
 
     /// Object type (always "chat.completion.chunk")
+    #[serde(default)]
     pub object: String,
 
     /// Unix timestamp of creation
