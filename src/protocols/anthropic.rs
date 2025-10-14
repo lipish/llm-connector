@@ -62,23 +62,26 @@
 //!
 //! # Example
 //!
-//! ```rust,no_run
+//! ```rust
 //! use llm_connector::{
 //!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, anthropic::anthropic},
+//!     protocols::{core::GenericProvider, anthropic::claude},
 //!     types::{ChatRequest, Message},
 //! };
-//! use llm_connector::protocols::Provider;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create Claude provider
 //! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, anthropic())?;
+//! let provider = GenericProvider::new(config, claude())?;
 //!
 //! // Create request
 //! let request = ChatRequest {
 //!     model: "claude-3-5-sonnet-20241022".to_string(),
-//!     messages: vec![Message::user("Hello!")],
+//!     messages: vec![Message {
+//!         role: "user".to_string(),
+//!         content: "Hello!".to_string(),
+//!         ..Default::default()
+//!     }],
 //!     max_tokens: Some(1024), // Required for Anthropic
 //!     ..Default::default()
 //! };
@@ -197,7 +200,7 @@ pub struct AnthropicResponse {
     pub usage: AnthropicUsage,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum AnthropicResponseContent {
     #[serde(rename = "text")]
@@ -623,9 +626,8 @@ impl ProviderAdapter for AnthropicProtocol {
     #[cfg(feature = "streaming")]
     fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> StreamingResponse {
         // Use the stream processor to handle complex Anthropic streaming events
-        self.stream_processor
-            .process_event(response)
-            .unwrap_or_else(|| StreamingResponse {
+        let processed = self.stream_processor.process_event(response.clone());
+        processed.unwrap_or_else(|| StreamingResponse {
                 id: "anthropic-stream".to_string(),
                 object: "chat.completion.chunk".to_string(),
                 created: chrono::Utc::now().timestamp() as u64,
@@ -641,7 +643,7 @@ impl ProviderAdapter for AnthropicProtocol {
                     finish_reason: None,
                     logprobs: None,
                 }],
-                usage: response.usage.map(|usage| Usage {
+                usage: response.usage.clone().map(|usage| Usage {
                     prompt_tokens: usage.input_tokens,
                     completion_tokens: usage.output_tokens,
                     total_tokens: usage.input_tokens + usage.output_tokens,

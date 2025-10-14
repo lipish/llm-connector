@@ -46,9 +46,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Base URL: {}", provider_config.base_url);
 
         // Create client
-        let client = LlmClient::openai(
+        let client = LlmClient::openai_compatible(
             &provider_config.api_key,
-            Some(provider_config.base_url.as_str()),
+            &provider_config.base_url,
         );
 
         // Test online fetch_models

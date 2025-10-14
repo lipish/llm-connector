@@ -13,8 +13,8 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // OpenAI (default base URL)
-//!     let client = LlmClient::openai("sk-...", None);
+//!     // OpenAI
+//!     let client = LlmClient::openai("sk-...");
 //!
 //!     let request = ChatRequest {
 //!         model: "gpt-4".to_string(),
@@ -29,7 +29,7 @@
 //! ```
 //!
 //! ### Anthropic Protocol
-//! ```rust,ignore
+//! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
 //! let client = LlmClient::anthropic("sk-ant-...");
@@ -44,7 +44,7 @@
 //! ```
 //!
 //! ### Aliyun Protocol (DashScope)
-//! ```rust,ignore
+//! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
 //! let client = LlmClient::aliyun("sk-...");
@@ -59,14 +59,14 @@
 //! ```
 //!
 //! ### Ollama Protocol (Local)
-//! ```rust,ignore
+//! ```rust,no_run
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
 //! // Default: localhost:11434
-//! let client = LlmClient::ollama(None);
+//! let client = LlmClient::ollama();
 //!
 //! // Custom URL
-//! let client = LlmClient::ollama(Some("http://192.168.1.100:11434"));
+//! let client = LlmClient::ollama_at("http://192.168.1.100:11434");
 //!
 //! let request = ChatRequest {
 //!     model: "llama3.2".to_string(),
@@ -99,17 +99,22 @@ pub mod config;
 pub mod error;
 pub mod protocols;
 pub mod types;
-pub mod ollama;
 
 
 // Server-Sent Events (SSE) utilities
 pub mod sse;
+
+// Ollama client extension (model management)
+pub mod ollama;
 
 // Re-exports for convenience
 pub use client::LlmClient;
 pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
 pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage};
+
+// Re-export Ollama model ops extension trait
+pub use ollama::OllamaModelOps;
 
 #[cfg(feature = "streaming")]
 pub use types::{ChatStream, Delta, StreamingChoice, StreamingResponse};

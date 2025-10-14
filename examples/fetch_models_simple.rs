@@ -37,9 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Testing with DeepSeek (OpenAI-compatible)");
                 println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-                let client = LlmClient::openai(
+                let client = LlmClient::openai_compatible(
                     &deepseek.api_key,
-                    Some(deepseek.base_url.as_str()),
+                    &deepseek.base_url,
                 );
 
                 match client.fetch_models().await {

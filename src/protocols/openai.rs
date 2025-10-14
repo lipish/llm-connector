@@ -51,13 +51,13 @@
 //!
 //! # Example
 //!
-//! ```rust,no_run
+//! ```rust
 //! use llm_connector::LlmClient;
 //! use llm_connector::types::{ChatRequest, Message, Role};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create OpenAI client
-//! let client = LlmClient::openai("your-api-key", None);
+//! let client = LlmClient::openai("your-api-key");
 //!
 //! // Create request
 //! let request = ChatRequest {
@@ -336,11 +336,17 @@ impl OpenAIStreamResponse {
                 .map(|choice| StreamingChoice {
                     index: choice.index,
                     delta: Delta {
-                        role: choice.delta.role,
+                        role: choice
+                            .delta
+                            .role
+                            .as_ref()
+                            .map(|r| parse_role(r)),
                         content: choice.delta.content,
                         tool_calls: choice.delta.tool_calls,
+                        reasoning_content: None,
                     },
                     finish_reason: choice.finish_reason,
+                    logprobs: None,
                 })
                 .collect(),
             usage: self.usage,

@@ -35,13 +35,13 @@
 //!
 //! # Example
 //!
-//! ```rust,no_run
+//! ```rust
 //! use llm_connector::{LlmClient, ChatRequest, Message};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create client with OpenAI protocol
-//! let client = LlmClient::openai("sk-...", None);
+//! let client = LlmClient::openai("sk-...");
 //!
 //! // Create request
 //! let request = ChatRequest {
@@ -457,21 +457,27 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
             return Err(A::ErrorMapperType::map_http_error(status, body));
         }
 
-        let mapped_stream = crate::sse::sse_events(response).filter_map(|event| async move {
-            match event {
-                Ok(data) => {
-                    if data.trim() == "[DONE]" {
-                        return None;
-                    }
+        // Clone adapter to satisfy 'static lifetime in the async stream closure
+        let adapter = self.adapter.clone();
 
-                    match serde_json::from_str::<A::StreamResponseType>(&data) {
-                        Ok(stream_response) => {
-                            Some(Ok(self.adapter.parse_stream_response_data(stream_response)))
+        let mapped_stream = crate::sse::sse_events(response).filter_map(move |event| {
+            let adapter = adapter.clone();
+            async move {
+                match event {
+                    Ok(data) => {
+                        if data.trim() == "[DONE]" {
+                            return None;
                         }
-                        Err(e) => Some(Err(LlmConnectorError::ParseError(e.to_string()))),
+
+                        match serde_json::from_str::<A::StreamResponseType>(&data) {
+                            Ok(stream_response) => {
+                                Some(Ok(adapter.parse_stream_response_data(stream_response)))
+                            }
+                            Err(e) => Some(Err(LlmConnectorError::ParseError(e.to_string()))),
+                        }
                     }
+                    Err(e) => Some(Err(LlmConnectorError::StreamingError(e.to_string()))),
                 }
-                Err(e) => Some(Err(LlmConnectorError::StreamingError(e.to_string()))),
             }
         });
 

@@ -70,23 +70,26 @@
 //!
 //! # Example
 //!
-//! ```rust,no_run
+//! ```rust
 //! use llm_connector::{
 //!     config::ProviderConfig,
-//!     protocols::{core::GenericProvider, aliyun::aliyun},
+//!     protocols::{core::GenericProvider, aliyun::qwen},
 //!     types::{ChatRequest, Message},
 //! };
-//! use llm_connector::protocols::Provider;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create Qwen provider
 //! let config = ProviderConfig::new("your-api-key");
-//! let provider = GenericProvider::new(config, aliyun())?;
+//! let provider = GenericProvider::new(config, qwen())?;
 //!
 //! // Create request
 //! let request = ChatRequest {
 //!     model: "qwen-max".to_string(),
-//!     messages: vec![Message::user("Hello!")],
+//!     messages: vec![Message {
+//!         role: "user".to_string(),
+//!         content: "Hello!".to_string(),
+//!         ..Default::default()
+//!     }],
 //!     ..Default::default()
 //! };
 //!
@@ -414,11 +417,13 @@ impl ProviderAdapter for AliyunProtocol {
                 .map(|(index, choice)| crate::types::StreamingChoice {
                     index: index as u32,
                     delta: crate::types::Delta {
-                        role: Some(choice.message.role),
+                        role: Some(parse_role(&choice.message.role)),
                         content: Some(choice.message.content),
                         tool_calls: None,
+                        reasoning_content: None,
                     },
                     finish_reason: choice.finish_reason,
+                    logprobs: None,
                 })
                 .collect(),
             usage: response.usage.map(|usage| Usage {
