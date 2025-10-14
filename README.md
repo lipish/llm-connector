@@ -32,13 +32,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.3.5"
+llm-connector = "0.3.6"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
-llm-connector = { version = "0.3.1", features = ["streaming"] }
+llm-connector = { version = "0.3.6", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -180,10 +180,8 @@ let mut stream = client.chat_stream(&request).await?;
 
 while let Some(chunk) = stream.next().await {
     let chunk = chunk?;
-    if let Some(choice) = chunk.choices.first() {
-        if let Some(content) = &choice.delta.content {
-            print!("{}", content);
-        }
+    if let Some(content) = chunk.get_content() {
+        print!("{}", content);
     }
 }
 ```
@@ -269,11 +267,51 @@ let request = ChatRequest {
 };
 ```
 
+#### Ollama Streaming (GLM-4.6 via Remote Gateway)
+
+If you expose an Ollama-compatible API while the backend actually calls Zhipu `glm-4.6` (remote gateway), you do NOT need any local model installation. Just point the client to your gateway and use the model id defined by your service:
+
+```rust
+use futures_util::StreamExt;
+use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Point to your remote Ollama-compatible gateway (replace with your actual URL)
+    let client = LlmClient::ollama(Some("https://your-ollama-gateway.example.com"));
+
+    let request = ChatRequest {
+        model: "glm-4.6".to_string(),
+        messages: vec![Message::user("Briefly explain the benefits of streaming.")],
+        max_tokens: Some(128),
+        ..Default::default()
+    };
+
+    let mut stream = client.chat_stream(&request).await?;
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        if let Some(content) = chunk.get_content() {
+            print!("{}", content);
+        }
+    }
+
+    Ok(())
+}
+```
+
+Run example (requires `streaming` feature):
+
+```bash
+cargo run --example ollama_streaming --features streaming
+```
+
+Note: This setup targets a remote Ollama-compatible gateway. The model id is defined by your backend (e.g. `glm-4.6`); no local installation is required. If your gateway uses a different identifier, replace it accordingly.
+
 ## Streaming (Optional Feature)
 
 Enable streaming in your `Cargo.toml`:
 ```toml
-llm-connector = { version = "0.3.1", features = ["streaming"] }
+llm-connector = { version = "0.3.6", features = ["streaming"] }
 ```
 
 ```rust
@@ -283,10 +321,8 @@ let mut stream = client.chat_stream(&request).await?;
 
 while let Some(chunk) = stream.next().await {
     let chunk = chunk?;
-    if let Some(choice) = chunk.choices.first() {
-        if let Some(content) = &choice.delta.content {
-            print!("{}", content);
-        }
+    if let Some(content) = chunk.get_content() {
+        print!("{}", content);
     }
 }
 ```
@@ -513,6 +549,9 @@ cargo run --example ollama_model_management
 
 # Anthropic streaming (NEW! - requires streaming feature)
 cargo run --example anthropic_streaming --features streaming
+
+# Ollama streaming (NEW! - requires streaming feature)
+cargo run --example ollama_streaming --features streaming
 
 # LongCat demo (OpenAI/Anthropic compatible)
 cargo run --example longcat_dual

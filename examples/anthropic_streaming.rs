@@ -52,13 +52,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             while let Some(chunk) = stream.next().await {
                 match chunk {
                     Ok(streaming_response) => {
-                        if let Some(choice) = streaming_response.choices.first() {
-                            if let Some(content) = &choice.delta.content {
-                                print!("{}", content);
-                                // 强制刷新输出缓冲区，以便实时显示
-                                use std::io::{self, Write};
-                                io::stdout().flush().unwrap();
-                            }
+                        if let Some(content) = streaming_response.get_content() {
+                            print!("{}", content);
+                            // 强制刷新输出缓冲区，以便实时显示
+                            use std::io::{self, Write};
+                            io::stdout().flush().unwrap();
                         }
 
                         // 检查是否完成

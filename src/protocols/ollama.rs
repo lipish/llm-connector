@@ -174,10 +174,26 @@ pub struct OllamaModelProgressResponse {
     pub completed: Option<u64>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct OllamaResponseMessage {
     role: String,
     content: String,
+}
+
+/// Ollama streaming response line (JSON)
+#[cfg(feature = "streaming")]
+#[derive(Deserialize, Debug, Clone)]
+pub struct OllamaStreamResponse {
+    pub model: String,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    pub message: OllamaResponseMessage,
+    #[serde(default)]
+    pub done: bool,
+    #[serde(default)]
+    pub done_reason: Option<String>,
+    #[serde(default)]
+    pub eval_count: Option<u32>,
 }
 
 // ============================================================================
@@ -398,7 +414,7 @@ impl ProviderAdapter for OllamaProtocol {
     type RequestType = OllamaRequest;
     type ResponseType = OllamaResponse;
     #[cfg(feature = "streaming")]
-    type StreamResponseType = serde_json::Value; // Ollama streaming is not implemented in this version
+    type StreamResponseType = OllamaStreamResponse;
     type ErrorMapperType = OllamaErrorMapper;
 
     fn name(&self) -> &str {
@@ -415,7 +431,7 @@ impl ProviderAdapter for OllamaProtocol {
         Some(format!("{}/api/tags", base))
     }
 
-    fn build_request_data(&self, request: &ChatRequest, _stream: bool) -> Self::RequestType {
+    fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
         let messages = request
             .messages
             .iter()
@@ -433,7 +449,7 @@ impl ProviderAdapter for OllamaProtocol {
         OllamaRequest {
             model: request.model.clone(),
             messages,
-            stream: None, // Not implemented in this minimal version
+            stream: Some(stream),
             options: Some(OllamaOptions {
                 temperature: request.temperature,
                 top_p: request.top_p,
@@ -482,32 +498,35 @@ impl ProviderAdapter for OllamaProtocol {
     }
 
     #[cfg(feature = "streaming")]
-    fn parse_stream_response_data(&self, _response: Self::StreamResponseType) -> crate::types::StreamingResponse {
-        // Ollama streaming is not implemented in this version
-        // Return a placeholder response
+    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> crate::types::StreamingResponse {
+        let content = response.message.content.clone();
+        let role = parse_role(&response.message.role);
         crate::types::StreamingResponse {
-            id: "ollama-stream".to_string(),
+            id: format!("ollama-{}", response.model),
             object: "chat.completion.chunk".to_string(),
             created: chrono::Utc::now().timestamp() as u64,
-            model: "ollama".to_string(),
+            model: response.model,
             choices: vec![crate::types::StreamingChoice {
                 index: 0,
                 delta: crate::types::Delta {
-                    role: None,
-                    content: None,
+                    role: Some(role),
+                    content: Some(content.clone()),
                     tool_calls: None,
                     reasoning_content: None,
                     ..Default::default()
                 },
-                finish_reason: None,
+                finish_reason: if response.done { response.done_reason.clone().or(Some("stop".to_string())) } else { None },
                 logprobs: None,
             }],
-            content: String::new(),
+            content,
             reasoning_content: None,
             usage: None,
             system_fingerprint: None,
         }
     }
+
+    #[cfg(feature = "streaming")]
+    fn uses_sse_stream(&self) -> bool { false }
 }
 
 // ============================================================================

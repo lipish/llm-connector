@@ -122,6 +122,9 @@ pub trait ProviderAdapter: Send + Sync + Clone + 'static {
 
     #[cfg(feature = "streaming")]
     fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> StreamingResponse;
+
+    #[cfg(feature = "streaming")]
+    fn uses_sse_stream(&self) -> bool { true }
 }
 
 /// Error mapping trait for provider-specific error handling
@@ -438,7 +441,7 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
 
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
-        use crate::sse::sse_events;
+        use crate::sse::json_lines_events;
         use futures_util::StreamExt;
 
         let url = self.adapter.endpoint_url(&self.transport.config.base_url);
@@ -467,14 +470,18 @@ impl<A: ProviderAdapter> Provider for GenericProvider<A> {
         // Clone adapter to satisfy 'static lifetime in the async stream closure
         let adapter = self.adapter.clone();
 
-        let mapped_stream = crate::sse::sse_events(response).filter_map(move |event| {
+        let event_stream = if self.adapter.uses_sse_stream() {
+            crate::sse::sse_events(response)
+        } else {
+            json_lines_events(response)
+        };
+
+        let mapped_stream = event_stream.filter_map(move |event| {
             let adapter = adapter.clone();
             async move {
                 match event {
                     Ok(data) => {
-                        if data.trim() == "[DONE]" {
-                            return None;
-                        }
+                        if data.trim() == "[DONE]" { return None; }
 
                         match serde_json::from_str::<A::StreamResponseType>(&data) {
                             Ok(stream_response) => {

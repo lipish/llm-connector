@@ -67,3 +67,39 @@ pub fn sse_events(
 
         Box::pin(events_stream)
     }
+
+/// Parse line-delimited JSON events (non-SSE) from an HTTP response.
+/// Each line is treated as a standalone JSON payload.
+#[inline]
+pub fn json_lines_events(
+        response: reqwest::Response,
+    ) -> Pin<Box<dyn Stream<Item = Result<String, LlmConnectorError>> + Send>> {
+        let stream = response.bytes_stream();
+
+        let events_stream = stream
+            .scan(String::new(), move |buffer, chunk_result| {
+                let mut out: Vec<Result<String, LlmConnectorError>> = Vec::new();
+                match chunk_result {
+                    Ok(chunk) => {
+                        let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
+                        buffer.push_str(&chunk_str);
+
+                        // Extract complete lines
+                        while let Some(boundary_idx) = buffer.find('\n') {
+                            let line: String = buffer.drain(..boundary_idx + 1).collect();
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() { continue; }
+                            if trimmed == "[DONE]" { continue; }
+                            out.push(Ok(trimmed.to_string()));
+                        }
+                    }
+                    Err(e) => {
+                        out.push(Err(LlmConnectorError::NetworkError(e.to_string())));
+                    }
+                }
+                std::future::ready(Some(out))
+            })
+            .flat_map(futures_util::stream::iter);
+
+        Box::pin(events_stream)
+    }

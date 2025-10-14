@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.6] - 2025-10-14
+
+### ✨ Added
+
+#### Ollama Streaming Support
+- Implemented line-delimited JSON streaming for Ollama protocol
+  - Added non-SSE parser for JSON lines stream
+  - Integrated into core streaming pipeline with protocol switch
+  - Normalized to `StreamingResponse` with `get_content()` for output
+- Added `examples/ollama_streaming.rs` demonstrating `chat_stream()` usage
+
+### 📝 Updated
+- README and examples already standardized to use `get_content()` for streaming output
+
 ## [0.2.3] - 2025-01-06
 
 ### ✨ Added
