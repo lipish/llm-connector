@@ -4,6 +4,15 @@ use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(feature = "streaming"))]
+    {
+        println!("❌ 需要启用 'streaming' 功能来运行此示例");
+        println!("   请使用: cargo run --example debug_ollama --features streaming");
+        return Ok(());
+    }
+
+    #[cfg(feature = "streaming")]
+    {
     println!("🔍 诊断 llm-connector Ollama 集成");
 
     // 创建 Ollama 客户端
@@ -92,11 +101,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\n🎯 诊断完成");
-    Ok(())
-}
-
-#[cfg(not(feature = "streaming"))]
-fn main() {
-    println!("❌ 需要启用 'streaming' 功能来运行此示例");
-    println!("   请使用: cargo run --example debug_ollama --features streaming");
+        Ok(())
+    } // end of #[cfg(feature = "streaming")]
 }

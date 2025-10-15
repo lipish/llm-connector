@@ -7,6 +7,15 @@ use std::io::{self, Write};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(feature = "streaming"))]
+    {
+        println!("❌ 需要启用 'streaming' 功能才能运行此示例");
+        println!("   请使用: cargo run --example debug_word_by_word --features streaming");
+        return Ok(());
+    }
+
+    #[cfg(feature = "streaming")]
+    {
     let api_key = std::env::var("ZHIPU_API_KEY").expect("请设置环境变量 ZHIPU_API_KEY");
 
     println!("🔍 逐字流式响应调试示例");
@@ -79,5 +88,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         full_text.len() as f64 / char_count as f64
     );
 
-    Ok(())
+        Ok(())
+    } // end of #[cfg(feature = "streaming")]
 }

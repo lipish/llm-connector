@@ -252,6 +252,7 @@ fn test_message_populate_reasoning_from_json() {
     assert_eq!(message.reasoning_content.as_deref(), Some("glm-reasoning"));
 }
 
+#[cfg(feature = "streaming")]
 #[test]
 fn test_delta_populate_reasoning_from_json() {
     let mut delta = llm_connector::types::Delta::default();

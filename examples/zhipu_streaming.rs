@@ -1,8 +1,16 @@
-use futures_util::StreamExt;
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(feature = "streaming"))]
+    {
+        println!("❌ 需要启用 'streaming' 功能才能运行此示例");
+        println!("   请使用: cargo run --example zhipu_streaming --features streaming");
+        return Ok(());
+    }
+
+    #[cfg(feature = "streaming")]
+    {
+        use futures_util::StreamExt;
+        use llm_connector::{LlmClient, types::{ChatRequest, Message}};
     // 从环境变量读取 API Key 与 Base URL
     // Zhipu 官方文档端点（paas v4）：https://open.bigmodel.cn/api/paas/v4
     let api_key = std::env::var("ZHIPU_API_KEY")
@@ -10,8 +18,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let base_url = std::env::var("ZHIPU_BASE_URL")
         .unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".to_string());
 
-    // 使用 Zhipu 协议 + Base URL（支持 paas/v4 或 openai/v1）
-    let client = LlmClient::zhipu(&api_key, Some(&base_url));
+    // 使用 Zhipu 协议（默认端点）
+    let client = LlmClient::zhipu(&api_key);
 
     let request = ChatRequest {
         model: "glm-4.6".to_string(),
@@ -56,12 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("\n\n📝 完整文本:\n{}", full_text);
-    Ok(())
-}
-
-#[cfg(not(feature = "streaming"))]
-fn main() {
-    println!("❌ 需要启用 'streaming' 功能才能运行此示例");
-    println!("   请使用: cargo run --example zhipu_streaming --features streaming");
+        println!("\n\n📝 完整文本:\n{}", full_text);
+        Ok(())
+    } // end of #[cfg(feature = "streaming")]
 }

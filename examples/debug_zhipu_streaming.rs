@@ -3,6 +3,15 @@ use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(feature = "streaming"))]
+    {
+        println!("❌ 需要启用 'streaming' 功能才能运行此示例");
+        println!("   请使用: cargo run --example debug_zhipu_streaming --features streaming");
+        return Ok(());
+    }
+
+    #[cfg(feature = "streaming")]
+    {
     // 从环境变量读取 API Key
     let api_key = std::env::var("ZHIPU_API_KEY")
         .expect("请设置环境变量 ZHIPU_API_KEY");
@@ -88,11 +97,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    Ok(())
-}
-
-#[cfg(not(feature = "streaming"))]
-fn main() {
-    println!("❌ 需要启用 'streaming' 功能才能运行此示例");
-    println!("   请使用: cargo run --example debug_zhipu_streaming --features streaming");
+        Ok(())
+    } // end of #[cfg(feature = "streaming")]
 }

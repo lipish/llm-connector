@@ -275,7 +275,7 @@ mod tests {
 #[cfg(not(feature = "streaming"))]
 mod tests {
     #[tokio::test]
-    fn test_streaming_feature_disabled() {
+    async fn test_streaming_feature_disabled() {
         println!("ℹ️  Streaming feature is disabled, skipping streaming tests");
         println!("   Run with: cargo test --features streaming");
     }
