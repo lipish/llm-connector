@@ -19,7 +19,7 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 - **6 Protocol Support**: OpenAI, Anthropic, Zhipu, Aliyun, Ollama, Hunyuan
 - **No Hardcoded Models**: Use any model name without restrictions
 - **Online Model Discovery**: Fetch available models dynamically from API
-- **Enhanced Streaming Support**: Real-time streaming with multiple formats (OpenAI, Ollama) for better tool integration
+- **Enhanced Streaming Support**: Real-time streaming with pure Ollama format for perfect Zed.dev integration
 - **Ollama Model Management**: Full CRUD operations for local models
 - **Unified Interface**: Same API for all protocols
 - **Type-Safe**: Full Rust type safety with async/await
@@ -32,20 +32,20 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.3.11"
+llm-connector = "0.3.12"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.3.11", features = ["streaming"] }
+llm-connector = { version = "0.3.12", features = ["streaming"] }
 
 # Tencent Cloud native API support
-llm-connector = { version = "0.3.11", features = ["tencent-native"] }
+llm-connector = { version = "0.3.12", features = ["tencent-native"] }
 
 # Both streaming and Tencent native API
-llm-connector = { version = "0.3.11", features = ["streaming", "tencent-native"] }
+llm-connector = { version = "0.3.12", features = ["streaming", "tencent-native"] }
 ```
 
 ### Basic Usage
@@ -235,19 +235,44 @@ while let Some(chunk) = stream.next().await {
 }
 ```
 
-### Ollama Format for Tool Integration
+### Pure Ollama Format for Tool Integration
 
-For better compatibility with tools like Zed.dev, use the Ollama-compatible streaming format:
+For perfect compatibility with tools like Zed.dev, use the pure Ollama streaming format:
 
 ```rust
 use futures_util::StreamExt;
 
-// Use Ollama format (compatible with Zed.dev)
+// Use pure Ollama format (perfect for Zed.dev)
 let mut stream = client.chat_stream_ollama(&request).await?;
 
 while let Some(chunk) = stream.next().await {
     let chunk = chunk?;
-    // chunk.content now contains Ollama-formatted JSON
+    // chunk is now a pure OllamaStreamChunk
+    if !chunk.message.content.is_empty() {
+        print!("{}", chunk.message.content);
+    }
+
+    // Check for final chunk
+    if chunk.done {
+        println!("\nStreaming complete!");
+        break;
+    }
+}
+```
+
+### Legacy Ollama Format (Embedded)
+
+For backward compatibility, the embedded format is still available:
+
+```rust
+use futures_util::StreamExt;
+
+// Use embedded Ollama format (legacy)
+let mut stream = client.chat_stream_ollama_embedded(&request).await?;
+
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;
+    // chunk.content contains Ollama-formatted JSON string
     if let Ok(ollama_chunk) = serde_json::from_str::<serde_json::Value>(&chunk.content) {
         if let Some(content) = ollama_chunk
             .get("message")
@@ -255,12 +280,6 @@ while let Some(chunk) = stream.next().await {
             .and_then(|c| c.as_str())
         {
             print!("{}", content);
-        }
-
-        // Check for final chunk
-        if ollama_chunk.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
-            println!("\nStreaming complete!");
-            break;
         }
     }
 }
@@ -407,7 +426,7 @@ Note: This setup targets a remote Ollama-compatible gateway. The model id is def
 
 Enable streaming in your `Cargo.toml`:
 ```toml
-llm-connector = { version = "0.3.11", features = ["streaming"] }
+llm-connector = { version = "0.3.12", features = ["streaming"] }
 ```
 
 ```rust
@@ -555,7 +574,30 @@ The test tool will:
 
 ## Recent Changes
 
-### v0.3.11 (Latest)
+### v0.3.12 (Latest)
+
+**🔧 Critical Fix: Pure Ollama Format Streaming**
+- **Fixed Double Format Issue**: `chat_stream_ollama()` now returns pure Ollama format instead of nested format
+- **Direct Compatibility**: Perfect integration with Zed.dev and other Ollama-compatible tools
+- **Simplified Usage**: No more JSON parsing required - direct `OllamaStreamChunk` access
+- **Backward Compatibility**: Added `chat_stream_ollama_embedded()` for legacy nested format
+
+**🎯 Format Changes:**
+- **Before**: Ollama JSON embedded in OpenAI format `content` field (required parsing)
+- **After**: Direct `OllamaStreamChunk` objects with native field access
+- **New Type**: `OllamaChatStream` for pure Ollama format streams
+- **Enhanced API**: Cleaner, more intuitive streaming interface
+
+**📚 Updated Documentation:**
+- Clear distinction between pure and embedded Ollama formats
+- Updated examples with direct field access patterns
+- Enhanced streaming format comparison section
+
+**🧪 New Examples:**
+- `test_pure_ollama_format.rs` - Validation of pure format output
+- Updated `ollama_streaming_simple.rs` - Demonstrates direct field access
+
+### v0.3.11
 
 **🚀 Major New Features:**
 - **Multiple Streaming Formats**: Support for both OpenAI and Ollama streaming formats

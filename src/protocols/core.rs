@@ -93,6 +93,46 @@ pub trait Provider: Send + Sync {
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError>;
 
+    /// Send a streaming chat completion request in pure Ollama format
+    #[cfg(feature = "streaming")]
+    async fn chat_stream_ollama_pure(&self, request: &ChatRequest) -> Result<crate::types::OllamaChatStream, LlmConnectorError> {
+        use futures_util::StreamExt;
+        use crate::types::OllamaStreamChunk;
+
+        let stream = self.chat_stream(request).await?;
+        let model = request.model.clone();
+
+        let ollama_stream = stream.map(move |result| {
+            match result {
+                Ok(openai_chunk) => {
+                    // Check if this is the final chunk
+                    let is_final = openai_chunk.usage.is_some() ||
+                        openai_chunk.choices.iter().any(|c| c.finish_reason.is_some());
+
+                    // Extract content from OpenAI format
+                    let content = if !openai_chunk.content.is_empty() {
+                        openai_chunk.content.clone()
+                    } else {
+                        openai_chunk.choices.get(0)
+                            .and_then(|choice| choice.delta.content.clone())
+                            .unwrap_or_default()
+                    };
+
+                    if is_final {
+                        // Create final chunk with usage statistics
+                        Ok(OllamaStreamChunk::final_chunk(model.clone(), openai_chunk.usage.as_ref()))
+                    } else {
+                        // Create regular chunk
+                        Ok(OllamaStreamChunk::new(model.clone(), content, false))
+                    }
+                }
+                Err(e) => Err(e),
+            }
+        });
+
+        Ok(Box::pin(ollama_stream))
+    }
+
     /// Send a streaming chat completion request with format configuration
     #[cfg(feature = "streaming")]
     async fn chat_stream_with_format(

@@ -331,9 +331,25 @@ impl LlmClient {
         self.provider.chat_stream_with_format(request, config).await
     }
 
-    /// Send a streaming chat completion request in Ollama format
+    /// Send a streaming chat completion request in Ollama format (legacy)
     ///
-    /// Convenience method for Ollama-compatible streaming output.
+    /// This method returns Ollama format embedded in OpenAI format for backward compatibility.
+    /// For pure Ollama format, use `chat_stream_ollama()` instead.
+    /// Requires the "streaming" feature to be enabled.
+    #[cfg(feature = "streaming")]
+    pub async fn chat_stream_ollama_embedded(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        let config = crate::types::StreamingConfig {
+            format: crate::types::StreamingFormat::Ollama,
+            include_usage: true,
+            include_reasoning: false,
+        };
+        self.chat_stream_with_format(request, &config).await
+    }
+
+    /// Send a streaming chat completion request in pure Ollama format
+    ///
+    /// Returns a stream of pure Ollama format chunks, not wrapped in OpenAI format.
+    /// This is the correct method to use for Ollama-compatible tools like Zed.dev.
     /// Requires the "streaming" feature to be enabled.
     ///
     /// # Example
@@ -352,20 +368,19 @@ impl LlmClient {
     /// let mut stream = client.chat_stream_ollama(&request).await?;
     /// while let Some(chunk) = stream.next().await {
     ///     let chunk = chunk?;
-    ///     // chunk.content now contains Ollama-formatted JSON
-    ///     println!("Ollama chunk: {}", chunk.content);
+    ///     // chunk is now a pure OllamaStreamChunk
+    ///     println!("Content: {}", chunk.message.content);
+    ///     if chunk.done {
+    ///         println!("Stream completed!");
+    ///         break;
+    ///     }
     /// }
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "streaming")]
-    pub async fn chat_stream_ollama(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        let config = crate::types::StreamingConfig {
-            format: crate::types::StreamingFormat::Ollama,
-            include_usage: true,
-            include_reasoning: false,
-        };
-        self.chat_stream_with_format(request, &config).await
+    pub async fn chat_stream_ollama(&self, request: &ChatRequest) -> Result<crate::types::OllamaChatStream, LlmConnectorError> {
+        self.provider.chat_stream_ollama_pure(request).await
     }
 
     /// Fetch available models from the API (online)

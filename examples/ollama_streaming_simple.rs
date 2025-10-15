@@ -30,56 +30,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("🚀 Ollama格式流式输出示例");
         println!("🎯 这种格式与Zed.dev兼容\n");
 
-        // 使用Ollama格式的流式输出
+        // 使用纯Ollama格式的流式输出
         let mut stream = client.chat_stream_ollama(&request).await?;
-        
-        println!("💬 AI回复（Ollama格式）：");
+
+        println!("💬 AI回复（纯Ollama格式）：");
         println!("{}", "-".repeat(40));
 
         while let Some(chunk) = stream.next().await {
             match chunk {
-                Ok(response) => {
-                    // response.content 包含Ollama格式的JSON字符串
-                    if !response.content.is_empty() {
-                        // 解析JSON并提取内容
-                        if let Ok(ollama_chunk) = serde_json::from_str::<serde_json::Value>(&response.content) {
-                            // 提取消息内容
-                            if let Some(content) = ollama_chunk
-                                .get("message")
-                                .and_then(|m| m.get("content"))
-                                .and_then(|c| c.as_str()) 
-                            {
-                                if !content.is_empty() {
-                                    print!("{}", content);
-                                    std::io::Write::flush(&mut std::io::stdout()).unwrap();
-                                }
+                Ok(ollama_chunk) => {
+                    // ollama_chunk 现在是纯OllamaStreamChunk类型
+                    if !ollama_chunk.message.content.is_empty() {
+                        print!("{}", ollama_chunk.message.content);
+                        std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                    }
+
+                    // 检查是否是最终chunk
+                    if ollama_chunk.done {
+                        println!("\n");
+                        println!("{}", "-".repeat(40));
+                        println!("✅ 流式输出完成");
+
+                        // 显示最终chunk的详细信息
+                        if ollama_chunk.prompt_eval_count.is_some() {
+                            println!("\n📊 使用统计：");
+                            if let Some(prompt_tokens) = ollama_chunk.prompt_eval_count {
+                                println!("  输入tokens: {}", prompt_tokens);
                             }
-                            
-                            // 检查是否是最终chunk
-                            if ollama_chunk.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
-                                println!("\n");
-                                println!("{}", "-".repeat(40));
-                                println!("✅ 流式输出完成");
-                                
-                                // 显示最终chunk的详细信息
-                                if let Some(usage_info) = ollama_chunk.get("prompt_eval_count") {
-                                    println!("\n📊 使用统计：");
-                                    if let Some(prompt_tokens) = ollama_chunk.get("prompt_eval_count").and_then(|v| v.as_u64()) {
-                                        println!("  输入tokens: {}", prompt_tokens);
-                                    }
-                                    if let Some(completion_tokens) = ollama_chunk.get("eval_count").and_then(|v| v.as_u64()) {
-                                        println!("  输出tokens: {}", completion_tokens);
-                                    }
-                                    if let Some(total_duration) = ollama_chunk.get("total_duration").and_then(|v| v.as_u64()) {
-                                        println!("  总耗时: {}ms", total_duration / 1_000_000);
-                                    }
-                                }
-                                
-                                println!("\n🔍 最终chunk JSON:");
-                                println!("{}", serde_json::to_string_pretty(&ollama_chunk)?);
-                                break;
+                            if let Some(completion_tokens) = ollama_chunk.eval_count {
+                                println!("  输出tokens: {}", completion_tokens);
+                            }
+                            if let Some(total_duration) = ollama_chunk.total_duration {
+                                println!("  总耗时: {}ms", total_duration / 1_000_000);
                             }
                         }
+
+                        println!("\n🔍 最终chunk结构:");
+                        println!("  模型: {}", ollama_chunk.model);
+                        println!("  创建时间: {}", ollama_chunk.created_at);
+                        println!("  完成标记: {}", ollama_chunk.done);
+                        break;
                     }
                 }
                 Err(e) => {

@@ -56,6 +56,11 @@ impl Default for StreamingConfig {
 pub type ChatStream =
     Pin<Box<dyn Stream<Item = Result<StreamingResponse, crate::error::LlmConnectorError>> + Send>>;
 
+/// Type alias for Ollama format chat completion streams
+#[cfg(feature = "streaming")]
+pub type OllamaChatStream =
+    Pin<Box<dyn Stream<Item = Result<OllamaStreamChunk, crate::error::LlmConnectorError>> + Send>>;
+
 /// Streaming chat completion response chunk
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamingResponse {
