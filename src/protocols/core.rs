@@ -93,6 +93,84 @@ pub trait Provider: Send + Sync {
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError>;
 
+    /// Send a streaming chat completion request with format configuration
+    #[cfg(feature = "streaming")]
+    async fn chat_stream_with_format(
+        &self,
+        request: &ChatRequest,
+        config: &crate::types::StreamingConfig,
+    ) -> Result<ChatStream, LlmConnectorError> {
+        // Default implementation: use standard chat_stream and convert format
+        use futures_util::StreamExt;
+        use crate::types::{convert_streaming_format, create_final_ollama_chunk, StreamingFormat};
+
+        let stream = self.chat_stream(request).await?;
+        let format = config.format;
+        let model = request.model.clone();
+
+        match format {
+            StreamingFormat::OpenAI => Ok(stream), // No conversion needed
+            StreamingFormat::Ollama => {
+                use std::sync::{Arc, Mutex};
+
+                // Track if we've seen the final chunk
+                let seen_final = Arc::new(Mutex::new(false));
+                let seen_final_clone = seen_final.clone();
+                let model_name = Arc::new(model.clone());
+
+                // Convert OpenAI format to Ollama format
+                let converted_stream = stream.map(move |result| {
+                    match result {
+                        Ok(chunk) => {
+                            // Check if this is the final chunk (has usage data or finish_reason)
+                            let is_final = chunk.usage.is_some() ||
+                                chunk.choices.iter().any(|c| c.finish_reason.is_some());
+
+                            if is_final {
+                                let mut seen = seen_final_clone.lock().unwrap();
+                                *seen = true;
+                            }
+
+                            convert_streaming_format(&chunk, StreamingFormat::Ollama, is_final)
+                                .map_err(|e| crate::error::LlmConnectorError::ParseError(e.to_string()))
+                                .map(|json_str| {
+                                    // Create a new StreamingResponse with Ollama JSON in content
+                                    let mut response = chunk.clone();
+                                    response.content = json_str;
+                                    response
+                                })
+                        }
+                        Err(e) => Err(e),
+                    }
+                });
+
+                // Create a stream that ensures we send a final done:true chunk
+                let final_stream = converted_stream.chain(futures_util::stream::once(async move {
+                    let seen = seen_final.lock().unwrap();
+                    if !*seen {
+                        // If we haven't seen a final chunk, create one
+                        let final_json = create_final_ollama_chunk(&model_name, None);
+                        let mut final_response = crate::types::StreamingResponse::default();
+                        final_response.model = (*model_name).clone();
+                        final_response.content = final_json;
+                        Ok(final_response)
+                    } else {
+                        // Skip if we already sent a final chunk
+                        Err(crate::error::LlmConnectorError::ParseError("Stream ended".to_string()))
+                    }
+                })).filter_map(|result| async move {
+                    match result {
+                        Ok(chunk) => Some(Ok(chunk)),
+                        Err(e) if e.to_string().contains("Stream ended") => None, // Filter out our sentinel
+                        Err(e) => Some(Err(e)),
+                    }
+                });
+
+                Ok(Box::pin(final_stream))
+            }
+        }
+    }
+
     /// Get as Any for downcasting
     fn as_any(&self) -> &dyn std::any::Any;
 }

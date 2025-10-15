@@ -2,7 +2,7 @@
 
 最小化的 Rust 库，用于抽象 LLM 协议。
 
-支持 4 种协议：OpenAI、Anthropic、Aliyun、Ollama。
+支持 6 种协议：OpenAI、Anthropic、Aliyun、Zhipu、Ollama、Hunyuan。
 无需复杂配置——选择协议即可开始聊天。
 
 ## 🚨 身份验证问题？
@@ -16,7 +16,7 @@ cargo run --example test_keys_yaml
 
 ## ✨ 关键特性
 
-- 4 协议支持：OpenAI、Anthropic、Aliyun、Ollama
+- 6 协议支持：OpenAI、Anthropic、Aliyun、Zhipu、Ollama、Hunyuan
 - 无硬编码模型限制：可使用任意模型名称
 - 在线模型发现：从 API 动态获取模型列表
 - 增强流式支持：实时流式响应，并正确处理 Anthropic 事件
@@ -38,7 +38,14 @@ tokio = { version = "1", features = ["full"] }
 
 可选功能：
 ```toml
+# 流式响应支持
 llm-connector = { version = "0.3.6", features = ["streaming"] }
+
+# 腾讯云原生 API 支持
+llm-connector = { version = "0.3.6", features = ["tencent-native"] }
+
+# 同时启用流式响应和腾讯云原生 API
+llm-connector = { version = "0.3.6", features = ["streaming", "tencent-native"] }
 ```
 
 ### 基本用法
@@ -56,6 +63,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Aliyun（DashScope）
     let client = LlmClient::aliyun("sk-...");
+
+    // 腾讯混元
+    let client = LlmClient::hunyuan("sk-...");
 
     // Ollama（本地，无需 API Key）
     let client = LlmClient::ollama(None);
@@ -110,7 +120,35 @@ let client = LlmClient::aliyun("sk-...");
 
 模型：qwen-turbo、qwen-plus、qwen-max
 
-### 4. Ollama 协议（本地）
+### 4. 腾讯混元协议
+腾讯混元模型提供两种实现方式：
+
+#### 4.1 OpenAI 兼容接口
+```rust
+let client = LlmClient::hunyuan("sk-...");
+```
+
+特性：
+- OpenAI 兼容 API 格式
+- 支持流式响应
+- 通过 `fetch_models()` 在线发现模型
+
+#### 4.2 腾讯云原生 API（推荐）
+```rust
+// 需要启用 "tencent-native" 功能
+let client = LlmClient::hunyuan_native("secret-id", "secret-key", Some("ap-beijing"));
+```
+
+特性：
+- 腾讯云原生 API，使用 TC3-HMAC-SHA256 签名
+- 完整访问腾讯云功能
+- 更好的错误处理和调试
+- 支持流式响应
+- 支持地域指定
+
+模型：hunyuan-lite、hunyuan-standard、hunyuan-pro
+
+### 5. Ollama 协议（本地）
 本地 LLM 服务，无需 API Key。
 
 ```rust

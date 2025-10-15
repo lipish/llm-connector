@@ -130,5 +130,8 @@ pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage};
 pub use ollama::OllamaModelOps;
 
 #[cfg(feature = "streaming")]
-pub use types::{ChatStream, Delta, StreamingChoice, StreamingResponse};
+pub use types::{
+    ChatStream, Delta, StreamingChoice, StreamingResponse,
+    StreamingFormat, StreamingConfig, OllamaStreamChunk, OllamaMessage
+};
 

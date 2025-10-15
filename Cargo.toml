@@ -1,9 +1,9 @@
 [package]
 name = "llm-connector"
-version = "0.3.10"
+version = "0.3.11"
 edition = "2021"
 authors = ["lipi"]
-description = "Minimal Rust library for LLM protocol abstraction. Supports 4 protocols (OpenAI, Anthropic, Aliyun, Ollama) with unified interface, and dynamic model discovery."
+description = "Minimal Rust library for LLM protocol abstraction. Supports 6 protocols (OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Hunyuan) with unified interface, multiple streaming formats (OpenAI/Ollama), and dynamic model discovery."
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/lipish/llm-connector"
@@ -26,6 +26,8 @@ config = ["dep:serde_yaml"]
 yaml = ["config", "dep:serde_yaml"]
 # TOML configuration support (placeholder for future use)
 toml = ["config"]
+# Tencent Cloud native API support
+tencent-native = ["reqwest", "dep:sha2", "dep:hmac", "dep:hex"]
 
 [dependencies]
 # Core serialization
@@ -50,6 +52,11 @@ pin-project-lite = { version = "0.2", optional = true }
 
 # Configuration (optional)
 serde_yaml = { version = "0.9", optional = true }
+
+# Cryptography for Tencent Cloud API V3 signature (optional)
+sha2 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
+hex = { version = "0.4", optional = true }
 
 
 

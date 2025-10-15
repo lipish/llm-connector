@@ -159,6 +159,10 @@ async fn test_openai_compatible(name: &str, api_key: &str, base_url: &str) {
                         "moonshot" => {
                             println!("      - Get a new key from: https://platform.moonshot.cn/console/api-keys");
                         }
+                        "hunyuan" => {
+                            println!("      - Get a new key from: https://cloud.tencent.com/document/product/1729");
+                            println!("      - Visit Tencent Cloud console: https://console.cloud.tencent.com/");
+                        }
                         _ => {
                             println!("      - Check your provider's dashboard");
                             println!("      - Generate a new API key");
@@ -198,6 +202,7 @@ async fn test_openai_compatible(name: &str, api_key: &str, base_url: &str) {
         "deepseek" => "deepseek-chat",
         "zhipu" => "glm-4",
         "moonshot" => "moonshot-v1-8k",
+        "hunyuan" => "hunyuan-lite",
         _ => "gpt-3.5-turbo",
     };
     

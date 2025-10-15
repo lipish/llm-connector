@@ -13,7 +13,7 @@ use crate::types::{ChatRequest, ChatResponse};
 
 /// Minimal LLM Client
 ///
-/// Supports 5 protocols: OpenAI, Anthropic, Aliyun, Zhipu, Ollama
+/// Supports 6 protocols: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Hunyuan
 /// No complex configuration needed - just pick a protocol and start.
 #[derive(Clone)]
 pub struct LlmClient {
@@ -194,6 +194,75 @@ impl LlmClient {
         Self { provider: Arc::new(provider) }
     }
 
+    /// Create new client with Tencent Hunyuan protocol
+    ///
+    /// Uses the OpenAI-compatible endpoint: `https://api.hunyuan.cloud.tencent.com/v1`
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::hunyuan("sk-...");
+    /// ```
+    pub fn hunyuan(api_key: &str) -> Self {
+        let base_url = "https://api.hunyuan.cloud.tencent.com/v1";
+        let protocol = OpenAIProtocol::with_url(api_key, base_url);
+        let config = ProviderConfig::new(api_key)
+            .with_base_url(base_url)
+            .with_timeout_ms(30000); // 默认30秒超时
+        let provider = GenericProvider::new(config, protocol)
+            .expect("Failed to create Hunyuan provider");
+        Self { provider: Arc::new(provider) }
+    }
+
+    /// Create new client with Tencent Hunyuan protocol and custom timeout
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::hunyuan_with_timeout("sk-...", 60000);
+    /// ```
+    pub fn hunyuan_with_timeout(api_key: &str, timeout_ms: u64) -> Self {
+        let base_url = "https://api.hunyuan.cloud.tencent.com/v1";
+        let protocol = OpenAIProtocol::with_url(api_key, base_url);
+        let config = ProviderConfig::new(api_key)
+            .with_base_url(base_url)
+            .with_timeout_ms(timeout_ms);
+        let provider = GenericProvider::new(config, protocol)
+            .expect("Failed to create Hunyuan provider");
+        Self { provider: Arc::new(provider) }
+    }
+
+    /// Create new client with Tencent Hunyuan native protocol
+    ///
+    /// Uses Tencent Cloud's native API with TC3-HMAC-SHA256 signature authentication.
+    /// Requires the "tencent-native" feature to be enabled.
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::hunyuan_native("your-secret-id", "your-secret-key", Some("ap-beijing"));
+    /// ```
+    #[cfg(feature = "tencent-native")]
+    pub fn hunyuan_native(secret_id: &str, secret_key: &str, region: Option<&str>) -> Self {
+        let provider = crate::protocols::hunyuan_native::hunyuan_native(secret_id, secret_key, region)
+            .expect("Failed to create Hunyuan native provider");
+        Self { provider: Arc::new(provider) }
+    }
+
+    /// Create new client with Tencent Hunyuan native protocol and custom timeout
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::hunyuan_native_with_timeout("secret-id", "secret-key", Some("ap-beijing"), 60000);
+    /// ```
+    #[cfg(feature = "tencent-native")]
+    pub fn hunyuan_native_with_timeout(secret_id: &str, secret_key: &str, region: Option<&str>, timeout_ms: u64) -> Self {
+        let provider = crate::protocols::hunyuan_native::hunyuan_native_with_timeout(secret_id, secret_key, region, timeout_ms)
+            .expect("Failed to create Hunyuan native provider");
+        Self { provider: Arc::new(provider) }
+    }
+
     /// Send a chat completion request
     ///
     /// ```rust,ignore
@@ -219,6 +288,84 @@ impl LlmClient {
     #[cfg(feature = "streaming")]
     pub async fn chat_stream(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
         self.provider.chat_stream(request).await
+    }
+
+    /// Send a streaming chat completion request with format configuration
+    ///
+    /// Allows specifying the output format (OpenAI or Ollama) and other streaming options.
+    /// Requires the "streaming" feature to be enabled.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::{LlmClient, types::{ChatRequest, Message, StreamingConfig, StreamingFormat}};
+    /// use futures_util::StreamExt;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = LlmClient::openai("sk-...", None);
+    /// let request = ChatRequest {
+    ///     model: "gpt-4".to_string(),
+    ///     messages: vec![Message::user("Hello!")],
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let config = StreamingConfig {
+    ///     format: StreamingFormat::Ollama,
+    ///     include_usage: true,
+    ///     include_reasoning: false,
+    /// };
+    ///
+    /// let mut stream = client.chat_stream_with_format(&request, &config).await?;
+    /// while let Some(chunk) = stream.next().await {
+    ///     let chunk = chunk?;
+    ///     println!("Chunk: {}", chunk.content);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "streaming")]
+    pub async fn chat_stream_with_format(
+        &self,
+        request: &ChatRequest,
+        config: &crate::types::StreamingConfig,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        self.provider.chat_stream_with_format(request, config).await
+    }
+
+    /// Send a streaming chat completion request in Ollama format
+    ///
+    /// Convenience method for Ollama-compatible streaming output.
+    /// Requires the "streaming" feature to be enabled.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+    /// use futures_util::StreamExt;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = LlmClient::openai("sk-...", None);
+    /// let request = ChatRequest {
+    ///     model: "gpt-4".to_string(),
+    ///     messages: vec![Message::user("Hello!")],
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let mut stream = client.chat_stream_ollama(&request).await?;
+    /// while let Some(chunk) = stream.next().await {
+    ///     let chunk = chunk?;
+    ///     // chunk.content now contains Ollama-formatted JSON
+    ///     println!("Ollama chunk: {}", chunk.content);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "streaming")]
+    pub async fn chat_stream_ollama(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        let config = crate::types::StreamingConfig {
+            format: crate::types::StreamingFormat::Ollama,
+            include_usage: true,
+            include_reasoning: false,
+        };
+        self.chat_stream_with_format(request, &config).await
     }
 
     /// Fetch available models from the API (online)

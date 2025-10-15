@@ -2,7 +2,7 @@
 
 Minimal Rust library for LLM protocol abstraction.
 
-Supports 5 protocols: OpenAI, Anthropic, Zhipu, Aliyun, Ollama.
+Supports 6 protocols: OpenAI, Anthropic, Zhipu, Aliyun, Ollama, Hunyuan.
 No complex configuration - just pick a protocol and start chatting.
 
 ## 🚨 Having Authentication Issues?
@@ -16,10 +16,10 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 
 ## ✨ Key Features
 
-- **5 Protocol Support**: OpenAI, Anthropic, Zhipu, Aliyun, Ollama
+- **6 Protocol Support**: OpenAI, Anthropic, Zhipu, Aliyun, Ollama, Hunyuan
 - **No Hardcoded Models**: Use any model name without restrictions
 - **Online Model Discovery**: Fetch available models dynamically from API
-- **Enhanced Streaming Support**: Real-time streaming responses with proper Anthropic event handling
+- **Enhanced Streaming Support**: Real-time streaming with multiple formats (OpenAI, Ollama) for better tool integration
 - **Ollama Model Management**: Full CRUD operations for local models
 - **Unified Interface**: Same API for all protocols
 - **Type-Safe**: Full Rust type safety with async/await
@@ -32,13 +32,20 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.3.6"
+llm-connector = "0.3.11"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
-llm-connector = { version = "0.3.6", features = ["streaming"] }
+# Streaming support
+llm-connector = { version = "0.3.11", features = ["streaming"] }
+
+# Tencent Cloud native API support
+llm-connector = { version = "0.3.11", features = ["tencent-native"] }
+
+# Both streaming and Tencent native API
+llm-connector = { version = "0.3.11", features = ["streaming", "tencent-native"] }
 ```
 
 ### Basic Usage
@@ -56,6 +63,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Aliyun (DashScope)
     let client = LlmClient::aliyun("sk-...");
+
+    // Tencent Hunyuan
+    let client = LlmClient::hunyuan("sk-...");
 
     // Ollama (local, no API key needed)
     let client = LlmClient::ollama(None);
@@ -119,7 +129,35 @@ let client = LlmClient::aliyun("sk-...");
 
 **Models**: qwen-turbo, qwen-plus, qwen-max
 
-### 4. Ollama Protocol (Local)
+### 5. Tencent Hunyuan Protocol
+Two implementation options for Tencent's Hunyuan models:
+
+#### 5.1 OpenAI-Compatible Interface
+```rust
+let client = LlmClient::hunyuan("sk-...");
+```
+
+**Features:**
+- ✅ OpenAI-compatible API format
+- ✅ Supports streaming responses
+- ✅ Online model discovery via `fetch_models()`
+
+#### 5.2 Native Tencent Cloud API (Recommended)
+```rust
+// Requires "tencent-native" feature
+let client = LlmClient::hunyuan_native("secret-id", "secret-key", Some("ap-beijing"));
+```
+
+**Features:**
+- ✅ Native Tencent Cloud API with TC3-HMAC-SHA256 signature
+- ✅ Full access to Tencent Cloud features
+- ✅ Better error handling and debugging
+- ✅ Supports streaming responses
+- ✅ Region specification support
+
+**Models**: hunyuan-lite, hunyuan-standard, hunyuan-pro
+
+### 6. Ollama Protocol (Local)
 Local LLM server with no API key required.
 
 ```rust
@@ -172,7 +210,9 @@ client.delete_model("llama3.2").await?;
 
 ## Enhanced Streaming Support
 
-The library now includes improved streaming support for Anthropic with proper event state management:
+The library now includes improved streaming support with multiple output formats for better tool integration:
+
+### Standard OpenAI Format (Default)
 
 ```rust
 use futures_util::StreamExt;
@@ -193,6 +233,53 @@ while let Some(chunk) = stream.next().await {
         print!("{}", content);
     }
 }
+```
+
+### Ollama Format for Tool Integration
+
+For better compatibility with tools like Zed.dev, use the Ollama-compatible streaming format:
+
+```rust
+use futures_util::StreamExt;
+
+// Use Ollama format (compatible with Zed.dev)
+let mut stream = client.chat_stream_ollama(&request).await?;
+
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;
+    // chunk.content now contains Ollama-formatted JSON
+    if let Ok(ollama_chunk) = serde_json::from_str::<serde_json::Value>(&chunk.content) {
+        if let Some(content) = ollama_chunk
+            .get("message")
+            .and_then(|m| m.get("content"))
+            .and_then(|c| c.as_str())
+        {
+            print!("{}", content);
+        }
+
+        // Check for final chunk
+        if ollama_chunk.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
+            println!("\nStreaming complete!");
+            break;
+        }
+    }
+}
+```
+
+### Custom Streaming Configuration
+
+For advanced use cases, configure streaming format and options:
+
+```rust
+use llm_connector::types::{StreamingConfig, StreamingFormat};
+
+let config = StreamingConfig {
+    format: StreamingFormat::Ollama,
+    include_usage: true,
+    include_reasoning: false,
+};
+
+let mut stream = client.chat_stream_with_format(&request, &config).await?;
 ```
 
 ### Enhanced Anthropic Streaming Features
@@ -320,7 +407,7 @@ Note: This setup targets a remote Ollama-compatible gateway. The model id is def
 
 Enable streaming in your `Cargo.toml`:
 ```toml
-llm-connector = { version = "0.3.6", features = ["streaming"] }
+llm-connector = { version = "0.3.11", features = ["streaming"] }
 ```
 
 ```rust
@@ -468,7 +555,35 @@ The test tool will:
 
 ## Recent Changes
 
-### v0.3.8 (Latest)
+### v0.3.11 (Latest)
+
+**🚀 Major New Features:**
+- **Multiple Streaming Formats**: Support for both OpenAI and Ollama streaming formats
+  - `chat_stream_ollama()` - Ollama-compatible streaming for Zed.dev integration
+  - `chat_stream_with_format()` - Custom streaming configuration
+  - `StreamingFormat::OpenAI` and `StreamingFormat::Ollama` options
+- **Enhanced Tool Integration**: Perfect compatibility with Zed.dev and other Ollama-compatible tools
+- **Tencent Hunyuan Native API**: Initial implementation of TC3-HMAC-SHA256 signature authentication
+  - `hunyuan_native()` - Native Tencent Cloud API support
+  - Full region support (ap-beijing, ap-shanghai, ap-guangzhou)
+  - Better error handling and debugging capabilities
+
+**🔧 Improvements:**
+- **Streaming Format Conversion**: Automatic conversion between OpenAI and Ollama formats
+- **Done Marker Handling**: Proper `done: true` final chunk for Ollama format
+- **Usage Statistics**: Complete token usage and timing information in Ollama format
+- **Backward Compatibility**: All existing streaming code continues to work unchanged
+
+**📚 Documentation:**
+- Complete streaming format comparison and usage examples
+- New examples: `ollama_streaming_simple.rs`, `streaming_ollama_format.rs`
+- Updated README with detailed format explanations
+- Enhanced troubleshooting guides for streaming
+
+**🎯 Breaking Changes:**
+- None - all changes are backward compatible
+
+### v0.3.8
 
 **🚀 Major Stability and Debugging Improvements:**
 - **Enhanced Timeout Configuration**: All providers now support custom timeout settings

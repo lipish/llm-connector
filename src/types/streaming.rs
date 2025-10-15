@@ -9,6 +9,48 @@ use futures_util::Stream;
 #[cfg(feature = "streaming")]
 use std::pin::Pin;
 
+// ============================================================================
+// Streaming Format Configuration
+// ============================================================================
+
+/// Streaming output format options
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StreamingFormat {
+    /// OpenAI-compatible format (default)
+    #[serde(rename = "openai")]
+    OpenAI,
+    /// Ollama-compatible format
+    #[serde(rename = "ollama")]
+    Ollama,
+}
+
+impl Default for StreamingFormat {
+    fn default() -> Self {
+        Self::OpenAI
+    }
+}
+
+/// Streaming configuration options
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamingConfig {
+    /// Output format for streaming responses
+    pub format: StreamingFormat,
+    /// Whether to include usage statistics in final chunk
+    pub include_usage: bool,
+    /// Whether to include reasoning content (for providers that support it)
+    pub include_reasoning: bool,
+}
+
+impl Default for StreamingConfig {
+    fn default() -> Self {
+        Self {
+            format: StreamingFormat::OpenAI,
+            include_usage: true,
+            include_reasoning: true,
+        }
+    }
+}
+
 /// Type alias for chat completion streams
 #[cfg(feature = "streaming")]
 pub type ChatStream =
@@ -175,4 +217,180 @@ impl StreamingResponse {
     pub fn get_content(&self) -> Option<&str> {
         if self.content.is_empty() { None } else { Some(&self.content) }
     }
+}
+
+impl Default for StreamingResponse {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            object: "chat.completion.chunk".to_string(),
+            created: 0,
+            model: String::new(),
+            choices: Vec::new(),
+            content: String::new(),
+            reasoning_content: None,
+            usage: None,
+            system_fingerprint: None,
+        }
+    }
+}
+
+// ============================================================================
+// Ollama Format Streaming Types
+// ============================================================================
+
+/// Ollama-compatible streaming response chunk
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OllamaStreamChunk {
+    /// Model name
+    pub model: String,
+
+    /// Creation timestamp in RFC3339 format
+    pub created_at: String,
+
+    /// Message content
+    pub message: OllamaMessage,
+
+    /// Whether this is the final chunk
+    pub done: bool,
+
+    /// Total duration in nanoseconds (only in final chunk)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_duration: Option<u64>,
+
+    /// Load duration in nanoseconds (only in final chunk)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub load_duration: Option<u64>,
+
+    /// Number of tokens in the prompt (only in final chunk)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_eval_count: Option<u32>,
+
+    /// Time spent evaluating the prompt in nanoseconds (only in final chunk)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_eval_duration: Option<u64>,
+
+    /// Number of tokens generated (only in final chunk)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eval_count: Option<u32>,
+
+    /// Time spent generating tokens in nanoseconds (only in final chunk)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eval_duration: Option<u64>,
+}
+
+/// Ollama message format
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OllamaMessage {
+    /// Message role
+    pub role: String,
+
+    /// Message content
+    pub content: String,
+}
+
+impl OllamaStreamChunk {
+    /// Create a new streaming chunk
+    pub fn new(model: String, content: String, done: bool) -> Self {
+        Self {
+            model,
+            created_at: chrono::Utc::now().to_rfc3339(),
+            message: OllamaMessage {
+                role: "assistant".to_string(),
+                content,
+            },
+            done,
+            total_duration: None,
+            load_duration: None,
+            prompt_eval_count: None,
+            prompt_eval_duration: None,
+            eval_count: None,
+            eval_duration: None,
+        }
+    }
+
+    /// Create a final chunk with usage statistics
+    pub fn final_chunk(model: String, usage: Option<&Usage>) -> Self {
+        let mut chunk = Self::new(model, String::new(), true);
+
+        if let Some(usage) = usage {
+            // Convert token counts to Ollama format
+            chunk.prompt_eval_count = Some(usage.prompt_tokens);
+            chunk.eval_count = Some(usage.completion_tokens);
+
+            // Estimate durations (Ollama uses nanoseconds)
+            // These are rough estimates since we don't have actual timing data
+            chunk.prompt_eval_duration = Some((usage.prompt_tokens as u64) * 1_000_000); // 1ms per token
+            chunk.eval_duration = Some((usage.completion_tokens as u64) * 10_000_000); // 10ms per token
+            chunk.total_duration = Some(
+                chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0)
+            );
+        }
+
+        chunk
+    }
+
+    /// Convert from OpenAI streaming response to Ollama format
+    pub fn from_openai_chunk(openai_chunk: &StreamingResponse, done: bool) -> Self {
+        let content = if !openai_chunk.content.is_empty() {
+            openai_chunk.content.clone()
+        } else {
+            openai_chunk.choices.get(0)
+                .and_then(|choice| choice.delta.content.clone())
+                .unwrap_or_default()
+        };
+
+        let mut chunk = Self::new(openai_chunk.model.clone(), content, done);
+
+        // If this is the final chunk and we have usage data, include it
+        if done {
+            if let Some(usage) = &openai_chunk.usage {
+                chunk.prompt_eval_count = Some(usage.prompt_tokens);
+                chunk.eval_count = Some(usage.completion_tokens);
+
+                // Estimate durations
+                chunk.prompt_eval_duration = Some((usage.prompt_tokens as u64) * 1_000_000);
+                chunk.eval_duration = Some((usage.completion_tokens as u64) * 10_000_000);
+                chunk.total_duration = Some(
+                    chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0)
+                );
+            }
+        }
+
+        chunk
+    }
+}
+
+// ============================================================================
+// Format Conversion Utilities
+// ============================================================================
+
+/// Convert OpenAI streaming response to specified format
+pub fn convert_streaming_format(
+    openai_chunk: &StreamingResponse,
+    format: StreamingFormat,
+    is_final: bool,
+) -> Result<String, serde_json::Error> {
+    match format {
+        StreamingFormat::OpenAI => {
+            serde_json::to_string(openai_chunk)
+        }
+        StreamingFormat::Ollama => {
+            let ollama_chunk = OllamaStreamChunk::from_openai_chunk(openai_chunk, is_final);
+            serde_json::to_string(&ollama_chunk)
+        }
+    }
+}
+
+/// Create a final Ollama chunk with done: true
+pub fn create_final_ollama_chunk(model: &str, usage: Option<&Usage>) -> String {
+    let final_chunk = OllamaStreamChunk::final_chunk(model.to_string(), usage);
+    serde_json::to_string(&final_chunk).unwrap_or_else(|_| {
+        // Fallback minimal final chunk
+        format!(
+            r#"{{"model":"{}","created_at":"{}","message":{{"role":"assistant","content":""}},"done":true}}"#,
+            model,
+            chrono::Utc::now().to_rfc3339()
+        )
+    })
 }
