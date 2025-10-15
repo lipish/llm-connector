@@ -5,7 +5,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Zhipu OpenAI 兼容端点，缺省为官方地址
     let api_key = std::env::var("ZHIPU_API_KEY")
         .expect("请设置环境变量 ZHIPU_API_KEY");
-    let base_url = std::env::var("ZHIPU_BASE_URL")
+    let _base_url = std::env::var("ZHIPU_BASE_URL")
         .unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".to_string());
 
     let client = LlmClient::zhipu(&api_key);

@@ -136,8 +136,7 @@ impl<P: Protocol> ProtocolProvider<P> {
 
     #[cfg(feature = "streaming")]
     async fn chat_stream_sse_impl(&self, request: &Request) -> Result<ChatStream, LlmConnectorError> {
-        use futures_util::{StreamExt};
-        use futures_util::stream::unfold;
+        use futures_util::{StreamExt, TryStreamExt, stream};
 
         let endpoint = self.protocol.endpoint(&self.base_url);
         let protocol_request = self.protocol.build_request(request, true);
@@ -145,41 +144,44 @@ impl<P: Protocol> ProtocolProvider<P> {
         // Get streaming response
         let byte_stream = self.transport.stream(&endpoint, &protocol_request).await?;
 
-        // Process SSE stream
-        let sse_stream = unfold(byte_stream, |mut byte_stream| async move {
-            loop {
-                match byte_stream.next().await {
-                    Some(Ok(chunk)) => {
-                        let chunk_str = match String::from_utf8(chunk.to_vec()) {
-                            Ok(s) => s,
-                            Err(_) => continue, // Skip invalid UTF-8
-                        };
-
-                        // Process SSE lines
-                        for line in chunk_str.lines() {
+        // Process SSE stream and convert to streaming responses
+        let sse_stream = byte_stream
+            .map_ok(|chunk| String::from_utf8_lossy(&chunk).to_string())
+            .map(|result| {
+                match result {
+                    Ok(chunk_text) => {
+                        // Process all SSE lines in this chunk
+                        let mut responses = Vec::new();
+                        for line in chunk_text.lines() {
                             if line.starts_with("data: ") {
-                                let data = &line[6..]; // Remove "data: " prefix
-
-                                if data.trim() == "[DONE]" {
-                                    return None; // End of stream
+                                let data = line[6..].trim(); // Remove "data: " prefix
+                                if data == "[DONE]" {
+                                    break; // End of stream marker
                                 }
 
-                                if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(data) {
-                                    // Try to parse as generic streaming response first
-                                    if let Ok(generic_response) = serde_json::from_value::<crate::types::StreamingResponse>(json_value) {
-                                        return Some((Ok(generic_response), byte_stream));
+                                // Try to parse as generic streaming response
+                                if let Ok(mut response) = serde_json::from_str::<crate::types::StreamingResponse>(data) {
+                                    // Ensure content field is populated from delta.content
+                                    if response.content.is_empty() {
+                                        if let Some(first_choice) = response.choices.first() {
+                                            if let Some(ref delta_content) = first_choice.delta.content {
+                                                response.content = delta_content.clone();
+                                            }
+                                        }
                                     }
+                                    responses.push(Ok(response));
+                                } else {
+                                    // Silently skip invalid JSON chunks (common in SSE streams)
+                                    continue;
                                 }
                             }
                         }
+                        responses
                     }
-                    Some(Err(e)) => {
-                        return Some((Err(LlmConnectorError::NetworkError(e.to_string())), byte_stream));
-                    }
-                    None => return None, // End of stream
+                    Err(e) => vec![Err(LlmConnectorError::NetworkError(e.to_string()))],
                 }
-            }
-        });
+            })
+            .flat_map(stream::iter);
 
         Ok(Box::pin(sse_stream))
     }
