@@ -2,7 +2,10 @@
 //!
 //! 展示如何使用统一的配置方式创建不同的 LLM 客户端
 
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+use llm_connector::{
+    types::{ChatRequest, Message},
+    LlmClient,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -44,21 +47,21 @@ impl LlmBackendConfig {
     /// 从配置创建 LLM 客户端
     pub fn create_client(&self) -> LlmClient {
         match self {
-            LlmBackendConfig::OpenAI { api_key, base_url, timeout_ms } => {
-                LlmClient::openai_with_timeout(api_key, base_url.as_deref(), *timeout_ms)
-            }
-            LlmBackendConfig::Anthropic { api_key, timeout_ms } => {
-                LlmClient::anthropic_with_timeout(api_key, *timeout_ms)
-            }
-            LlmBackendConfig::Zhipu { api_key, timeout_ms } => {
-                LlmClient::zhipu_with_timeout(api_key, *timeout_ms)
-            }
-            LlmBackendConfig::Aliyun { api_key } => {
-                LlmClient::aliyun(api_key)
-            }
-            LlmBackendConfig::Ollama { base_url } => {
-                LlmClient::ollama(base_url.as_deref())
-            }
+            LlmBackendConfig::OpenAI {
+                api_key,
+                base_url,
+                timeout_ms,
+            } => LlmClient::openai_with_timeout(api_key, base_url.as_deref(), *timeout_ms),
+            LlmBackendConfig::Anthropic {
+                api_key,
+                timeout_ms,
+            } => LlmClient::anthropic_with_timeout(api_key, *timeout_ms),
+            LlmBackendConfig::Zhipu {
+                api_key,
+                timeout_ms,
+            } => LlmClient::zhipu_with_timeout(api_key, *timeout_ms),
+            LlmBackendConfig::Aliyun { api_key } => LlmClient::aliyun(api_key),
+            LlmBackendConfig::Ollama { base_url } => LlmClient::ollama(base_url.as_deref()),
         }
     }
 
@@ -95,13 +98,15 @@ pub struct MultiProviderConfig {
 impl MultiProviderConfig {
     /// 获取默认客户端
     pub fn default_client(&self) -> Option<LlmClient> {
-        self.providers.get(&self.default_provider)
+        self.providers
+            .get(&self.default_provider)
             .map(|config| config.create_client())
     }
 
     /// 获取指定提供商的客户端
     pub fn client(&self, provider: &str) -> Option<LlmClient> {
-        self.providers.get(provider)
+        self.providers
+            .get(provider)
             .map(|config| config.create_client())
     }
 
@@ -117,21 +122,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 示例1: 单个提供商配置
     println!("📋 示例1: 单个提供商配置");
-    
+
     let openai_config = LlmBackendConfig::OpenAI {
         api_key: std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| "sk-test".to_string()),
         base_url: None,
         timeout_ms: 45000, // 45秒超时
     };
 
-    let client = openai_config.create_client();
-    println!("✅ 创建 {} 客户端，超时: {}ms", 
-             openai_config.provider_name(), 
-             openai_config.timeout_ms());
+    let _client = openai_config.create_client();
+    println!(
+        "✅ 创建 {} 客户端，超时: {}ms",
+        openai_config.provider_name(),
+        openai_config.timeout_ms()
+    );
 
     // 示例2: 从 YAML 配置文件加载（模拟）
     println!("\n📋 示例2: 多提供商配置");
-    
+
     let yaml_config = r#"
 providers:
   primary_openai:
@@ -170,52 +177,69 @@ default_provider: "primary_openai"
 
     // 示例3: 动态配置切换
     println!("\n📋 示例3: 动态配置切换");
-    
+
     let configs = vec![
-        ("OpenAI", LlmBackendConfig::OpenAI {
-            api_key: "sk-test".to_string(),
-            base_url: Some("https://api.openai.com/v1".to_string()),
-            timeout_ms: 30000,
-        }),
-        ("DeepSeek", LlmBackendConfig::OpenAI {
-            api_key: "sk-test".to_string(),
-            base_url: Some("https://api.deepseek.com/v1".to_string()),
-            timeout_ms: 45000,
-        }),
-        ("Zhipu", LlmBackendConfig::Zhipu {
-            api_key: "sk-test".to_string(),
-            timeout_ms: 25000,
-        }),
+        (
+            "OpenAI",
+            LlmBackendConfig::OpenAI {
+                api_key: "sk-test".to_string(),
+                base_url: Some("https://api.openai.com/v1".to_string()),
+                timeout_ms: 30000,
+            },
+        ),
+        (
+            "DeepSeek",
+            LlmBackendConfig::OpenAI {
+                api_key: "sk-test".to_string(),
+                base_url: Some("https://api.deepseek.com/v1".to_string()),
+                timeout_ms: 45000,
+            },
+        ),
+        (
+            "Zhipu",
+            LlmBackendConfig::Zhipu {
+                api_key: "sk-test".to_string(),
+                timeout_ms: 25000,
+            },
+        ),
     ];
 
     for (name, config) in configs {
         let client = config.create_client();
-        println!("   {} -> 协议: {}, 超时: {}ms", 
-                 name, 
-                 client.protocol_name(), 
-                 config.timeout_ms());
+        println!(
+            "   {} -> 协议: {}, 超时: {}ms",
+            name,
+            client.protocol_name(),
+            config.timeout_ms()
+        );
     }
 
     // 示例4: 实际测试（如果有有效的 API Key）
     println!("\n📋 示例4: 实际测试");
-    
+
     let test_configs = vec![
-        ("ZHIPU_API_KEY", LlmBackendConfig::Zhipu {
-            api_key: std::env::var("ZHIPU_API_KEY").unwrap_or_default(),
-            timeout_ms: 15000,
-        }),
-        ("OPENAI_API_KEY", LlmBackendConfig::OpenAI {
-            api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
-            base_url: None,
-            timeout_ms: 20000,
-        }),
+        (
+            "ZHIPU_API_KEY",
+            LlmBackendConfig::Zhipu {
+                api_key: std::env::var("ZHIPU_API_KEY").unwrap_or_default(),
+                timeout_ms: 15000,
+            },
+        ),
+        (
+            "OPENAI_API_KEY",
+            LlmBackendConfig::OpenAI {
+                api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
+                base_url: None,
+                timeout_ms: 20000,
+            },
+        ),
     ];
 
     for (env_var, config) in test_configs {
         if std::env::var(env_var).is_ok() {
             let client = config.create_client();
             println!("   测试 {} 客户端...", config.provider_name());
-            
+
             let request = ChatRequest {
                 model: match config.provider_name() {
                     "zhipu" => "glm-4-flash".to_string(),
@@ -229,7 +253,15 @@ default_provider: "primary_openai"
 
             match client.chat(&request).await {
                 Ok(response) => {
-                    println!("   ✅ 成功: {}", response.choices[0].message.content.chars().take(50).collect::<String>());
+                    println!(
+                        "   ✅ 成功: {}",
+                        response.choices[0]
+                            .message
+                            .content
+                            .chars()
+                            .take(50)
+                            .collect::<String>()
+                    );
                 }
                 Err(e) => {
                     println!("   ❌ 失败: {}", e);

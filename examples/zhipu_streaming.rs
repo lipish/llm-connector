@@ -1,33 +1,26 @@
-// Enable streaming feature for rust-analyzer
-// See: https://zed.dev/docs/languages/rust
-
 use futures_util::StreamExt;
-use llm_connector::{
-    types::{ChatRequest, Message},
-    LlmClient,
-};
+use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 
-#[cfg(feature = "streaming")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 从环境变量读取 API Key
+    // 从环境变量读取 API Key 与 Base URL
     // Zhipu 官方文档端点（paas v4）：https://open.bigmodel.cn/api/paas/v4
-    let api_key = std::env::var("ZHIPU_API_KEY").expect("请设置环境变量 ZHIPU_API_KEY");
+    let api_key = std::env::var("ZHIPU_API_KEY")
+        .expect("请设置环境变量 ZHIPU_API_KEY");
+    let base_url = std::env::var("ZHIPU_BASE_URL")
+        .unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".to_string());
 
-    // 使用 Zhipu 协议（默认使用官方 paas/v4 端点）
-    let client = LlmClient::zhipu(&api_key);
-
-    // 模型名称
-    let model = "glm-4-flash";
+    // 使用 Zhipu 协议 + Base URL（支持 paas/v4 或 openai/v1）
+    let client = LlmClient::zhipu(&api_key, Some(&base_url));
 
     let request = ChatRequest {
-        model: model.to_string(),
-        messages: vec![Message::user("请写三首关于春天的五言诗")],
-        max_tokens: Some(200),
+        model: "glm-4.6".to_string(),
+        messages: vec![Message::user("请简要说明流式响应的好处。")],
+        max_tokens: Some(128),
         ..Default::default()
     };
 
-    println!("🚀 开始 Zhipu 流式响应示例 (model={model})\n");
+    println!("🚀 开始 Zhipu 流式响应示例 (model=glm-4.6)\n");
     let mut stream = client.chat_stream(&request).await?;
 
     let mut full_text = String::new();
@@ -49,10 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if fr == "stop" {
                         println!("\n\n✅ 流式响应完成！");
                         if let Some(usage) = chunk.usage {
-                            println!(
-                                "📊 使用统计: prompt={}, completion={}, total={}",
-                                usage.prompt_tokens, usage.completion_tokens, usage.total_tokens
-                            );
+                            println!("📊 使用统计: prompt={}, completion={}, total={}",
+                                usage.prompt_tokens, usage.completion_tokens, usage.total_tokens);
                         }
                         break;
                     }

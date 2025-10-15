@@ -32,7 +32,7 @@ pub use crate::core::{Protocol, ErrorMapper as ProtocolErrorMapper};
 pub use crate::core::provider::{Provider as NewProvider, ProtocolProvider};
 
 // Re-export protocols (both old and new for compatibility)
-pub use aliyun::{AliyunProvider, aliyun, aliyun_with_url};
+pub use aliyun::{AliyunProvider, aliyun};
 pub use anthropic::AnthropicProtocol;
 pub use ollama::{OllamaProvider, ollama, ollama_with_url};
 pub use openai::OpenAIProtocol;

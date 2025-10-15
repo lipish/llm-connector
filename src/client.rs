@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::error::LlmConnectorError;
-use crate::protocols::{OpenAIProtocol, AnthropicProtocol, aliyun, ollama, ollama_with_url, zhipu_with_timeout};
+use crate::protocols::{OpenAIProtocol, AnthropicProtocol, zhipu_with_timeout};
 use crate::protocols::core::GenericProvider;
 use crate::config::ProviderConfig;
 use crate::types::{ChatRequest, ChatResponse};
@@ -15,6 +15,7 @@ use crate::types::{ChatRequest, ChatResponse};
 ///
 /// Supports 5 protocols: OpenAI, Anthropic, Aliyun, Zhipu, Ollama
 /// No complex configuration needed - just pick a protocol and start.
+#[derive(Clone)]
 pub struct LlmClient {
     provider: Arc<dyn crate::protocols::Provider + Send + Sync>,
 }
@@ -45,7 +46,7 @@ impl LlmClient {
     /// ```
     pub fn openai(api_key: &str, base_url: Option<&str>) -> Self {
         let base = base_url.unwrap_or("https://api.openai.com/v1");
-        let protocol = OpenAIProtocol::with_url(base);
+        let protocol = OpenAIProtocol::with_url(api_key, base);
         let config = ProviderConfig::new(api_key)
             .with_base_url(base)
             .with_timeout_ms(30000); // 默认30秒超时
@@ -63,7 +64,7 @@ impl LlmClient {
     /// ```
     pub fn openai_with_timeout(api_key: &str, base_url: Option<&str>, timeout_ms: u64) -> Self {
         let base = base_url.unwrap_or("https://api.openai.com/v1");
-        let protocol = OpenAIProtocol::with_url(base);
+        let protocol = OpenAIProtocol::with_url(api_key, base);
         let config = ProviderConfig::new(api_key)
             .with_base_url(base)
             .with_timeout_ms(timeout_ms);
@@ -80,7 +81,12 @@ impl LlmClient {
     /// let client = LlmClient::aliyun("sk-...");
     /// ```
     pub fn aliyun(api_key: &str) -> Self {
-        let provider = aliyun(api_key);
+        let protocol = crate::protocols::aliyun::AliyunProtocol::new(api_key);
+        let config = ProviderConfig::new(api_key)
+            .with_base_url("https://dashscope.aliyuncs.com/api/v1")
+            .with_timeout_ms(30000);
+        let provider = GenericProvider::new(config, protocol)
+            .expect("Failed to create Aliyun provider");
         Self { provider: Arc::new(provider) }
     }
 
@@ -89,9 +95,9 @@ impl LlmClient {
     /// Default base URL: `http://localhost:11434`. Pass `Some(url)` to override.
     pub fn ollama(base_url: Option<&str>) -> Self {
         let provider = if let Some(base) = base_url {
-            ollama_with_url(base)
+            crate::protocols::ollama::ollama_with_url(base)
         } else {
-            ollama()
+            crate::protocols::ollama::ollama()
         };
         Self { provider: Arc::new(provider) }
     }
@@ -109,12 +115,12 @@ impl LlmClient {
         let config = ProviderConfig::new(api_key).with_base_url(base_url);
 
         if anthropic {
-            let protocol = AnthropicProtocol::with_url(base_url);
+            let protocol = AnthropicProtocol::with_url(api_key, base_url);
             let provider = GenericProvider::new(config, protocol)
                 .expect("Failed to create LongCat Anthropic-compatible provider");
             Self { provider: Arc::new(provider) }
         } else {
-            let protocol = OpenAIProtocol::with_url(base_url);
+            let protocol = OpenAIProtocol::with_url(api_key, base_url);
             let provider = GenericProvider::new(config, protocol)
                 .expect("Failed to create LongCat OpenAI-compatible provider");
             Self { provider: Arc::new(provider) }
@@ -130,7 +136,7 @@ impl LlmClient {
     /// let client = LlmClient::anthropic("sk-ant-...");
     /// ```
     pub fn anthropic(api_key: &str) -> Self {
-        let protocol = AnthropicProtocol::new();
+        let protocol = AnthropicProtocol::new(api_key);
         let config = ProviderConfig::new(api_key)
             .with_base_url("https://api.anthropic.com")
             .with_timeout_ms(30000); // 默认30秒超时
@@ -149,7 +155,7 @@ impl LlmClient {
     /// let client = LlmClient::anthropic_with_timeout("sk-ant-...", 60000);
     /// ```
     pub fn anthropic_with_timeout(api_key: &str, timeout_ms: u64) -> Self {
-        let protocol = AnthropicProtocol::new();
+        let protocol = AnthropicProtocol::new(api_key);
         let config = ProviderConfig::new(api_key)
             .with_base_url("https://api.anthropic.com")
             .with_timeout_ms(timeout_ms);

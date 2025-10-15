@@ -56,7 +56,7 @@
 //! }
 //! ```
 
-use crate::core::Provider;
+use crate::protocols::core::Provider;
 use crate::core::protocol::ProtocolError;
 use crate::error::LlmConnectorError;
 use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
@@ -206,7 +206,7 @@ pub struct OllamaStreamResponse {
 
 pub struct OllamaErrorMapper;
 
-impl crate::core::protocol::ProtocolError for OllamaErrorMapper {
+impl ProtocolError for OllamaErrorMapper {
     fn map_http_error(status: u16, body: Value) -> LlmConnectorError {
         let error_message = body["error"]
             .as_str()
@@ -606,31 +606,7 @@ impl Provider for OllamaProvider {
     }
 }
 
-/// Bridge implementation: Implement old Provider trait for OllamaProvider
-/// This allows gradual migration from the old architecture to the new one
-#[async_trait]
-impl crate::protocols::Provider for OllamaProvider {
-    fn name(&self) -> &str {
-        &self.name
-    }
 
-    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
-        Provider::chat(self, request).await
-    }
-
-    #[cfg(feature = "streaming")]
-    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
-        Provider::chat_stream(self, request).await
-    }
-
-    async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError> {
-        Provider::fetch_models(self).await
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
 
 // ============================================================================
 // Convenience Functions
@@ -645,4 +621,3 @@ pub fn ollama() -> OllamaProvider {
 pub fn ollama_with_url(base_url: &str) -> OllamaProvider {
     OllamaProvider::with_url(base_url)
 }
-

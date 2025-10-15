@@ -85,10 +85,8 @@
 //! # }
 //! ```
 
-use crate::core::Protocol;
-use crate::core::error::StandardErrorMapper;
-use crate::types::{ChatRequest as Request, ChatResponse as Response, Role, Usage};
-use crate::protocols::{ProviderAdapter, ErrorMapper};
+use crate::protocols::core::{ErrorMapper, ProviderAdapter};
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -212,11 +210,6 @@ pub struct AnthropicUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
 }
-
-/// Dummy streaming type for when streaming feature is not enabled
-#[cfg(not(feature = "streaming"))]
-#[derive(Debug, Clone)]
-pub struct AnthropicStreamResponse;
 
 /// Anthropic streaming response
 #[cfg(feature = "streaming")]
@@ -470,8 +463,7 @@ impl ErrorMapper for AnthropicErrorMapper {
 // ============================================================================
 
 impl AnthropicRequest {
-    /// Create Anthropic request from generic chat request
-    pub fn from_chat_request(request: &Request, stream: bool) -> Self {
+    pub fn from_chat_request(request: &ChatRequest, stream: bool) -> Self {
         // Extract system message if present
         let (system_message, user_messages): (Vec<_>, Vec<_>) = request
             .messages
@@ -521,8 +513,7 @@ impl AnthropicRequest {
 }
 
 impl AnthropicResponse {
-    /// Convert to generic chat response
-    pub fn to_chat_response(self) -> Response {
+    pub fn to_chat_response(self) -> ChatResponse {
         let content = self
             .content
             .into_iter()
@@ -536,14 +527,14 @@ impl AnthropicResponse {
         // Convenience field mirrors the first choice content
         let first_content = content.clone();
 
-        Response {
+        ChatResponse {
             id: self.id,
             object: "chat.completion".to_string(),
             created: chrono::Utc::now().timestamp() as u64,
             model: self.model,
-            choices: vec![crate::types::Choice {
+            choices: vec![Choice {
                 index: 0,
-                message: crate::types::Message {
+                message: Message {
                     role: parse_role(&self.role),
                     content,
                     name: None,
@@ -584,8 +575,10 @@ pub struct AnthropicProtocol {
 }
 
 impl AnthropicProtocol {
-    /// Create new Anthropic protocol with default base URL
-    pub fn new() -> Self {
+    /// Create new Anthropic protocol with API key
+    ///
+    /// Uses default Anthropic base URL: https://api.anthropic.com
+    pub fn new(_api_key: &str) -> Self {
         Self {
             base_url: Arc::from("https://api.anthropic.com"),
             #[cfg(feature = "streaming")]
@@ -593,180 +586,13 @@ impl AnthropicProtocol {
         }
     }
 
-    /// Create new Anthropic protocol with custom base URL
-    pub fn with_url(base_url: &str) -> Self {
+    /// Create new Anthropic protocol with custom API key and base URL
+    pub fn with_url(_api_key: &str, base_url: &str) -> Self {
         Self {
             base_url: Arc::from(base_url),
             #[cfg(feature = "streaming")]
             stream_processor: Arc::new(AnthropicStreamProcessor::new()),
         }
-    }
-}
-
-impl Default for AnthropicProtocol {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait]
-impl Protocol for AnthropicProtocol {
-    type Request = AnthropicRequest;
-    type Response = AnthropicResponse;
-    type StreamResponse = AnthropicStreamResponse;
-    type Error = StandardErrorMapper;
-
-    fn name(&self) -> &str {
-        "anthropic"
-    }
-
-    fn endpoint(&self, base_url: &str) -> String {
-        format!("{}/v1/messages", base_url)
-    }
-
-    fn models_endpoint(&self, _base_url: &str) -> Option<String> {
-        // Anthropic doesn't have a models endpoint, return None
-        None
-    }
-
-    fn build_request(&self, request: &Request, stream: bool) -> Self::Request {
-        // Extract system message if present
-        let (system_message, user_messages): (Vec<_>, Vec<_>) = request
-            .messages
-            .iter()
-            .partition(|msg| msg.role == Role::System);
-
-        let system = system_message.first().map(|msg| msg.content.clone());
-
-        let messages = user_messages
-            .iter()
-            .map(|msg| AnthropicMessage {
-                role: match msg.role {
-                    Role::System => "system".to_string(),
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    Role::Tool => "tool".to_string(),
-                },
-                content: AnthropicContent::Text(msg.content.clone()),
-            })
-            .collect();
-
-        AnthropicRequest {
-            model: request.model.clone(),
-            max_tokens: request.max_tokens.unwrap_or(1024),
-            messages,
-            system,
-            temperature: request.temperature,
-            top_p: request.top_p,
-            stop_sequences: request.stop.clone(),
-            stream: if stream { Some(true) } else { None },
-            tools: request.tools.as_ref().map(|tools| {
-                tools
-                    .iter()
-                    .map(|tool| AnthropicTool {
-                        name: tool.function.name.clone(),
-                        description: tool.function.description.clone().unwrap_or_default(),
-                        input_schema: tool.function.parameters.clone(),
-                    })
-                    .collect()
-            }),
-            tool_choice: request
-                .tool_choice
-                .as_ref()
-                .map(|tc| serde_json::to_value(tc).unwrap_or_default()),
-        }
-    }
-
-    fn parse_response(&self, response: Self::Response) -> Response {
-        let content = response
-            .content
-            .into_iter()
-            .filter_map(|block| match block {
-                AnthropicResponseContent::Text { text } => Some(text),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join("");
-
-        // Convenience field mirrors the first choice content
-        let first_content = content.clone();
-
-        Response {
-            id: response.id,
-            object: "chat.completion".to_string(),
-            created: chrono::Utc::now().timestamp() as u64,
-            model: response.model,
-            choices: vec![crate::types::Choice {
-                index: 0,
-                message: crate::types::Message {
-                    role: parse_role(&response.role),
-                    content,
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                    ..Default::default()
-                },
-                finish_reason: response.stop_reason,
-                logprobs: None,
-            }],
-            content: first_content,
-            usage: Some(Usage {
-                prompt_tokens: response.usage.input_tokens,
-                completion_tokens: response.usage.output_tokens,
-                total_tokens: response.usage.input_tokens + response.usage.output_tokens,
-                prompt_cache_hit_tokens: None,
-                prompt_cache_miss_tokens: None,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
-            }),
-            system_fingerprint: None,
-        }
-    }
-
-    #[cfg(feature = "streaming")]
-    fn parse_stream_response(&self, response: Self::StreamResponse) -> crate::types::ChatStream {
-        use futures_util::stream;
-
-        // Use the stream processor to handle complex Anthropic streaming events
-        let processed = self.stream_processor.process_event(response.clone());
-        let streaming_response = if let Some(sr) = processed {
-            sr
-        } else {
-            // Fallback response
-            crate::types::StreamingResponse {
-                id: "anthropic-stream".to_string(),
-                object: "chat.completion.chunk".to_string(),
-                created: chrono::Utc::now().timestamp() as u64,
-                model: "claude".to_string(),
-                choices: vec![],
-                content: String::new(),
-                reasoning_content: None,
-                usage: None,
-                system_fingerprint: None,
-            }
-        };
-
-        // Convert single response to a stream with one chunk
-        let single_chunk_stream = stream::once(async { Ok(streaming_response) });
-        Box::pin(single_chunk_stream)
-    }
-
-    #[cfg(feature = "streaming")]
-    fn uses_sse_stream(&self) -> bool {
-        true
-    }
-}
-
-// Legacy constructors for backward compatibility
-impl AnthropicProtocol {
-    /// Create new Anthropic protocol with API key (legacy)
-    pub fn new_with_key(_api_key: &str) -> Self {
-        Self::new()
-    }
-
-    /// Create new Anthropic protocol with custom API key and base URL (legacy)
-    pub fn with_url_and_key(_api_key: &str, base_url: &str) -> Self {
-        Self::with_url(base_url)
     }
 }
 
@@ -776,42 +602,42 @@ impl ProviderAdapter for AnthropicProtocol {
     type ResponseType = AnthropicResponse;
     #[cfg(feature = "streaming")]
     type StreamResponseType = AnthropicStreamResponse;
-    type ErrorMapperType = crate::protocols::core::StandardErrorMapper;
+    type ErrorMapperType = AnthropicErrorMapper;
 
     fn name(&self) -> &str {
-        <Self as Protocol>::name(self)
+        "anthropic"
     }
 
     fn endpoint_url(&self, base_url: &Option<String>) -> String {
         let base = base_url.as_deref().unwrap_or(&self.base_url);
-        <Self as Protocol>::endpoint(self, base)
+        format!("{}/v1/messages", base)
     }
 
     fn models_endpoint_url(&self, base_url: &Option<String>) -> Option<String> {
         let base = base_url.as_deref().unwrap_or(&self.base_url);
-        <Self as Protocol>::models_endpoint(self, base)
+        Some(format!("{}/v1/messages", base)) // Anthropic doesn't have models endpoint, return messages endpoint as fallback
     }
 
-    fn build_request_data(&self, request: &crate::types::ChatRequest, stream: bool) -> Self::RequestType {
-        <Self as Protocol>::build_request(self, request, stream)
+    fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
+        AnthropicRequest::from_chat_request(request, stream)
     }
 
-    fn parse_response_data(&self, response: Self::ResponseType) -> crate::types::ChatResponse {
-        <Self as Protocol>::parse_response(self, response)
+    fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse {
+        response.to_chat_response()
     }
 
     #[cfg(feature = "streaming")]
-    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> crate::types::StreamingResponse {
+    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> StreamingResponse {
         // Use the stream processor to handle complex Anthropic streaming events
         let processed = self.stream_processor.process_event(response.clone());
-        processed.unwrap_or_else(|| crate::types::StreamingResponse {
+        processed.unwrap_or_else(|| StreamingResponse {
                 id: "anthropic-stream".to_string(),
                 object: "chat.completion.chunk".to_string(),
                 created: chrono::Utc::now().timestamp() as u64,
                 model: "claude".to_string(),
-                choices: vec![crate::types::StreamingChoice {
+                choices: vec![StreamingChoice {
                     index: 0,
-                    delta: crate::types::Delta {
+                    delta: Delta {
                         role: None,
                         content: response.delta.as_ref().and_then(|d| d.text.clone()),
                         tool_calls: None,
@@ -846,7 +672,7 @@ impl ProviderAdapter for AnthropicProtocol {
 
 /// Create an Anthropic protocol adapter
 pub fn anthropic() -> AnthropicProtocol {
-    AnthropicProtocol::new()
+    AnthropicProtocol::new("")
 }
 
 /// Get all providers that use the Anthropic protocol

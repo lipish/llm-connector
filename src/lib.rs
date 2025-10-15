@@ -126,9 +126,6 @@ pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
 pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage};
 
-// Re-export core traits for v2.0 architecture
-pub use core::{Protocol, Provider, HttpTransport, ErrorMapper};
-
 // Re-export Ollama model ops extension trait
 pub use ollama::OllamaModelOps;
 

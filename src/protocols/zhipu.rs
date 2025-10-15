@@ -4,8 +4,7 @@
 //! This adapter targets Zhipu, reusing OpenAI request/response shapes on success, while handling
 //! Zhipu-specific error bodies like `{"code":500,"msg":"404 NOT_FOUND","success":false}`.
 
-use crate::core::Protocol;
-use crate::core::protocol::ProtocolError;
+use crate::core::{Protocol, protocol::ProtocolError};
 use crate::error::LlmConnectorError;
 use crate::types::{ChatRequest as Request, ChatResponse as Response};
 use async_trait::async_trait;
