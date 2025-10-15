@@ -19,7 +19,7 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 - **6 Protocol Support**: OpenAI, Anthropic, Zhipu, Aliyun, Ollama, Hunyuan
 - **No Hardcoded Models**: Use any model name without restrictions
 - **Online Model Discovery**: Fetch available models dynamically from API
-- **Enhanced Streaming Support**: Real-time streaming with pure Ollama format for perfect Zed.dev integration
+- **Universal Streaming Formats**: Real-time streaming with format abstraction (JSON/SSE/NDJSON) and pure Ollama support
 - **Ollama Model Management**: Full CRUD operations for local models
 - **Unified Interface**: Same API for all protocols
 - **Type-Safe**: Full Rust type safety with async/await
@@ -32,20 +32,20 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.3.12"
+llm-connector = "0.3.13"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.3.12", features = ["streaming"] }
+llm-connector = { version = "0.3.13", features = ["streaming"] }
 
 # Tencent Cloud native API support
-llm-connector = { version = "0.3.12", features = ["tencent-native"] }
+llm-connector = { version = "0.3.13", features = ["tencent-native"] }
 
 # Both streaming and Tencent native API
-llm-connector = { version = "0.3.12", features = ["streaming", "tencent-native"] }
+llm-connector = { version = "0.3.13", features = ["streaming", "tencent-native"] }
 ```
 
 ### Basic Usage
@@ -208,9 +208,9 @@ client.delete_model("llama3.2").await?;
 - **Delete Models**: `delete_model(name)` - Remove local models
 - **Show Details**: `show_model(name)` - Get comprehensive model information
 
-## Enhanced Streaming Support
+## Universal Streaming Format Support
 
-The library now includes improved streaming support with multiple output formats for better tool integration:
+The library provides comprehensive streaming support with universal format abstraction for maximum flexibility:
 
 ### Standard OpenAI Format (Default)
 
@@ -285,21 +285,61 @@ while let Some(chunk) = stream.next().await {
 }
 ```
 
-### Custom Streaming Configuration
+### Universal Format Abstraction
 
-For advanced use cases, configure streaming format and options:
+For maximum flexibility, use the universal streaming interface with format abstraction:
 
 ```rust
-use llm_connector::types::{StreamingConfig, StreamingFormat};
+use llm_connector::types::{StreamingConfig, StreamingFormat, StreamFormat};
 
+// Configure both content format and output format
 let config = StreamingConfig {
-    format: StreamingFormat::Ollama,
+    format: StreamingFormat::Ollama,        // Content format (OpenAI/Ollama)
+    stream_format: StreamFormat::SSE,       // Output format (JSON/SSE/NDJSON)
     include_usage: true,
     include_reasoning: false,
 };
 
-let mut stream = client.chat_stream_with_format(&request, &config).await?;
+let mut stream = client.chat_stream_universal(&request, &config).await?;
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;
+    // chunk.to_format() returns formatted string based on stream_format
+    println!("{}", chunk.to_format());
+
+    // Or extract content directly
+    if let Some(content) = chunk.extract_content() {
+        print!("{}", content);
+    }
+}
 ```
+
+### Convenient Format Methods
+
+For common use cases, use the convenient format-specific methods:
+
+```rust
+// Server-Sent Events format (perfect for web applications)
+let mut sse_stream = client.chat_stream_sse(&request).await?;
+while let Some(chunk) = sse_stream.next().await {
+    let chunk = chunk?;
+    println!("{}", chunk.to_format()); // "data: {...}\n\n"
+}
+
+// Newline-Delimited JSON format (perfect for data pipelines)
+let mut ndjson_stream = client.chat_stream_ndjson(&request).await?;
+while let Some(chunk) = ndjson_stream.next().await {
+    let chunk = chunk?;
+    println!("{}", chunk.to_format()); // "{...}\n"
+}
+```
+
+### Format Comparison
+
+| Format | Output Example | Use Case |
+|--------|----------------|----------|
+| **JSON** | `{"content":"hello"}` | API responses, standard JSON |
+| **SSE** | `data: {"content":"hello"}\n\n` | Web real-time streaming |
+| **NDJSON** | `{"content":"hello"}\n` | Log processing, data pipelines |
 
 ### Enhanced Anthropic Streaming Features
 - **State Management**: Proper handling of `message_start`, `content_block_delta`, `message_delta`, `message_stop` events
@@ -426,7 +466,7 @@ Note: This setup targets a remote Ollama-compatible gateway. The model id is def
 
 Enable streaming in your `Cargo.toml`:
 ```toml
-llm-connector = { version = "0.3.12", features = ["streaming"] }
+llm-connector = { version = "0.3.13", features = ["streaming"] }
 ```
 
 ```rust
@@ -574,7 +614,38 @@ The test tool will:
 
 ## Recent Changes
 
-### v0.3.12 (Latest)
+### v0.3.13 (Latest)
+
+**🚀 Universal Streaming Format Abstraction**
+- **StreamFormat Enum**: Support for JSON, SSE, and NDJSON output formats
+- **StreamChunk Universal Container**: Unified abstraction for all streaming responses
+- **Format Conversion Methods**: `to_json()`, `to_sse()`, `to_ndjson()`, `to_format()`
+- **Content Extraction**: Universal `extract_content()` method for both OpenAI and Ollama formats
+
+**🎯 New Streaming Methods:**
+- `chat_stream_universal()` - Most flexible interface with full format control
+- `chat_stream_sse()` - Convenient Server-Sent Events format for web apps
+- `chat_stream_ndjson()` - Convenient Newline-Delimited JSON for data pipelines
+- Enhanced `StreamingConfig` with separate content and output format controls
+
+**🔧 Architecture Improvements:**
+- **Separation of Concerns**: Content format (OpenAI/Ollama) vs Output format (JSON/SSE/NDJSON)
+- **Format Abstraction**: No more hardcoded JSON strings in streaming responses
+- **Extensible Design**: Easy to add new output formats in the future
+- **Type Safety**: Strong typing for all format options
+
+**💡 Use Cases:**
+- **Web Applications**: Use SSE format for real-time streaming
+- **API Services**: Use JSON format for standard responses
+- **Data Processing**: Use NDJSON format for logs and pipelines
+- **Tool Integration**: Combine any content format with any output format
+
+**📚 Enhanced Documentation:**
+- Comprehensive format comparison table
+- Detailed usage examples for each format
+- Clear migration guide from previous versions
+
+### v0.3.12
 
 **🔧 Critical Fix: Pure Ollama Format Streaming**
 - **Fixed Double Format Issue**: `chat_stream_ollama()` now returns pure Ollama format instead of nested format

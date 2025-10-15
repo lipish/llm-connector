@@ -1,9 +1,9 @@
 [package]
 name = "llm-connector"
-version = "0.3.12"
+version = "0.3.13"
 edition = "2021"
 authors = ["lipi"]
-description = "Minimal Rust library for LLM protocol abstraction. Supports 6 protocols (OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Hunyuan) with unified interface, multiple streaming formats (OpenAI/Ollama), and dynamic model discovery."
+description = "Minimal Rust library for LLM protocol abstraction. Supports 6 protocols (OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Hunyuan) with unified interface, universal streaming format abstraction (JSON/SSE/NDJSON), and dynamic model discovery."
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/lipish/llm-connector"

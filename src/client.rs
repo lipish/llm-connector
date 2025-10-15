@@ -340,6 +340,7 @@ impl LlmClient {
     pub async fn chat_stream_ollama_embedded(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
         let config = crate::types::StreamingConfig {
             format: crate::types::StreamingFormat::Ollama,
+            stream_format: crate::types::StreamFormat::Json,
             include_usage: true,
             include_reasoning: false,
         };
@@ -381,6 +382,133 @@ impl LlmClient {
     #[cfg(feature = "streaming")]
     pub async fn chat_stream_ollama(&self, request: &ChatRequest) -> Result<crate::types::OllamaChatStream, LlmConnectorError> {
         self.provider.chat_stream_ollama_pure(request).await
+    }
+
+    /// Send a streaming chat completion request with universal format abstraction
+    ///
+    /// This method provides the most flexible streaming interface, allowing you to specify
+    /// both the content format (OpenAI vs Ollama) and the stream format (JSON, SSE, NDJSON).
+    /// Requires the "streaming" feature to be enabled.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::{LlmClient, types::{ChatRequest, Message, StreamingConfig, StreamingFormat, StreamFormat}};
+    /// use futures_util::StreamExt;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = LlmClient::openai("sk-...", None);
+    /// let request = ChatRequest {
+    ///     model: "gpt-4".to_string(),
+    ///     messages: vec![Message::user("Hello!")],
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let config = StreamingConfig {
+    ///     format: StreamingFormat::Ollama,
+    ///     stream_format: StreamFormat::SSE,
+    ///     include_usage: true,
+    ///     include_reasoning: false,
+    /// };
+    ///
+    /// let mut stream = client.chat_stream_universal(&request, &config).await?;
+    /// while let Some(chunk) = stream.next().await {
+    ///     let chunk = chunk?;
+    ///     // chunk.to_format() returns the formatted string (SSE in this case)
+    ///     println!("{}", chunk.to_format());
+    ///
+    ///     // Or access the raw data
+    ///     if let Some(content) = chunk.extract_content() {
+    ///         print!("{}", content);
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "streaming")]
+    pub async fn chat_stream_universal(
+        &self,
+        request: &ChatRequest,
+        config: &crate::types::StreamingConfig,
+    ) -> Result<crate::types::UniversalChatStream, LlmConnectorError> {
+        self.provider.chat_stream_universal(request, config).await
+    }
+
+    /// Send a streaming chat completion request in SSE format
+    ///
+    /// Convenience method for Server-Sent Events format streaming.
+    /// Perfect for web applications and real-time interfaces.
+    /// Requires the "streaming" feature to be enabled.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+    /// use futures_util::StreamExt;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = LlmClient::openai("sk-...", None);
+    /// let request = ChatRequest {
+    ///     model: "gpt-4".to_string(),
+    ///     messages: vec![Message::user("Hello!")],
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let mut stream = client.chat_stream_sse(&request).await?;
+    /// while let Some(chunk) = stream.next().await {
+    ///     let chunk = chunk?;
+    ///     // chunk.to_format() returns SSE formatted string
+    ///     print!("{}", chunk.to_format()); // "data: {...}\n\n"
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "streaming")]
+    pub async fn chat_stream_sse(&self, request: &ChatRequest) -> Result<crate::types::UniversalChatStream, LlmConnectorError> {
+        let config = crate::types::StreamingConfig {
+            format: crate::types::StreamingFormat::OpenAI,
+            stream_format: crate::types::StreamFormat::SSE,
+            include_usage: true,
+            include_reasoning: true,
+        };
+        self.chat_stream_universal(request, &config).await
+    }
+
+    /// Send a streaming chat completion request in NDJSON format
+    ///
+    /// Convenience method for Newline-Delimited JSON format streaming.
+    /// Perfect for log processing and data pipelines.
+    /// Requires the "streaming" feature to be enabled.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+    /// use futures_util::StreamExt;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = LlmClient::openai("sk-...", None);
+    /// let request = ChatRequest {
+    ///     model: "gpt-4".to_string(),
+    ///     messages: vec![Message::user("Hello!")],
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let mut stream = client.chat_stream_ndjson(&request).await?;
+    /// while let Some(chunk) = stream.next().await {
+    ///     let chunk = chunk?;
+    ///     // chunk.to_format() returns NDJSON formatted string
+    ///     print!("{}", chunk.to_format()); // "{...}\n"
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "streaming")]
+    pub async fn chat_stream_ndjson(&self, request: &ChatRequest) -> Result<crate::types::UniversalChatStream, LlmConnectorError> {
+        let config = crate::types::StreamingConfig {
+            format: crate::types::StreamingFormat::OpenAI,
+            stream_format: crate::types::StreamFormat::NDJSON,
+            include_usage: true,
+            include_reasoning: true,
+        };
+        self.chat_stream_universal(request, &config).await
     }
 
     /// Fetch available models from the API (online)

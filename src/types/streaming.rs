@@ -24,17 +24,141 @@ pub enum StreamingFormat {
     Ollama,
 }
 
+/// Stream response format options
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StreamFormat {
+    /// Pure JSON string format
+    #[serde(rename = "json")]
+    Json,
+    /// Server-Sent Events format (data: {...}\n\n)
+    #[serde(rename = "sse")]
+    SSE,
+    /// Newline-Delimited JSON format ({...}\n)
+    #[serde(rename = "ndjson")]
+    NDJSON,
+}
+
 impl Default for StreamingFormat {
     fn default() -> Self {
         Self::OpenAI
     }
 }
 
+impl Default for StreamFormat {
+    fn default() -> Self {
+        Self::Json
+    }
+}
+
+/// Universal stream chunk with format abstraction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamChunk {
+    /// The actual data as JSON value
+    pub data: serde_json::Value,
+    /// The format this chunk should be serialized to
+    pub format: StreamFormat,
+    /// Optional metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+}
+
+impl StreamChunk {
+    /// Create a new stream chunk
+    pub fn new(data: serde_json::Value, format: StreamFormat) -> Self {
+        Self {
+            data,
+            format,
+            metadata: None,
+        }
+    }
+
+    /// Create a new stream chunk with metadata
+    pub fn with_metadata(data: serde_json::Value, format: StreamFormat, metadata: serde_json::Value) -> Self {
+        Self {
+            data,
+            format,
+            metadata: Some(metadata),
+        }
+    }
+
+    /// Convert to Server-Sent Events format
+    pub fn to_sse(&self) -> String {
+        format!("data: {}\n\n", self.data)
+    }
+
+    /// Convert to Newline-Delimited JSON format
+    pub fn to_ndjson(&self) -> String {
+        format!("{}\n", self.data)
+    }
+
+    /// Convert to pure JSON string
+    pub fn to_json(&self) -> String {
+        self.data.to_string()
+    }
+
+    /// Convert to the specified format
+    pub fn to_format(&self) -> String {
+        match self.format {
+            StreamFormat::Json => self.to_json(),
+            StreamFormat::SSE => self.to_sse(),
+            StreamFormat::NDJSON => self.to_ndjson(),
+        }
+    }
+
+    /// Create from OpenAI streaming response
+    pub fn from_openai(response: &StreamingResponse, format: StreamFormat) -> Result<Self, serde_json::Error> {
+        let data = serde_json::to_value(response)?;
+        Ok(Self::new(data, format))
+    }
+
+    /// Create from Ollama streaming response
+    pub fn from_ollama(chunk: &OllamaStreamChunk, format: StreamFormat) -> Result<Self, serde_json::Error> {
+        let data = serde_json::to_value(chunk)?;
+        Ok(Self::new(data, format))
+    }
+
+    /// Check if this is a final chunk (for Ollama format)
+    pub fn is_final(&self) -> bool {
+        self.data.get("done")
+            .and_then(|d| d.as_bool())
+            .unwrap_or(false)
+    }
+
+    /// Extract content from the chunk (works for both OpenAI and Ollama formats)
+    pub fn extract_content(&self) -> Option<String> {
+        // Try Ollama format first
+        if let Some(content) = self.data
+            .get("message")
+            .and_then(|m| m.get("content"))
+            .and_then(|c| c.as_str())
+        {
+            return Some(content.to_string());
+        }
+
+        // Try OpenAI format
+        if let Some(choices) = self.data.get("choices").and_then(|c| c.as_array()) {
+            if let Some(choice) = choices.get(0) {
+                if let Some(content) = choice
+                    .get("delta")
+                    .and_then(|d| d.get("content"))
+                    .and_then(|c| c.as_str())
+                {
+                    return Some(content.to_string());
+                }
+            }
+        }
+
+        None
+    }
+}
+
 /// Streaming configuration options
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamingConfig {
-    /// Output format for streaming responses
+    /// Output format for streaming responses (OpenAI vs Ollama)
     pub format: StreamingFormat,
+    /// Stream response format (JSON, SSE, NDJSON)
+    pub stream_format: StreamFormat,
     /// Whether to include usage statistics in final chunk
     pub include_usage: bool,
     /// Whether to include reasoning content (for providers that support it)
@@ -45,6 +169,7 @@ impl Default for StreamingConfig {
     fn default() -> Self {
         Self {
             format: StreamingFormat::OpenAI,
+            stream_format: StreamFormat::Json,
             include_usage: true,
             include_reasoning: true,
         }
@@ -60,6 +185,11 @@ pub type ChatStream =
 #[cfg(feature = "streaming")]
 pub type OllamaChatStream =
     Pin<Box<dyn Stream<Item = Result<OllamaStreamChunk, crate::error::LlmConnectorError>> + Send>>;
+
+/// Type alias for universal format chat completion streams
+#[cfg(feature = "streaming")]
+pub type UniversalChatStream =
+    Pin<Box<dyn Stream<Item = Result<StreamChunk, crate::error::LlmConnectorError>> + Send>>;
 
 /// Streaming chat completion response chunk
 #[derive(Debug, Clone, Serialize, Deserialize)]

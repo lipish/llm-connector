@@ -133,6 +133,56 @@ pub trait Provider: Send + Sync {
         Ok(Box::pin(ollama_stream))
     }
 
+    /// Send a streaming chat completion request with universal format abstraction
+    #[cfg(feature = "streaming")]
+    async fn chat_stream_universal(&self, request: &ChatRequest, config: &crate::types::StreamingConfig) -> Result<crate::types::UniversalChatStream, LlmConnectorError> {
+        use futures_util::StreamExt;
+        use crate::types::{StreamChunk, StreamingFormat};
+
+        let stream = self.chat_stream(request).await?;
+        let format = config.format;
+        let stream_format = config.stream_format;
+
+        let universal_stream = stream.map(move |result| {
+            match result {
+                Ok(openai_chunk) => {
+                    match format {
+                        StreamingFormat::OpenAI => {
+                            // Convert OpenAI response to StreamChunk
+                            StreamChunk::from_openai(&openai_chunk, stream_format)
+                                .map_err(|e| crate::error::LlmConnectorError::ParseError(e.to_string()))
+                        }
+                        StreamingFormat::Ollama => {
+                            // Convert to Ollama format first, then to StreamChunk
+                            let is_final = openai_chunk.usage.is_some() ||
+                                openai_chunk.choices.iter().any(|c| c.finish_reason.is_some());
+
+                            let content = if !openai_chunk.content.is_empty() {
+                                openai_chunk.content.clone()
+                            } else {
+                                openai_chunk.choices.get(0)
+                                    .and_then(|choice| choice.delta.content.clone())
+                                    .unwrap_or_default()
+                            };
+
+                            let ollama_chunk = if is_final {
+                                crate::types::OllamaStreamChunk::final_chunk(openai_chunk.model.clone(), openai_chunk.usage.as_ref())
+                            } else {
+                                crate::types::OllamaStreamChunk::new(openai_chunk.model.clone(), content, false)
+                            };
+
+                            StreamChunk::from_ollama(&ollama_chunk, stream_format)
+                                .map_err(|e| crate::error::LlmConnectorError::ParseError(e.to_string()))
+                        }
+                    }
+                }
+                Err(e) => Err(e),
+            }
+        });
+
+        Ok(Box::pin(universal_stream))
+    }
+
     /// Send a streaming chat completion request with format configuration
     #[cfg(feature = "streaming")]
     async fn chat_stream_with_format(
