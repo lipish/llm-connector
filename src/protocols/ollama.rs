@@ -276,7 +276,10 @@ impl OllamaProvider {
         Self {
             name: Arc::from("ollama"),
             base_url: Arc::from("http://localhost:11434"),
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .no_proxy()  // 绕过代理以避免 502 错误
+                .build()
+                .expect("Failed to create HTTP client"),
         }
     }
 
@@ -285,7 +288,10 @@ impl OllamaProvider {
         Self {
             name: Arc::from("ollama"),
             base_url: Arc::from(base_url),
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .no_proxy()  // 绕过代理以避免 502 错误
+                .build()
+                .expect("Failed to create HTTP client"),
         }
     }
 

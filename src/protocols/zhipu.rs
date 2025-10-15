@@ -159,3 +159,21 @@ pub fn zhipu(base_url: &str, api_key: &str) -> Result<crate::core::provider::Pro
 pub fn zhipu_default(api_key: &str) -> Result<crate::core::provider::ProtocolProvider<ZhipuProtocol>, LlmConnectorError> {
     zhipu("https://open.bigmodel.cn/api/paas/v4", api_key)
 }
+
+/// Convenience function to create a Zhipu provider with default endpoint and custom timeout
+pub fn zhipu_with_timeout(api_key: &str, timeout_ms: u64) -> Result<crate::core::provider::ProtocolProvider<ZhipuProtocol>, LlmConnectorError> {
+    let protocol = ZhipuProtocol::new();
+    let config = crate::config::ProviderConfig::new(api_key)
+        .with_base_url("https://open.bigmodel.cn/api/paas/v4")
+        .with_timeout_ms(timeout_ms);
+
+    let client = crate::core::HttpTransport::build_client(
+        &config.proxy,
+        config.timeout_ms,
+        config.base_url.as_ref(),
+    )?;
+
+    let transport = crate::core::HttpTransport::new(client, config);
+
+    Ok(crate::core::provider::ProtocolProvider::from_parts(protocol, "https://open.bigmodel.cn/api/paas/v4", transport))
+}

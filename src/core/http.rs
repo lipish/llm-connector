@@ -89,6 +89,14 @@ impl HttpTransport {
         url: &str,
         body: &T,
     ) -> Result<reqwest::Response, LlmConnectorError> {
+        // 调试信息：请求详情
+        if std::env::var("LLM_DEBUG_REQUEST_RAW").map(|v| v == "1").unwrap_or(false) {
+            eprintln!("[request-debug] URL: {}", url);
+            if let Ok(json_body) = serde_json::to_string_pretty(body) {
+                eprintln!("[request-debug] Body: {}", json_body);
+            }
+        }
+
         let mut request = self
             .client
             .post(url)
@@ -99,14 +107,38 @@ impl HttpTransport {
         if let Some(headers) = &self.config.headers {
             for (key, value) in headers {
                 request = request.header(key, value);
+                if std::env::var("LLM_DEBUG_REQUEST_RAW").map(|v| v == "1").unwrap_or(false) {
+                    eprintln!("[request-debug] Header: {}: {}", key, value);
+                }
             }
         }
 
-        request
+        let response = request
             .json(body)
             .send()
             .await
-            .map_err(LlmConnectorError::from)
+            .map_err(|e| {
+                // 增强网络错误信息
+                if std::env::var("LLM_DEBUG_REQUEST_RAW").map(|v| v == "1").unwrap_or(false) {
+                    eprintln!("[request-error] Network error: {}", e);
+                    eprintln!("[request-error] URL: {}", url);
+                    if e.is_timeout() {
+                        eprintln!("[request-error] This is a timeout error");
+                    }
+                    if e.is_connect() {
+                        eprintln!("[request-error] This is a connection error");
+                    }
+                }
+                LlmConnectorError::from(e)
+            })?;
+
+        // 调试信息：响应状态
+        if std::env::var("LLM_DEBUG_RESPONSE_RAW").map(|v| v == "1").unwrap_or(false) {
+            eprintln!("[response-debug] Status: {}", response.status());
+            eprintln!("[response-debug] Headers: {:?}", response.headers());
+        }
+
+        Ok(response)
     }
 
     /// Send streaming POST request

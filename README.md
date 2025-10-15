@@ -468,7 +468,35 @@ The test tool will:
 
 ## Recent Changes
 
-### v0.3.1 (Latest)
+### v0.3.8 (Latest)
+
+**🚀 Major Stability and Debugging Improvements:**
+- **Enhanced Timeout Configuration**: All providers now support custom timeout settings
+  - `LlmClient::openai_with_timeout()` - OpenAI with custom timeout
+  - `LlmClient::anthropic_with_timeout()` - Anthropic with custom timeout
+  - `LlmClient::zhipu_with_timeout()` - Zhipu with custom timeout
+  - Default timeout increased to 30 seconds for better stability
+- **Advanced Debugging Support**: Comprehensive request/response debugging
+  - `LLM_DEBUG_REQUEST_RAW=1` - Show detailed request information
+  - `LLM_DEBUG_RESPONSE_RAW=1` - Show response status and headers
+  - `LLM_DEBUG_STREAM_RAW=1` - Show streaming response details
+  - Enhanced error messages with specific troubleshooting guidance
+- **Zhipu Stability Improvements**: Dedicated tools for diagnosing Zhipu API issues
+  - New `zhipu_stability_test.rs` example for comprehensive testing
+  - Improved error handling and timeout management
+  - Better connection stability monitoring
+
+**🔧 New Examples:**
+- **`enhanced_error_handling.rs`** - Comprehensive error handling and debugging
+- **`unified_config.rs`** - Unified configuration interface for all providers
+- **`zhipu_stability_test.rs`** - Dedicated Zhipu stability testing tool
+
+**📚 Documentation:**
+- Updated troubleshooting guides with timeout configuration
+- Enhanced error handling examples
+- Improved debugging instructions
+
+### v0.3.1
 
 **🚀 Major New Features:**
 - **Complete Ollama Model Management**: Full CRUD operations for local models

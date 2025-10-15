@@ -1,6 +1,6 @@
 [package]
 name = "llm-connector"
-version = "0.3.7"
+version = "0.3.8"
 edition = "2021"
 authors = ["lipi"]
 description = "Minimal Rust library for LLM protocol abstraction. Supports 4 protocols (OpenAI, Anthropic, Aliyun, Ollama) with unified interface, and dynamic model discovery."

@@ -129,6 +129,15 @@ impl<P: Protocol> ProtocolProvider<P> {
         })
     }
 
+    /// Create a new provider from pre-configured parts
+    pub fn from_parts(protocol: P, base_url: &str, transport: crate::core::HttpTransport) -> Self {
+        Self {
+            protocol,
+            base_url: base_url.to_string(),
+            transport,
+        }
+    }
+
     /// Get reference to the underlying protocol
     pub fn protocol(&self) -> &P {
         &self.protocol

@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::error::LlmConnectorError;
-use crate::protocols::{OpenAIProtocol, AnthropicProtocol, aliyun, ollama, ollama_with_url, zhipu_default};
+use crate::protocols::{OpenAIProtocol, AnthropicProtocol, aliyun, ollama, ollama_with_url, zhipu_with_timeout};
 use crate::protocols::core::GenericProvider;
 use crate::config::ProviderConfig;
 use crate::types::{ChatRequest, ChatResponse};
@@ -47,7 +47,26 @@ impl LlmClient {
         let base = base_url.unwrap_or("https://api.openai.com/v1");
         let protocol = OpenAIProtocol::with_url(base);
         let config = ProviderConfig::new(api_key)
-            .with_base_url(base);
+            .with_base_url(base)
+            .with_timeout_ms(30000); // 默认30秒超时
+        let provider = GenericProvider::new(config, protocol)
+            .expect("Failed to create OpenAI provider");
+        Self { provider: Arc::new(provider) }
+    }
+
+    /// Create new client with OpenAI protocol and custom timeout
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    /// // With custom timeout (60 seconds)
+    /// let client = LlmClient::openai_with_timeout("sk-...", None, 60000);
+    /// ```
+    pub fn openai_with_timeout(api_key: &str, base_url: Option<&str>, timeout_ms: u64) -> Self {
+        let base = base_url.unwrap_or("https://api.openai.com/v1");
+        let protocol = OpenAIProtocol::with_url(base);
+        let config = ProviderConfig::new(api_key)
+            .with_base_url(base)
+            .with_timeout_ms(timeout_ms);
         let provider = GenericProvider::new(config, protocol)
             .expect("Failed to create OpenAI provider");
         Self { provider: Arc::new(provider) }
@@ -113,7 +132,27 @@ impl LlmClient {
     pub fn anthropic(api_key: &str) -> Self {
         let protocol = AnthropicProtocol::new();
         let config = ProviderConfig::new(api_key)
-            .with_base_url("https://api.anthropic.com");
+            .with_base_url("https://api.anthropic.com")
+            .with_timeout_ms(30000); // 默认30秒超时
+        let provider = GenericProvider::new(config, protocol)
+            .expect("Failed to create Anthropic provider");
+        Self {
+            provider: Arc::new(provider),
+        }
+    }
+
+    /// Create new client with Anthropic protocol and custom timeout
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::anthropic_with_timeout("sk-ant-...", 60000);
+    /// ```
+    pub fn anthropic_with_timeout(api_key: &str, timeout_ms: u64) -> Self {
+        let protocol = AnthropicProtocol::new();
+        let config = ProviderConfig::new(api_key)
+            .with_base_url("https://api.anthropic.com")
+            .with_timeout_ms(timeout_ms);
         let provider = GenericProvider::new(config, protocol)
             .expect("Failed to create Anthropic provider");
         Self {
@@ -131,7 +170,20 @@ impl LlmClient {
     /// let client = LlmClient::zhipu("sk-...");
     /// ```
     pub fn zhipu(api_key: &str) -> Self {
-        let provider = zhipu_default(api_key)
+        let provider = zhipu_with_timeout(api_key, 30000) // 默认30秒超时
+            .expect("Failed to create Zhipu provider");
+        Self { provider: Arc::new(provider) }
+    }
+
+    /// Create new client with Zhipu protocol and custom timeout
+    ///
+    /// ```rust,ignore
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::zhipu_with_timeout("sk-...", 60000);
+    /// ```
+    pub fn zhipu_with_timeout(api_key: &str, timeout_ms: u64) -> Self {
+        let provider = crate::protocols::zhipu_with_timeout(api_key, timeout_ms)
             .expect("Failed to create Zhipu provider");
         Self { provider: Arc::new(provider) }
     }

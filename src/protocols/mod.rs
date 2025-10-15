@@ -36,7 +36,7 @@ pub use aliyun::{AliyunProvider, aliyun, aliyun_with_url};
 pub use anthropic::AnthropicProtocol;
 pub use ollama::{OllamaProvider, ollama, ollama_with_url};
 pub use openai::OpenAIProtocol;
-pub use zhipu::{ZhipuProtocol, zhipu, zhipu_default};
+pub use zhipu::{ZhipuProtocol, zhipu, zhipu_default, zhipu_with_timeout};
 
 // Re-export configuration
 pub use crate::config::ProviderConfig;
