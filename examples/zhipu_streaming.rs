@@ -11,21 +11,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         use futures_util::StreamExt;
         use llm_connector::{
-            types::{ChatRequest, Message},
+            types::{ChatRequest, Message, Role},
             LlmClient,
         };
-        // 从环境变量读取 API Key 与 Base URL
-        // Zhipu 官方文档端点（paas v4）：https://open.bigmodel.cn/api/paas/v4
+        // 从环境变量读取 API Key
         let api_key = std::env::var("ZHIPU_API_KEY").expect("请设置环境变量 ZHIPU_API_KEY");
-        let _base_url = std::env::var("ZHIPU_BASE_URL")
-            .unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".to_string());
 
         // 使用 Zhipu 协议（默认端点）
-        let client = LlmClient::zhipu(&api_key);
+        let client = LlmClient::zhipu(&api_key)?;
 
         let request = ChatRequest {
             model: "glm-4.6".to_string(),
-            messages: vec![Message::user("请简要说明流式响应的好处。")],
+            messages: vec![Message {
+                role: Role::User,
+                content: "请简要说明流式响应的好处。".to_string(),
+                ..Default::default()
+            }],
             max_tokens: Some(128),
             ..Default::default()
         };

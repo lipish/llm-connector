@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2025-10-16
+
+### 🔧 **HOTFIX: Examples Compilation Errors**
+
+#### **Fixed**
+- **Examples compilation errors** - Fixed all compilation errors and warnings in example files
+  - Updated `examples/zhipu_basic.rs`: Fixed API calls and imports for V2 architecture
+  - Updated `examples/zhipu_streaming.rs`: Fixed Message construction and client creation
+  - Updated `examples/streaming_basic.rs`: Fixed imports and Result handling
+  - Updated `examples/ollama_model_management.rs`: Fixed Ollama provider interface usage
+  - Updated `examples/v1_vs_v2_comparison.rs`: Removed deprecated feature flags
+  - All examples now use V2 architecture APIs correctly
+
+#### **Impact**
+- ✅ **Examples**: All examples compile and run successfully
+- ✅ **Documentation**: Examples serve as accurate V2 architecture documentation
+- ✅ **User Experience**: Users can run examples without compilation errors
+
 ## [0.4.3] - 2025-10-16
 
 ### 🔧 **HOTFIX: Module Privacy Error**

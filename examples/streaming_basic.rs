@@ -5,7 +5,7 @@
 //! 运行方式: cargo run --example streaming_basic --features streaming
 
 #[cfg(feature = "streaming")]
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 #[cfg(feature = "streaming")]
 use futures_util::StreamExt;
 
@@ -21,15 +21,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "openai" => {
             let api_key = std::env::var("OPENAI_API_KEY")
                 .expect("请设置 OPENAI_API_KEY 环境变量");
-            LlmClient::openai(&api_key).unwrap()
+            LlmClient::openai(&api_key)?
         }
         "zhipu" => {
             let api_key = std::env::var("ZHIPU_API_KEY")
                 .expect("请设置 ZHIPU_API_KEY 环境变量");
-            LlmClient::zhipu(&api_key)
+            LlmClient::zhipu(&api_key)?
         }
         "ollama" => {
-            LlmClient::ollama().unwrap()
+            LlmClient::ollama()?
         }
         _ => {
             println!("❌ 不支持的provider: {}", provider);
@@ -51,7 +51,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = ChatRequest {
         model: model.clone(),
         messages: vec![
-            Message::user("请写一首关于编程的短诗，要有创意和幽默感。")
+            Message {
+                role: Role::User,
+                content: "请写一首关于编程的短诗，要有创意和幽默感。".to_string(),
+                ..Default::default()
+            }
         ],
         max_tokens: Some(300),
         temperature: Some(0.8),
