@@ -1,15 +1,16 @@
+#[cfg(feature = "tencent")]
 use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(not(feature = "tencent-native"))]
+    #[cfg(not(feature = "tencent"))]
     {
-        println!("❌ 此示例需要启用 tencent-native 功能");
-        println!("请使用: cargo run --example hunyuan_native_basic --features tencent-native");
+        println!("❌ 此示例需要启用 tencent 功能");
+        println!("请使用: cargo run --example tencent_basic --features tencent");
         return Ok(());
     }
 
-    #[cfg(feature = "tencent-native")]
+    #[cfg(feature = "tencent")]
     {
         // 腾讯云 SecretId 和 SecretKey
         let secret_id = std::env::var("TENCENT_SECRET_ID")
@@ -20,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 可选：指定地域，默认为 ap-beijing
         let region = std::env::var("TENCENT_REGION").ok();
 
-        let client = LlmClient::hunyuan_native(&secret_id, &secret_key, region.as_deref());
+        let client = LlmClient::tencent(&secret_id, &secret_key, region.as_deref());
 
         let model = std::env::var("HUNYUAN_MODEL").unwrap_or_else(|_| "hunyuan-lite".to_string());
         let request = ChatRequest {
@@ -37,12 +38,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match client.chat(&request).await {
             Ok(resp) => {
                 println!("✅ 成功，输出：\n{}", resp.choices[0].message.content);
-                if let Some(usage) = resp.usage {
-                    println!("\n📊 Token 使用情况:");
-                    println!("  输入 tokens: {}", usage.prompt_tokens);
-                    println!("  输出 tokens: {}", usage.completion_tokens);
-                    println!("  总计 tokens: {}", usage.total_tokens);
-                }
+                println!("\n📊 Token 使用情况:");
+                println!("  输入 tokens: {}", resp.prompt_tokens());
+                println!("  输出 tokens: {}", resp.completion_tokens());
+                println!("  总计 tokens: {}", resp.total_tokens());
                 println!("\n🆔 请求ID: {}", resp.id);
             }
             Err(e) => {
@@ -53,7 +52,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("  3. 网络连接是否正常");
             }
         }
+        Ok(())
     }
-
-    Ok(())
 }

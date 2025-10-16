@@ -1,91 +1,114 @@
 //! # llm-connector
 //!
-//! Minimal Rust library for LLM protocol abstraction.
+//! Next-generation Rust library for LLM protocol abstraction.
 //!
-//! Supports 4 protocols: OpenAI, Anthropic, Aliyun, Ollama.
-//! No complex configuration - just pick a protocol and start chatting.
+//! Supports 5 protocols: OpenAI, Anthropic, Aliyun, Zhipu, Ollama.
+//! Clean architecture with clear Protocol/Provider separation.
 //!
 //! ## Quick Start
 //!
 //! ### OpenAI Protocol
 //! ```rust,no_run
-//! use llm_connector::{LlmClient, ChatRequest, Message};
+//! use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // OpenAI
-//!     let client = LlmClient::openai("sk-...", None);
+//!     let client = LlmClient::openai("sk-...")?;
 //!
 //!     let request = ChatRequest {
 //!         model: "gpt-4".to_string(),
-//!         messages: vec![Message::user("Hello!")],
+//!         messages: vec![Message {
+//!             role: Role::User,
+//!             content: "Hello!".to_string(),
+//!             ..Default::default()
+//!         }],
 //!         ..Default::default()
 //!     };
 //!
 //!     let response = client.chat(&request).await?;
-//!     println!("Response: {}", response.choices[0].message.content);
+//!     println!("Response: {}", response.content);
 //!     Ok(())
 //! }
 //! ```
 //!
 //! ### Anthropic Protocol
 //! ```rust,no_run
-//! use llm_connector::{LlmClient, ChatRequest, Message};
+//! use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let client = LlmClient::anthropic("sk-ant-...");
+//!     let client = LlmClient::anthropic("sk-ant-...")?;
 //!     let request = ChatRequest {
 //!         model: "claude-3-5-sonnet-20241022".to_string(),
-//!         messages: vec![Message::user("Hello!")],
+//!         messages: vec![Message {
+//!             role: Role::User,
+//!             content: "Hello!".to_string(),
+//!             ..Default::default()
+//!         }],
 //!         ..Default::default()
 //!     };
 //!
 //!     let response = client.chat(&request).await?;
-//!     println!("Response: {}", response.choices[0].message.content);
+//!     println!("Response: {}", response.content);
 //!     Ok(())
 //! }
 //! ```
 //!
 //! ### Aliyun Protocol (DashScope)
 //! ```rust,no_run
-//! use llm_connector::{LlmClient, ChatRequest, Message};
+//! use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let client = LlmClient::aliyun("sk-...");
+//!     let client = LlmClient::aliyun("sk-...")?;
 //!     let request = ChatRequest {
 //!         model: "qwen-turbo".to_string(),
-//!         messages: vec![Message::user("Hello!")],
+//!         messages: vec![Message {
+//!             role: Role::User,
+//!             content: "Hello!".to_string(),
+//!             ..Default::default()
+//!         }],
 //!         ..Default::default()
 //!     };
 //!
 //!     let response = client.chat(&request).await?;
-//!     println!("Response: {}", response.choices[0].message.content);
+//!     println!("Response: {}", response.content);
 //!     Ok(())
 //! }
 //! ```
 //!
 //! ### Ollama Protocol (Local)
 //! ```rust,no_run
-//! use llm_connector::{LlmClient, ChatRequest, Message};
+//! use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Default: localhost:11434
-//!     let client = LlmClient::ollama(None);
+//!     let client = LlmClient::ollama()?;
 //!
 //!     // Custom URL
-//!     let client = LlmClient::ollama(Some("http://192.168.1.100:11434"));
+//!     let client = LlmClient::ollama_with_url("http://192.168.1.100:11434")?;
 //!
 //!     let request = ChatRequest {
 //!         model: "llama3.2".to_string(),
-//!         messages: vec![Message::user("Hello!")],
+//!         messages: vec![Message {
+//!             role: Role::User,
+//!             content: "Hello!".to_string(),
+//!             ..Default::default()
+//!         }],
 //!         ..Default::default()
 //!     };
 //!
 //!     let response = client.chat(&request).await?;
-//!     println!("Response: {}", response.choices[0].message.content);
+//!     println!("Response: {}", response.content);
+//!
+//!     // Ollama special features
+//!     if let Some(ollama) = client.as_ollama() {
+//!         let models = ollama.models().await?;
+//!         println!("Available models: {:?}", models);
+//!     }
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -105,29 +128,40 @@
 //! llm-connector = { version = "0.2", features = ["streaming"] }
 //! ```
 
-// Core modules
+// Core modules (V2 Architecture - Default)
 pub mod client;
 pub mod config;
 pub mod core;
 pub mod error;
 pub mod protocols;
+pub mod providers;
 pub mod types;
-
 
 // Server-Sent Events (SSE) utilities
 pub mod sse;
 
-// Ollama client extension (model management)
-pub mod ollama;
+// V1 Architecture (Legacy - for backward compatibility)
+#[cfg(feature = "v1-legacy")]
+pub mod v1;
 
-// Re-exports for convenience
+// Re-exports for convenience (V2 Architecture)
 pub use client::LlmClient;
 pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
-pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage};
+pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage, Role};
 
-// Re-export Ollama model ops extension trait
-pub use ollama::OllamaModelOps;
+// Re-export core traits
+pub use core::{Protocol, Provider, GenericProvider, HttpClient};
+
+// Re-export protocols
+pub use protocols::{OpenAIProtocol, AliyunProtocol, AnthropicProtocol, ZhipuProtocol};
+
+// Re-export providers
+pub use providers::{
+    OpenAIProvider, AliyunProvider, AnthropicProvider, ZhipuProvider, OllamaProvider,
+    // Convenience functions
+    openai, aliyun, anthropic, zhipu, ollama,
+};
 
 #[cfg(feature = "streaming")]
 pub use types::{

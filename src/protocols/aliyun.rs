@@ -1,340 +1,53 @@
-//! Aliyun Protocol Implementation
+//! 阿里云DashScope协议实现 - V2架构
 //!
-//! This module implements the Aliyun DashScope API protocol.
-//!
-//! # Supported Providers
-//!
-//! - **Aliyun (DashScope)** - `qwen()` - Qwen-Max, Qwen-Plus, Qwen-Turbo
-//!
-//! # Protocol Differences
-//!
-//! Aliyun uses a custom protocol that differs significantly from both OpenAI and Anthropic:
-//!
-//! ## 1. Endpoint
-//! - Aliyun: `POST /services/aigc/text-generation/generation`
-//! - OpenAI: `POST /v1/chat/completions`
-//!
-//! ## 2. Request Structure
-//! - **Nested structure**: Uses `input` and `parameters` objects
-//! - **Model field**: At top level, not in parameters
-//! - **Result format**: Explicit `result_format` field for response type
-//!
-//! ## 3. Response Structure
-//! - **Nested output**: Response data in `output.choices` instead of top-level `choices`
-//! - **Request ID**: Includes `request_id` for tracking
-//! - **Usage**: Different field structure
-//!
-//! ## 4. Authentication
-//! - Uses `Authorization: Bearer <api-key>` header
-//! - API key format: `sk-...`
-//!
-//! # Request Format
-//!
-//! ```json
-//! {
-//!   "model": "qwen-max",
-//!   "input": {
-//!     "messages": [
-//!       {"role": "user", "content": "Hello"}
-//!     ]
-//!   },
-//!   "parameters": {
-//!     "max_tokens": 1000,
-//!     "temperature": 0.7,
-//!     "result_format": "message"
-//!   }
-//! }
-//! ```
-//!
-//! # Response Format
-//!
-//! ```json
-//! {
-//!   "request_id": "req_123",
-//!   "output": {
-//!     "choices": [{
-//!       "message": {
-//!         "role": "assistant",
-//!         "content": "Hello! How can I help you?"
-//!       },
-//!       "finish_reason": "stop"
-//!     }]
-//!   },
-//!   "usage": {
-//!     "input_tokens": 10,
-//!     "output_tokens": 20,
-//!     "total_tokens": 30
-//!   }
-//! }
-//! ```
-//!
-//! # Example
-//!
-//! ```rust
-//! use llm_connector::{LlmClient};
-//! use llm_connector::types::{ChatRequest, Message};
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create Aliyun client (DashScope)
-//! let client = LlmClient::aliyun("your-api-key");
-//!
-//! // Create request
-//! let request = ChatRequest {
-//!     model: "qwen-max".to_string(),
-//!     messages: vec![Message::user("Hello!")],
-//!     ..Default::default()
-//! };
-//!
-//! // Send request
-//! let response = client.chat(&request).await?;
-//! println!("Response: {}", response.choices[0].message.content);
-//! # Ok(())
-//! # }
-//! ```
+//! 这个模块实现了阿里云DashScope API协议规范。
 
+use crate::core::Protocol;
+use crate::types::{ChatRequest, ChatResponse, Message, Role, Choice, Usage};
 use crate::error::LlmConnectorError;
-use crate::protocols::core::{ErrorMapper, ProviderAdapter};
-use crate::types::{ChatRequest, ChatResponse, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::sync::Arc;
 
-/// Parse a role string into a Role enum
-fn parse_role(role: &str) -> Role {
-    match role {
-        "system" => Role::System,
-        "user" => Role::User,
-        "assistant" => Role::Assistant,
-        "tool" => Role::Tool,
-        _ => Role::User, // Default to user for unknown roles
-    }
-}
-
-#[cfg(feature = "streaming")]
-use crate::types::StreamingResponse;
-
-// ============================================================================
-// Aliyun-specific Request Structures
-// ============================================================================
-
-#[derive(Debug, Serialize)]
-pub struct AliyunRequest {
-    model: String,
-    input: AliyunInput,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    parameters: Option<AliyunParameters>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AliyunInput {
-    messages: Vec<AliyunMessage>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AliyunMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Debug, Serialize, Default)]
-pub struct AliyunParameters {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    top_p: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    seed: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    result_format: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    incremental_output: Option<bool>,
-}
-
-// ============================================================================
-// Aliyun-specific Response Structures
-// ============================================================================
-
-#[derive(Debug, Deserialize)]
-pub struct AliyunResponse {
-    request_id: String,
-    output: AliyunOutput,
-    usage: AliyunUsage,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AliyunOutput {
-    choices: Vec<AliyunChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AliyunChoice {
-    message: AliyunResponseMessage,
-    finish_reason: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AliyunResponseMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AliyunUsage {
-    input_tokens: i32,
-    output_tokens: i32,
-}
-
-// ============================================================================
-// Aliyun-specific Streaming Response
-// ============================================================================
-
-#[cfg(feature = "streaming")]
-#[derive(Debug, Deserialize)]
-pub struct AliyunStreamResponse {
-    request_id: String,
-    output: AliyunStreamOutput,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    usage: Option<AliyunUsage>,
-}
-
-#[cfg(feature = "streaming")]
-#[derive(Debug, Deserialize)]
-pub struct AliyunStreamOutput {
-    choices: Vec<AliyunStreamChoice>,
-}
-
-#[cfg(feature = "streaming")]
-#[derive(Debug, Deserialize)]
-pub struct AliyunStreamChoice {
-    message: AliyunResponseMessage,
-    finish_reason: Option<String>,
-}
-
-// ============================================================================
-// Aliyun Error Mapper
-// ============================================================================
-
-pub struct AliyunErrorMapper;
-
-impl ErrorMapper for AliyunErrorMapper {
-    fn map_http_error(status: u16, body: Value) -> LlmConnectorError {
-        let error_message = body["error"]["message"]
-            .as_str()
-            .or_else(|| body["message"].as_str())
-            .unwrap_or("Unknown Aliyun error");
-
-        let error_code = body["error"]["code"]
-            .as_str()
-            .or_else(|| body["code"].as_str())
-            .unwrap_or("unknown");
-
-        match status {
-            400 => LlmConnectorError::InvalidRequest(format!(
-                "Aliyun: {} ({})",
-                error_message, error_code
-            )),
-            401 => LlmConnectorError::AuthenticationError(format!(
-                "Aliyun: {} ({})",
-                error_message, error_code
-            )),
-            403 => LlmConnectorError::PermissionError(format!(
-                "Aliyun: {} ({})",
-                error_message, error_code
-            )),
-            429 => LlmConnectorError::RateLimitError(format!(
-                "Aliyun: {} ({})",
-                error_message, error_code
-            )),
-            500..=599 => LlmConnectorError::ServerError(format!(
-                "Aliyun HTTP {}: {} ({})",
-                status, error_message, error_code
-            )),
-            _ => LlmConnectorError::ProviderError(format!(
-                "Aliyun HTTP {}: {} ({})",
-                status, error_message, error_code
-            )),
-        }
-    }
-
-    fn map_network_error(error: reqwest::Error) -> LlmConnectorError {
-        if error.is_timeout() {
-            LlmConnectorError::TimeoutError(format!("Aliyun: {}", error))
-        } else if error.is_connect() {
-            LlmConnectorError::ConnectionError(format!("Aliyun: {}", error))
-        } else {
-            LlmConnectorError::NetworkError(format!("Aliyun: {}", error))
-        }
-    }
-
-    fn is_retriable_error(error: &LlmConnectorError) -> bool {
-        matches!(
-            error,
-            LlmConnectorError::RateLimitError(_)
-                | LlmConnectorError::ServerError(_)
-                | LlmConnectorError::TimeoutError(_)
-                | LlmConnectorError::ConnectionError(_)
-        )
-    }
-}
-
-// ============================================================================
-// Aliyun Adapter Implementation
-// ============================================================================
-
-/// Aliyun Protocol adapter for DashScope API
-///
-/// Uses Arc for efficient sharing of strings across clones.
-#[derive(Debug, Clone)]
+/// 阿里云DashScope协议实现
+#[derive(Clone, Debug)]
 pub struct AliyunProtocol {
-    base_url: Arc<str>,
+    api_key: String,
 }
 
 impl AliyunProtocol {
-    /// Create new Aliyun protocol with API key
-    ///
-    /// Uses default Aliyun DashScope base URL
-    pub fn new(_api_key: &str) -> Self {
+    /// 创建新的阿里云协议实例
+    pub fn new(api_key: &str) -> Self {
         Self {
-            base_url: Arc::from("https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"),
+            api_key: api_key.to_string(),
         }
     }
-
-    /// Create new Aliyun protocol with custom API key and base URL
-    pub fn with_url(_api_key: &str, base_url: &str) -> Self {
-        Self {
-            base_url: Arc::from(base_url),
-        }
+    
+    /// 获取API密钥
+    pub fn api_key(&self) -> &str {
+        &self.api_key
     }
 }
 
 #[async_trait]
-impl ProviderAdapter for AliyunProtocol {
-    type RequestType = AliyunRequest;
-    type ResponseType = AliyunResponse;
-    #[cfg(feature = "streaming")]
-    type StreamResponseType = AliyunStreamResponse;
-    type ErrorMapperType = AliyunErrorMapper;
-
+impl Protocol for AliyunProtocol {
+    type Request = AliyunRequest;
+    type Response = AliyunResponse;
+    
     fn name(&self) -> &str {
         "aliyun"
     }
-
-    fn endpoint_url(&self, base_url: &Option<String>) -> String {
-        base_url.as_deref().unwrap_or(&self.base_url).to_string()
+    
+    fn chat_endpoint(&self, base_url: &str) -> String {
+        format!("{}/services/aigc/text-generation/generation", base_url.trim_end_matches('/'))
     }
-
-    fn build_request_data(&self, request: &ChatRequest, stream: bool) -> Self::RequestType {
-        let messages = request
-            .messages
-            .iter()
+    
+    fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
+        let messages = request.messages.iter()
             .map(|msg| AliyunMessage {
                 role: match msg.role {
-                    Role::System => "system".to_string(),
                     Role::User => "user".to_string(),
                     Role::Assistant => "assistant".to_string(),
+                    Role::System => "system".to_string(),
                     Role::Tool => "tool".to_string(),
                 },
                 content: msg.content.clone(),
@@ -345,129 +58,162 @@ impl ProviderAdapter for AliyunProtocol {
             max_tokens: request.max_tokens,
             temperature: request.temperature,
             top_p: request.top_p,
-            seed: None, // Aliyun-specific field, could be configurable
-            result_format: Some("message".to_string()),
-            incremental_output: if stream { Some(true) } else { None },
+            result_format: "message".to_string(),
+            incremental_output: request.stream,
         };
 
-        AliyunRequest {
+        Ok(AliyunRequest {
             model: request.model.clone(),
             input: AliyunInput { messages },
-            parameters: Some(parameters),
-        }
+            parameters,
+        })
     }
+    
+    fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        let aliyun_response: AliyunResponse = serde_json::from_str(response)
+            .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse Aliyun response: {}", e)))?;
 
-    fn parse_response_data(&self, response: Self::ResponseType) -> ChatResponse {
-        // Convenience: capture first choice content before moving choices
-        let first_content = response
-            .output
-            .choices
-            .get(0)
-            .map(|c| c.message.content.clone())
+        if aliyun_response.output.choices.is_empty() {
+            return Err(LlmConnectorError::ParseError("No choices in response".to_string()));
+        }
+
+        let choices: Vec<Choice> = aliyun_response.output.choices.into_iter()
+            .enumerate()
+            .map(|(index, choice)| Choice {
+                index: index as u32,
+                message: Message {
+                    role: Role::Assistant,
+                    content: choice.message.content,
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    reasoning_content: None,
+                    reasoning: None,
+                    thought: None,
+                    thinking: None,
+                },
+                finish_reason: choice.finish_reason,
+                logprobs: None,
+            })
+            .collect();
+
+        let usage = aliyun_response.usage.map(|u| Usage {
+            prompt_tokens: u.input_tokens,
+            completion_tokens: u.output_tokens,
+            total_tokens: u.total_tokens,
+            completion_tokens_details: None,
+            prompt_cache_hit_tokens: None,
+            prompt_cache_miss_tokens: None,
+            prompt_tokens_details: None,
+        });
+
+        // 提取第一个选择的内容作为便利字段
+        let content = choices.first()
+            .map(|choice| choice.message.content.clone())
             .unwrap_or_default();
-        ChatResponse {
-            id: response.request_id,
+
+        Ok(ChatResponse {
+            id: aliyun_response.request_id.unwrap_or_else(|| "unknown".to_string()),
             object: "chat.completion".to_string(),
-            created: chrono::Utc::now().timestamp() as u64,
-            model: "qwen".to_string(), // Aliyun doesn't return model in response
-            choices: response
-                .output
-                .choices
-                .into_iter()
-                .enumerate()
-                .map(|(index, choice)| crate::types::Choice {
-                    index: index as u32,
-                    message: Message {
-                        role: parse_role(&choice.message.role),
-                        content: choice.message.content,
-                        name: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                        ..Default::default()
-                    },
-                    finish_reason: Some(choice.finish_reason),
-                    logprobs: None,
-                })
-                .collect(),
-            content: first_content,
-            usage: Some(Usage {
-                prompt_tokens: response.usage.input_tokens as u32,
-                completion_tokens: response.usage.output_tokens as u32,
-                total_tokens: (response.usage.input_tokens + response.usage.output_tokens) as u32,
-                prompt_cache_hit_tokens: None,
-                prompt_cache_miss_tokens: None,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
-            }),
+            created: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            model: "unknown".to_string(), // Aliyun doesn't return model in response
+            choices,
+            content,
+            usage,
             system_fingerprint: None,
+        })
+    }
+    
+    fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
+        let error_info = serde_json::from_str::<serde_json::Value>(body)
+            .ok()
+            .unwrap_or_else(|| serde_json::json!({"message": body}));
+            
+        let message = error_info.get("message")
+            .or_else(|| error_info.get("error"))
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown Aliyun error");
+
+        match status {
+            400 => LlmConnectorError::InvalidRequest(format!("Aliyun: {}", message)),
+            401 => LlmConnectorError::AuthenticationError(format!("Aliyun: {}", message)),
+            403 => LlmConnectorError::PermissionError(format!("Aliyun: {}", message)),
+            429 => LlmConnectorError::RateLimitError(format!("Aliyun: {}", message)),
+            500..=599 => LlmConnectorError::ServerError(format!("Aliyun: {}", message)),
+            _ => LlmConnectorError::ApiError(format!("Aliyun HTTP {}: {}", status, message)),
         }
     }
-
-    #[cfg(feature = "streaming")]
-    fn parse_stream_response_data(&self, response: Self::StreamResponseType) -> StreamingResponse {
-        // Convenience: capture first chunk content before moving choices
-        let first_chunk_content = response
-            .output
-            .choices
-            .get(0)
-            .map(|c| c.message.content.clone())
-            .unwrap_or_default();
-        StreamingResponse {
-            id: response.request_id,
-            object: "chat.completion.chunk".to_string(),
-            created: chrono::Utc::now().timestamp() as u64,
-            model: "qwen".to_string(),
-            choices: response
-                .output
-                .choices
-                .into_iter()
-                .enumerate()
-                .map(|(index, choice)| crate::types::StreamingChoice {
-                    index: index as u32,
-                    delta: crate::types::Delta {
-                        role: Some(parse_role(&choice.message.role)),
-                        content: Some(choice.message.content),
-                        tool_calls: None,
-                        reasoning_content: None,
-                        ..Default::default()
-                    },
-                    finish_reason: choice.finish_reason,
-                    logprobs: None,
-                })
-                .collect(),
-            content: first_chunk_content,
-            reasoning_content: None,
-            usage: response.usage.map(|usage| Usage {
-                prompt_tokens: usage.input_tokens as u32,
-                completion_tokens: usage.output_tokens as u32,
-                total_tokens: (usage.input_tokens + usage.output_tokens) as u32,
-                prompt_cache_hit_tokens: None,
-                prompt_cache_miss_tokens: None,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
-            }),
-            system_fingerprint: None,
-        }
+    
+    fn auth_headers(&self) -> Vec<(String, String)> {
+        vec![
+            ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
+            ("Content-Type".to_string(), "application/json".to_string()),
+        ]
     }
 }
 
-// ============================================================================
-// Convenience Functions and Type Aliases
-// ============================================================================
-
-/// Create an Aliyun protocol adapter
-pub fn aliyun() -> AliyunProtocol {
-    AliyunProtocol::new("")
+// 阿里云请求类型
+#[derive(Serialize, Debug)]
+pub struct AliyunRequest {
+    pub model: String,
+    pub input: AliyunInput,
+    pub parameters: AliyunParameters,
 }
 
-/// Get all providers that use the Aliyun protocol
-pub fn aliyun_providers() -> Vec<(&'static str, AliyunProtocol)> {
-    vec![
-        ("aliyun", aliyun()),
-        ("dashscope", aliyun()),
-        ("qwen", aliyun()),
-    ]
+#[derive(Serialize, Debug)]
+pub struct AliyunInput {
+    pub messages: Vec<AliyunMessage>,
 }
 
-/// Aliyun provider type alias
-pub type AliyunProvider = crate::protocols::core::GenericProvider<AliyunProtocol>;
+#[derive(Serialize, Debug)]
+pub struct AliyunParameters {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    pub result_format: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub incremental_output: Option<bool>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct AliyunMessage {
+    pub role: String,
+    pub content: String,
+}
+
+// 阿里云响应类型
+#[derive(Deserialize, Debug)]
+pub struct AliyunResponse {
+    pub output: AliyunOutput,
+    pub usage: Option<AliyunUsage>,
+    pub request_id: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AliyunOutput {
+    pub choices: Vec<AliyunChoice>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AliyunChoice {
+    pub message: AliyunResponseMessage,
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AliyunResponseMessage {
+    pub content: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AliyunUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub total_tokens: u32,
+}

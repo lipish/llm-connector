@@ -1,14 +1,14 @@
 //! Provider trait for service implementations
 //!
-//! Providers implement service-specific logic, whether using custom APIs
-//! or adopting standard protocols.
+//! This module defines the unified `Provider` trait that all LLM service
+//! implementations must implement. This is the main interface for LLM services.
 
 use async_trait::async_trait;
 
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest as Request, ChatResponse as Response};
-use crate::core::Protocol;
-use crate::core::protocol::ProtocolError;
+use crate::types::{ChatRequest, ChatResponse};
+use crate::v1::core::Protocol;
+use crate::v1::core::protocol::ProtocolError;
 
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
@@ -63,11 +63,11 @@ pub trait Provider: Send + Sync + 'static {
     fn name(&self) -> &str;
 
     /// Send a chat completion request
-    async fn chat(&self, request: &Request) -> Result<Response, LlmConnectorError>;
+    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError>;
 
     /// Send a streaming chat completion request
     #[cfg(feature = "streaming")]
-    async fn chat_stream(&self, request: &Request) -> Result<ChatStream, LlmConnectorError>;
+    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError>;
 
     /// Fetch available models from the provider
     ///
@@ -101,7 +101,7 @@ pub trait Provider: Send + Sync + 'static {
 pub struct ProtocolProvider<P: Protocol> {
     protocol: P,
     base_url: String,
-    transport: crate::core::HttpTransport,
+    transport: crate::v1::core::HttpTransport,
 }
 
 impl<P: Protocol> ProtocolProvider<P> {
@@ -114,13 +114,13 @@ impl<P: Protocol> ProtocolProvider<P> {
         let config = crate::config::ProviderConfig::new(api_key)
             .with_base_url(base_url.to_string());
 
-        let client = crate::core::HttpTransport::build_client(
+        let client = crate::v1::core::HttpTransport::build_client(
             &config.proxy,
             config.timeout_ms,
             config.base_url.as_ref(),
         )?;
 
-        let transport = crate::core::HttpTransport::new(client, config);
+        let transport = crate::v1::core::HttpTransport::new(client, config);
 
         Ok(Self {
             protocol,
@@ -130,7 +130,7 @@ impl<P: Protocol> ProtocolProvider<P> {
     }
 
     /// Create a new provider from pre-configured parts
-    pub fn from_parts(protocol: P, base_url: &str, transport: crate::core::HttpTransport) -> Self {
+    pub fn from_parts(protocol: P, base_url: &str, transport: crate::v1::core::HttpTransport) -> Self {
         Self {
             protocol,
             base_url: base_url.to_string(),
@@ -144,7 +144,7 @@ impl<P: Protocol> ProtocolProvider<P> {
     }
 
     #[cfg(feature = "streaming")]
-    async fn chat_stream_sse_impl(&self, request: &Request) -> Result<ChatStream, LlmConnectorError> {
+    async fn chat_stream_sse_impl(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         use futures_util::{StreamExt, TryStreamExt, stream};
 
         let endpoint = self.protocol.endpoint(&self.base_url);
@@ -196,7 +196,7 @@ impl<P: Protocol> ProtocolProvider<P> {
     }
 
     #[cfg(feature = "streaming")]
-    async fn chat_stream_fallback_impl(&self, request: &Request) -> Result<ChatStream, LlmConnectorError> {
+    async fn chat_stream_fallback_impl(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         use futures_util::stream;
 
         // For non-SSE protocols, make a regular request and convert to single chunk stream
@@ -239,7 +239,7 @@ where
         self.protocol.name()
     }
 
-    async fn chat(&self, request: &Request) -> Result<Response, LlmConnectorError> {
+    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         let endpoint = self.protocol.endpoint(&self.base_url);
         let protocol_request = self.protocol.build_request(request, false);
 
@@ -268,7 +268,7 @@ where
     }
 
     #[cfg(feature = "streaming")]
-    async fn chat_stream(&self, request: &Request) -> Result<ChatStream, LlmConnectorError> {
+    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         if self.protocol.uses_sse_stream() {
             // For SSE protocols (like OpenAI), use real streaming
             self.chat_stream_sse_impl(request).await
@@ -315,7 +315,7 @@ where
 /// Bridge implementation: Implement old Provider trait for ProtocolProvider
 /// This allows gradual migration from the old architecture to the new one
 #[async_trait]
-impl<P: Protocol> crate::protocols::Provider for ProtocolProvider<P>
+impl<P: Protocol> crate::v1::protocols::Provider for ProtocolProvider<P>
 where
     P::Error: Send + Sync,
 {
@@ -354,7 +354,7 @@ where
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &crate::types::ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
         // Delegate to the new Provider implementation
-        <Self as crate::core::Provider>::chat_stream(self, request).await
+        <Self as crate::v1::core::Provider>::chat_stream(self, request).await
     }
 
     async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError> {

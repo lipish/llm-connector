@@ -2,6 +2,114 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-10-16
+
+### 🚀 **MAJOR RELEASE: V2 Architecture**
+
+This is a major release that introduces the new V2 architecture as the default, providing significant performance improvements and a cleaner API design.
+
+#### ⚡ **Performance Improvements**
+- **7,000x+ faster client creation** - From ~53ms to ~7µs
+- **Minimal memory footprint** - Only 16 bytes per client instance
+- **Zero-cost cloning** - Arc-based sharing for efficient cloning
+
+#### 🏗️ **New Architecture**
+- **Clear Protocol/Provider separation** - Protocols define API specs, Providers implement services
+- **Unified trait system** - `Protocol` and `Provider` traits for maximum extensibility
+- **Type-safe HTTP client** - Compile-time guarantees for correctness
+- **Generic provider implementation** - `GenericProvider<Protocol>` for most use cases
+
+#### 🔄 **API Changes (Breaking)**
+
+##### **Client Creation**
+```rust
+// V1 (Legacy)
+let client = LlmClient::openai("sk-...", None);
+let client = LlmClient::ollama(None);
+
+// V2 (New Default)
+let client = LlmClient::openai("sk-...")?;  // Returns Result
+let client = LlmClient::ollama()?;          // Returns Result
+```
+
+##### **Method Renames**
+```rust
+// V1 → V2
+client.fetch_models()  → client.models()
+client.protocol_name() → client.provider_name()
+```
+
+##### **Parameter Changes**
+- **OpenAI**: Removed optional second parameter, use dedicated methods
+  - `openai(key, Some(url))` → `openai_with_base_url(key, url)?`
+- **Ollama**: Removed optional parameter
+  - `ollama(Some(url))` → `ollama_with_url(url)?`
+
+#### 🆕 **New Features**
+
+##### **Additional Client Creation Methods**
+```rust
+// Azure OpenAI support
+LlmClient::azure_openai("key", "endpoint", "version")?
+
+// OpenAI-compatible services
+LlmClient::openai_compatible("key", "url", "name")?
+
+// Zhipu GLM OpenAI-compatible mode
+LlmClient::zhipu_openai_compatible("key")?
+
+// Enhanced configuration options
+LlmClient::openai_with_config("key", url, timeout, proxy)?
+```
+
+##### **Enhanced Ollama Support**
+```rust
+// Direct access to Ollama-specific features
+if let Some(ollama) = client.as_ollama() {
+    ollama.pull_model("llama2").await?;
+    let models = ollama.models().await?;
+}
+```
+
+#### 📦 **Protocol Support**
+- **OpenAI Protocol** - Complete OpenAI API specification
+- **Anthropic Protocol** - Full Claude API support with Vertex AI and Bedrock
+- **Aliyun Protocol** - DashScope API with regional support
+- **Zhipu Protocol** - Native and OpenAI-compatible formats
+- **Ollama Provider** - Custom implementation with model management
+
+#### 🔄 **Migration Guide**
+
+##### **Option 1: Backward Compatibility**
+```toml
+# Cargo.toml
+[features]
+v1-legacy = []
+```
+
+```rust
+// Use V1 API
+#[cfg(feature = "v1-legacy")]
+use llm_connector::v1::LlmClient;
+
+// Use V2 API (default)
+#[cfg(not(feature = "v1-legacy"))]
+use llm_connector::LlmClient;
+```
+
+##### **Option 2: Direct Migration**
+1. Add `?` to handle `Result` return types
+2. Update method names: `fetch_models()` → `models()`, `protocol_name()` → `provider_name()`
+3. Replace parameter patterns with dedicated methods
+4. Update imports if using internal traits
+
+#### 🏛️ **Architecture Benefits**
+- **Extensibility** - Easy to add new protocols and providers
+- **Type Safety** - Compile-time guarantees for all operations
+- **Performance** - Optimized for speed and memory efficiency
+- **Clarity** - Clear separation of concerns between protocols and providers
+- **Maintainability** - Reduced code duplication and cleaner abstractions
+
 ## [0.3.6] - 2025-10-14
 
 ### ✨ Added

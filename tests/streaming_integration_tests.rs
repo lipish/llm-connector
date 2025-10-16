@@ -136,7 +136,7 @@ mod tests {
         let api_key = std::env::var("OPENAI_API_KEY")
             .map_err(|_| "OPENAI_API_KEY environment variable not set")?;
 
-        let client = LlmClient::openai(&api_key, None);
+        let client = LlmClient::openai(&api_key).unwrap();
         test_streaming(&client, "OpenAI", "gpt-3.5-turbo", "Say hello").await
     }
 
@@ -146,7 +146,7 @@ mod tests {
         let api_key = std::env::var("ANTHROPIC_API_KEY")
             .map_err(|_| "ANTHROPIC_API_KEY environment variable not set")?;
 
-        let client = LlmClient::anthropic(&api_key);
+        let client = LlmClient::anthropic(&api_key).unwrap();
         test_streaming(&client, "Anthropic", "claude-3-haiku-20240307", "Say hello").await
     }
 
@@ -166,14 +166,14 @@ mod tests {
         let api_key = std::env::var("ALIYUN_API_KEY")
             .map_err(|_| "ALIYUN_API_KEY environment variable not set")?;
 
-        let client = LlmClient::aliyun(&api_key);
+        let client = LlmClient::aliyun(&api_key).unwrap();
         test_streaming(&client, "Aliyun", "qwen-turbo", "说一个字").await
     }
 
     #[tokio::test]
     async fn test_ollama_streaming() -> Result<(), Box<dyn std::error::Error>> {
         // Ollama doesn't need API key but requires Ollama to be running
-        let client = LlmClient::ollama(None);
+        let client = LlmClient::ollama().unwrap();
 
         // Try a very short timeout first to see if Ollama is available
         match test_streaming_with_timeout(
@@ -202,7 +202,7 @@ mod tests {
         println!("🔧 Testing streaming error handling");
 
         // Test with invalid API key
-        let client = LlmClient::openai("invalid-key", None);
+        let client = LlmClient::openai("invalid-key").unwrap();
         let request = ChatRequest {
             model: "gpt-3.5-turbo".to_string(),
             messages: vec![Message::user("test")],
@@ -234,7 +234,7 @@ mod tests {
     async fn test_streaming_request_validation() -> Result<(), Box<dyn std::error::Error>> {
         println!("🔧 Testing streaming request validation");
 
-        let client = LlmClient::openai("test-key", None);
+        let client = LlmClient::openai("test-key").unwrap();
 
         // Test empty messages
         let request = ChatRequest {
@@ -261,11 +261,11 @@ mod tests {
         println!("🔍 Testing protocol availability (without making API calls)");
 
         // Test that all protocols can be created without errors
-        let _openai = LlmClient::openai("test-key", None);
-        let _anthropic = LlmClient::anthropic("test-key");
+        let _openai = LlmClient::openai("test-key").unwrap();
+        let _anthropic = LlmClient::anthropic("test-key").unwrap();
         let _zhipu = LlmClient::zhipu("test-key");
-        let _aliyun = LlmClient::aliyun("test-key");
-        let _ollama = LlmClient::ollama(None);
+        let _aliyun = LlmClient::aliyun("test-key").unwrap();
+        let _ollama = LlmClient::ollama().unwrap();
 
         println!("✅ All protocols can be instantiated successfully");
         Ok(())

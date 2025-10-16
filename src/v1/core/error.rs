@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 use crate::error::LlmConnectorError;
-use crate::core::protocol::ProtocolError;
+use crate::v1::core::protocol::ProtocolError;
 
 /// Standard error mapper for OpenAI-compatible APIs
 pub struct StandardErrorMapper;

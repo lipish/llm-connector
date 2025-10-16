@@ -1,178 +1,234 @@
-//! Zhipu Protocol Implementation
+//! 智谱GLM协议实现 - V2架构
 //!
-//! Zhipu provides both OpenAI-compatible (`/api/openai/v1`) and PaaS v4 (`/api/paas/v4`) endpoints.
-//! This adapter targets Zhipu, reusing OpenAI request/response shapes on success, while handling
-//! Zhipu-specific error bodies like `{"code":500,"msg":"404 NOT_FOUND","success":false}`.
+//! 这个模块实现了智谱GLM API协议规范，支持OpenAI兼容模式。
 
-use crate::core::{Protocol, protocol::ProtocolError};
+use crate::core::Protocol;
+use crate::types::{ChatRequest, ChatResponse, Message, Role, Choice, Usage};
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest as Request, ChatResponse as Response};
 use async_trait::async_trait;
-use serde_json::Value;
-use std::sync::Arc;
-
-// Reuse OpenAI-compatible structures for request/response on success
-use crate::protocols::openai::{OpenAIRequest, OpenAIResponse};
-#[cfg(feature = "streaming")]
-use crate::protocols::openai::OpenAIStreamResponse;
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
-/// Zhipu-specific error mapper
-pub struct ZhipuErrorMapper;
-
-impl ProtocolError for ZhipuErrorMapper {
-    fn map_http_error(status: u16, body: Value) -> crate::error::LlmConnectorError {
-        // Prefer Zhipu's code/msg if present
-        let code = body.get("code").and_then(|v| v.as_i64()).unwrap_or(status as i64);
-        let msg = body.get("msg").and_then(|v| v.as_str()).unwrap_or("Unknown error");
-        match (status, code) {
-            (404, _) | (_, 404) => crate::error::LlmConnectorError::NotFoundError(msg.to_string()),
-            (401, _) | (_, 401) => crate::error::LlmConnectorError::AuthenticationError(msg.to_string()),
-            (403, _) | (_, 403) => crate::error::LlmConnectorError::PermissionError(msg.to_string()),
-            (429, _) | (_, 429) => crate::error::LlmConnectorError::RateLimitError(msg.to_string()),
-            (500..=599, _) | (_, 500..=599) => crate::error::LlmConnectorError::ServerError(format!("HTTP {}: {}", status, msg)),
-            _ => crate::error::LlmConnectorError::ProviderError(format!("HTTP {}: {} (code: {})", status, msg, code)),
-        }
-    }
-
-    fn map_network_error(error: reqwest::Error) -> crate::error::LlmConnectorError {
-        if error.is_timeout() {
-            crate::error::LlmConnectorError::TimeoutError(error.to_string())
-        } else if error.is_connect() {
-            crate::error::LlmConnectorError::ConnectionError(error.to_string())
-        } else {
-            crate::error::LlmConnectorError::NetworkError(error.to_string())
-        }
-    }
-
-    fn is_retriable_error(error: &crate::error::LlmConnectorError) -> bool {
-        matches!(
-            error,
-            crate::error::LlmConnectorError::RateLimitError(_)
-                | crate::error::LlmConnectorError::ServerError(_)
-                | crate::error::LlmConnectorError::TimeoutError(_)
-                | crate::error::LlmConnectorError::ConnectionError(_)
-        )
-    }
-}
-
-/// Zhipu Protocol for ChatGLM API
-///
-/// Protocol implementation using OpenAI-compatible format with Zhipu-specific error handling.
-#[derive(Debug, Clone)]
+/// 智谱GLM协议实现
+#[derive(Clone, Debug)]
 pub struct ZhipuProtocol {
-    name: Arc<str>,
+    api_key: String,
+    use_openai_format: bool,
 }
 
 impl ZhipuProtocol {
-    /// Create new Zhipu protocol
-    pub fn new() -> Self {
+    /// 创建新的智谱协议实例 (使用原生格式)
+    pub fn new(api_key: &str) -> Self {
         Self {
-            name: Arc::from("zhipu"),
+            api_key: api_key.to_string(),
+            use_openai_format: false,
         }
     }
-}
-
-impl Default for ZhipuProtocol {
-    fn default() -> Self {
-        Self::new()
+    
+    /// 创建使用OpenAI兼容格式的智谱协议实例
+    pub fn new_openai_compatible(api_key: &str) -> Self {
+        Self {
+            api_key: api_key.to_string(),
+            use_openai_format: true,
+        }
+    }
+    
+    /// 获取API密钥
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
+    
+    /// 是否使用OpenAI兼容格式
+    pub fn is_openai_compatible(&self) -> bool {
+        self.use_openai_format
     }
 }
 
 #[async_trait]
 impl Protocol for ZhipuProtocol {
-    type Request = OpenAIRequest;
-    type Response = OpenAIResponse;
-    type Error = ZhipuErrorMapper;
-
-    #[cfg(feature = "streaming")]
-    type StreamResponse = OpenAIStreamResponse;
-
-    #[cfg(not(feature = "streaming"))]
-    type StreamResponse = ();
-
+    type Request = ZhipuRequest;
+    type Response = ZhipuResponse;
+    
     fn name(&self) -> &str {
-        &self.name
+        "zhipu"
     }
-
-    fn endpoint(&self, base_url: &str) -> String {
-        // Zhipu uses PaaS v4 endpoint
-        format!("{}/chat/completions", base_url)
-    }
-
-    fn models_endpoint(&self, _base_url: &str) -> Option<String> {
-        // Zhipu doesn't provide a reliable models endpoint
-        None
-    }
-
-    fn build_request(&self, request: &Request, stream: bool) -> Self::Request {
-        OpenAIRequest::from_chat_request(request, stream)
-    }
-
-    fn parse_response(&self, response: Self::Response) -> Response {
-        response.to_chat_response()
-    }
-
-    #[cfg(feature = "streaming")]
-    fn parse_stream_response(&self, response: Self::StreamResponse) -> ChatStream {
-        use futures_util::stream;
-
-        let streaming_response = response.to_streaming_response();
-
-        // Convert to stream of streaming responses
-        let stream = stream::once(async { Ok(streaming_response) });
-        Box::pin(stream)
-    }
-
-    #[cfg(feature = "streaming")]
-    fn uses_sse_stream(&self) -> bool {
-        true // Zhipu supports OpenAI-compatible SSE streaming
-    }
-
-    fn validate_success_body(&self, status: u16, raw: &Value) -> Result<(), LlmConnectorError> {
-        // If Zhipu wraps errors under HTTP 200 with { success: false, code, msg }
-        if let Some(success) = raw.get("success").and_then(|v| v.as_bool()) {
-            if !success {
-                return Err(ZhipuErrorMapper::map_http_error(status, raw.clone()));
-            }
+    
+    fn chat_endpoint(&self, base_url: &str) -> String {
+        if self.use_openai_format {
+            format!("{}/v1/chat/completions", base_url.trim_end_matches('/'))
+        } else {
+            format!("{}/api/paas/v4/chat/completions", base_url.trim_end_matches('/'))
         }
-        // Some payloads may use `code != 0` as error, even without `success`
-        if let Some(code) = raw.get("code").and_then(|v| v.as_i64()) {
-            if code != 0 && raw.get("choices").is_none() {
-                return Err(ZhipuErrorMapper::map_http_error(status, raw.clone()));
-            }
+    }
+    
+    fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
+        let messages = request.messages.iter()
+            .map(|msg| ZhipuMessage {
+                role: match msg.role {
+                    Role::User => "user".to_string(),
+                    Role::Assistant => "assistant".to_string(),
+                    Role::System => "system".to_string(),
+                    Role::Tool => "tool".to_string(),
+                },
+                content: msg.content.clone(),
+            })
+            .collect();
+
+        Ok(ZhipuRequest {
+            model: request.model.clone(),
+            messages,
+            temperature: request.temperature,
+            max_tokens: request.max_tokens,
+            top_p: request.top_p,
+            stream: request.stream,
+            // 智谱特有参数
+            do_sample: Some(true),
+            request_id: None,
+        })
+    }
+    
+    fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        let zhipu_response: ZhipuResponse = serde_json::from_str(response)
+            .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse Zhipu response: {}", e)))?;
+
+        if zhipu_response.choices.is_empty() {
+            return Err(LlmConnectorError::ParseError("No choices in response".to_string()));
         }
-        Ok(())
+
+        let choices: Vec<Choice> = zhipu_response.choices.into_iter()
+            .map(|choice| Choice {
+                index: choice.index,
+                message: Message {
+                    role: Role::Assistant,
+                    content: choice.message.content,
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    reasoning_content: None,
+                    reasoning: None,
+                    thought: None,
+                    thinking: None,
+                },
+                finish_reason: choice.finish_reason,
+                logprobs: None,
+            })
+            .collect();
+
+        let usage = zhipu_response.usage.map(|u| Usage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
+            completion_tokens_details: None,
+            prompt_cache_hit_tokens: None,
+            prompt_cache_miss_tokens: None,
+            prompt_tokens_details: None,
+        });
+
+        // 提取第一个选择的内容作为便利字段
+        let content = choices.first()
+            .map(|choice| choice.message.content.clone())
+            .unwrap_or_default();
+
+        Ok(ChatResponse {
+            id: zhipu_response.id,
+            object: zhipu_response.object,
+            created: zhipu_response.created,
+            model: zhipu_response.model,
+            choices,
+            content,
+            usage,
+            system_fingerprint: None,
+        })
+    }
+    
+    fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
+        let error_info = serde_json::from_str::<serde_json::Value>(body)
+            .ok()
+            .and_then(|v| v.get("error").cloned())
+            .unwrap_or_else(|| serde_json::json!({"message": body}));
+            
+        let message = error_info.get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown Zhipu error");
+
+        match status {
+            400 => LlmConnectorError::InvalidRequest(format!("Zhipu: {}", message)),
+            401 => LlmConnectorError::AuthenticationError(format!("Zhipu: {}", message)),
+            403 => LlmConnectorError::PermissionError(format!("Zhipu: {}", message)),
+            429 => LlmConnectorError::RateLimitError(format!("Zhipu: {}", message)),
+            500..=599 => LlmConnectorError::ServerError(format!("Zhipu: {}", message)),
+            _ => LlmConnectorError::ApiError(format!("Zhipu HTTP {}: {}", status, message)),
+        }
+    }
+    
+    fn auth_headers(&self) -> Vec<(String, String)> {
+        vec![
+            ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
+            ("Content-Type".to_string(), "application/json".to_string()),
+        ]
+    }
+    
+    #[cfg(feature = "streaming")]
+    async fn parse_stream_response(&self, response: reqwest::Response) -> Result<ChatStream, LlmConnectorError> {
+        // 智谱使用标准SSE格式
+        use crate::sse::SseStream;
+        Ok(Box::pin(SseStream::new(response)))
     }
 }
 
-/// Convenience function to create a Zhipu provider
-pub fn zhipu(base_url: &str, api_key: &str) -> Result<crate::core::provider::ProtocolProvider<ZhipuProtocol>, LlmConnectorError> {
-    let protocol = ZhipuProtocol::new();
-    crate::core::provider::ProtocolProvider::new(protocol, base_url, api_key)
+// 智谱请求类型
+#[derive(Serialize, Debug)]
+pub struct ZhipuRequest {
+    pub model: String,
+    pub messages: Vec<ZhipuMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub do_sample: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
 }
 
-/// Convenience function to create a Zhipu provider with default endpoint
-pub fn zhipu_default(api_key: &str) -> Result<crate::core::provider::ProtocolProvider<ZhipuProtocol>, LlmConnectorError> {
-    zhipu("https://open.bigmodel.cn/api/paas/v4", api_key)
+#[derive(Serialize, Debug)]
+pub struct ZhipuMessage {
+    pub role: String,
+    pub content: String,
 }
 
-/// Convenience function to create a Zhipu provider with default endpoint and custom timeout
-pub fn zhipu_with_timeout(api_key: &str, timeout_ms: u64) -> Result<crate::core::provider::ProtocolProvider<ZhipuProtocol>, LlmConnectorError> {
-    let protocol = ZhipuProtocol::new();
-    let config = crate::config::ProviderConfig::new(api_key)
-        .with_base_url("https://open.bigmodel.cn/api/paas/v4")
-        .with_timeout_ms(timeout_ms);
+// 智谱响应类型
+#[derive(Deserialize, Debug)]
+pub struct ZhipuResponse {
+    pub id: String,
+    pub object: String,
+    pub created: u64,
+    pub model: String,
+    pub choices: Vec<ZhipuChoice>,
+    pub usage: Option<ZhipuUsage>,
+}
 
-    let client = crate::core::HttpTransport::build_client(
-        &config.proxy,
-        config.timeout_ms,
-        config.base_url.as_ref(),
-    )?;
+#[derive(Deserialize, Debug)]
+pub struct ZhipuChoice {
+    pub index: u32,
+    pub message: ZhipuResponseMessage,
+    pub finish_reason: Option<String>,
+}
 
-    let transport = crate::core::HttpTransport::new(client, config);
+#[derive(Deserialize, Debug)]
+pub struct ZhipuResponseMessage {
+    pub content: String,
+}
 
-    Ok(crate::core::provider::ProtocolProvider::from_parts(protocol, "https://open.bigmodel.cn/api/paas/v4", transport))
+#[derive(Deserialize, Debug)]
+pub struct ZhipuUsage {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
 }

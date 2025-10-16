@@ -22,6 +22,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.chat(&request).await {
         Ok(resp) => {
             println!("✅ 成功，输出：\n{}", resp.choices[0].message.content);
+            println!("\n📊 Token 使用情况:");
+            println!("  输入 tokens: {}", resp.prompt_tokens());
+            println!("  输出 tokens: {}", resp.completion_tokens());
+            println!("  总计 tokens: {}", resp.total_tokens());
         }
         Err(e) => {
             println!("❌ 失败：{}", e);

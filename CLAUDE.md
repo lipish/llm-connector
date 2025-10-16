@@ -6,17 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is `llm-connector`, a minimal Rust library for LLM protocol abstraction. The library provides a unified interface for working with multiple LLM providers through a clean two-tier architecture:
 
-### Architecture v2.0 (Post-Refactoring)
+### Current Architecture (Pragmatic Multi-Pattern)
 
-**Two-Tier Design:**
-- **Protocols**: Pure API specifications (OpenAI, Anthropic)
-- **Providers**: Service-specific implementations (Aliyun, Zhipu, Ollama) with optional protocol compatibility
+**Flexible Design Philosophy:**
+- **Primary Pattern**: GenericProvider<ProviderAdapter> for most use cases
+- **Custom Providers**: Direct Provider implementation for special requirements
+- **Protocol Adapters**: Standard API specifications (OpenAI, Anthropic)
+- **Service Providers**: Concrete implementations (Aliyun, Zhipu, Ollama, Tencent)
 
-**Key Design Philosophy:**
-- **Clear Separation**: True protocols vs provider-specific implementations
-- **Protocol Purity**: OpenAI and Anthropic protocols implement official specifications only
-- **Provider Flexibility**: Custom providers can implement unique APIs or adopt standard protocols
-- **Backward Compatibility**: Existing client constructors continue to work with deprecation warnings
+**Key Design Principles:**
+- **Pragmatic Flexibility**: Multiple patterns for different needs
+- **Unified Interface**: Consistent API through LlmClient
+- **Extensibility**: Easy to add new providers using established patterns
+- **Backward Compatibility**: All existing APIs remain stable
 
 ## Build and Development Commands
 
@@ -109,22 +111,23 @@ The library uses a clean separation between **protocols** (API specifications) a
 3. **Compatibility Layer**: `OpenAICompatibleProvider<T>` for providers using standard protocols
 4. **Error Mapping**: Provider-specific error handling with unified error types
 
-### Module Structure (Post-Refactoring)
+### Module Structure (Current Architecture)
 
-- **`src/client.rs`**: Main `LlmClient` with unified API for all providers/protocols
-- **`src/core/`**: Core traits and abstractions
+- **`src/client.rs`**: Main `LlmClient` with unified API for all providers
+- **`src/protocols/`**: Core architecture and protocol adapters
+  - `core.rs`: Main architecture (GenericProvider, ProviderAdapter, HttpTransport)
+  - `openai.rs`: OpenAI protocol adapter
+  - `anthropic.rs`: Anthropic protocol adapter
+- **`src/providers/`**: Service provider implementations
+  - `aliyun.rs`: Aliyun DashScope provider (uses GenericProvider)
+  - `zhipu.rs`: Zhipu GLM provider
+  - `tencent.rs`: Tencent Cloud provider (custom implementation)
+  - `ollama.rs`: Ollama local server provider (custom implementation)
+- **`src/core/`**: New architecture components (partially implemented)
   - `protocol.rs`: Protocol trait definitions
   - `provider.rs`: Provider trait definitions
-  - `http.rs`: HTTP transport and client management
-  - `error.rs`: Error mapping and handling
-- **`src/protocols/`**: Pure protocol implementations
-  - `openai.rs`: Official OpenAI API specification
-  - `anthropic.rs`: Official Anthropic API specification
-- **`src/providers/`**: Provider-specific implementations
-  - `aliyun.rs`: Aliyun DashScope provider
-  - `zhipu.rs`: Zhipu GLM provider
-  - `ollama.rs`: Ollama local server provider
-  - `openai_compatible.rs`: Generic OpenAI-compatible wrapper
+  - `http.rs`: HTTP transport utilities
+  - `error.rs`: Error mapping utilities
 - **`src/types/`**: Shared data types for requests, responses, and streaming
 - **`src/config.rs`**: Provider configuration management
 - **`src/sse.rs`**: Server-Sent Events utilities for streaming
@@ -166,30 +169,38 @@ The library uses a clean separation between **protocols** (API specifications) a
 
 ## Common Development Tasks
 
-### Adding a New Protocol
+### Adding a New Provider (Recommended Pattern)
 
-For adding support for a new API specification (e.g., Google Gemini):
+For most new providers, use the **GenericProvider pattern**:
 
-1. Create protocol file in `src/protocols/` (e.g., `gemini.rs`)
-2. Implement `Protocol` trait with pure API specification
-3. Define protocol-specific request/response types
-4. Add protocol exports in `src/protocols/mod.rs`
-5. Add tests and examples using the protocol directly
+1. **Create Provider Adapter**:
+   - Create file in `src/providers/your_provider.rs`
+   - Implement `ProviderAdapter` trait for protocol-specific logic
+   - Define request/response types and error mapping
 
-### Adding a New Provider
+2. **Create Provider Type**:
+   ```rust
+   pub type YourProvider = GenericProvider<YourProviderAdapter>;
+   pub fn your_provider(api_key: &str) -> Result<YourProvider, LlmConnectorError> { ... }
+   ```
 
-For adding a new service provider:
+3. **Add to Client**:
+   ```rust
+   impl LlmClient {
+       pub fn your_provider(api_key: &str) -> Self { ... }
+   }
+   ```
 
-1. **Custom API Provider** (like Aliyun):
-   - Create provider file in `src/providers/` (e.g., `new_provider.rs`)
-   - Implement `Provider` trait with custom logic
-   - Define provider-specific request/response transformations
-   - Add constructor in `src/client.rs`
+4. **Export in Module**: Add to `src/providers/mod.rs`
 
-2. **OpenAI-Compatible Provider** (like DeepSeek):
-   - Use `OpenAICompatibleProvider<OpenAIProtocol>` wrapper
-   - Specify custom base URL and error handling
-   - Add convenience constructor in `src/client.rs`
+### Adding a Custom Provider (Special Cases)
+
+For providers with unique requirements (like Ollama's model management):
+
+1. **Implement Provider Trait Directly**:
+   - Create custom struct implementing `Provider` trait
+   - Handle all provider-specific logic internally
+   - Use when GenericProvider pattern is insufficient
 
 ### Adding New Request Parameters
 

@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦙 Ollama 模型管理示例\n");
 
     // 创建 Ollama 客户端（默认本地地址）
-    let client = LlmClient::ollama(None);
+    let client = LlmClient::ollama().unwrap();
 
     // 1. 列出所有可用模型
     println!("📋 列出所有可用模型:");
@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. 使用 fetch_models() 方法（通用接口）
     println!("🌐 使用通用接口获取模型列表:");
-    match client.fetch_models().await {
+    match client.models().await {
         Ok(models) => {
             if models.is_empty() {
                 println!("   没有找到模型");

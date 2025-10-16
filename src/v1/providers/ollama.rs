@@ -56,8 +56,8 @@
 //! }
 //! ```
 
-use crate::protocols::core::Provider;
-use crate::core::protocol::ProtocolError;
+use crate::v1::protocols::core::Provider;
+use crate::v1::core::protocol::ProtocolError;
 use crate::error::LlmConnectorError;
 use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
 use async_trait::async_trait;

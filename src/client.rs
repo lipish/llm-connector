@@ -1,573 +1,399 @@
-//! Minimal LLM Client
+//! V2统一客户端 - 下一代LLM客户端接口
 //!
-//! This client provides a simple interface to use any of the 4 supported protocols.
-//! No complex configuration, just pick a protocol and start chatting.
+//! 这个模块提供统一的客户端接口，支持所有LLM服务提供商。
 
+use crate::core::Provider;
+use crate::types::{ChatRequest, ChatResponse};
+use crate::error::LlmConnectorError;
 use std::sync::Arc;
 
-use crate::error::LlmConnectorError;
-use crate::protocols::{OpenAIProtocol, AnthropicProtocol, zhipu_with_timeout};
-use crate::protocols::core::GenericProvider;
-use crate::config::ProviderConfig;
-use crate::types::{ChatRequest, ChatResponse};
+#[cfg(feature = "streaming")]
+use crate::types::ChatStream;
 
-/// Minimal LLM Client
-///
-/// Supports 6 protocols: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Hunyuan
-/// No complex configuration needed - just pick a protocol and start.
-#[derive(Clone)]
+/// V2统一LLM客户端
+/// 
+/// 这个客户端提供统一的接口来访问各种LLM服务，
+/// 使用V2架构的清晰抽象层。
+/// 
+/// # 示例
+/// ```rust,no_run
+/// use llm_connector::{LlmClient, provider};
+/// use llm_connector::types::{ChatRequest, Message, Role};
+/// 
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     // 创建OpenAI客户端
+///     let client = LlmClient::openai("sk-...")?;
+///     
+///     // 创建请求
+///     let request = ChatRequest {
+///         model: "gpt-4".to_string(),
+///         messages: vec![
+///             Message::user("Hello, how are you?")
+///         ],
+///         ..Default::default()
+///     };
+///     
+///     // 发送请求
+///     let response = client.chat(&request).await?;
+///     println!("Response: {}", response.content);
+///     
+///     Ok(())
+/// }
+/// ```
 pub struct LlmClient {
-    provider: Arc<dyn crate::protocols::Provider + Send + Sync>,
+    provider: Arc<dyn Provider>,
 }
 
 impl LlmClient {
-    /// Internal constructor from a provider instance
-    #[allow(dead_code)]
-    pub(crate) fn from_provider(provider: Arc<dyn crate::protocols::Provider + Send + Sync>) -> Self {
+    /// 从任何Provider创建客户端
+    pub fn from_provider(provider: Arc<dyn Provider>) -> Self {
         Self { provider }
     }
-
-    /// Internal accessor to the underlying provider trait object
-    pub(crate) fn provider_dyn(&self) -> &dyn crate::protocols::Provider {
-        &*self.provider
-    }
-
-    /// Create new client with OpenAI protocol (supports custom base URL)
-    ///
-    /// Default base URL: `https://api.openai.com/v1`. Pass `Some(url)` to use
-    /// any OpenAI-compatible endpoint.
-    ///
-    /// ```rust,ignore
+    
+    /// 创建OpenAI客户端
+    /// 
+    /// # 参数
+    /// - `api_key`: OpenAI API密钥
+    /// 
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    /// // Standard OpenAI
-    /// let client = LlmClient::openai("sk-...", None);
-    /// // OpenAI-compatible
-    /// let client = LlmClient::openai("sk-...", Some("https://api.example.com/v1"));
+    /// 
+    /// let client = LlmClient::openai("sk-...").unwrap();
     /// ```
-    pub fn openai(api_key: &str, base_url: Option<&str>) -> Self {
-        let base = base_url.unwrap_or("https://api.openai.com/v1");
-        let protocol = OpenAIProtocol::with_url(api_key, base);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url(base)
-            .with_timeout_ms(30000); // 默认30秒超时
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create OpenAI provider");
-        Self { provider: Arc::new(provider) }
+    pub fn openai(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
-
-    /// Create new client with OpenAI protocol and custom timeout
-    ///
-    /// ```rust,ignore
+    
+    /// 创建带有自定义基础URL的OpenAI客户端
+    /// 
+    /// # 参数
+    /// - `api_key`: API密钥
+    /// - `base_url`: 自定义基础URL
+    /// 
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    /// // With custom timeout (60 seconds)
-    /// let client = LlmClient::openai_with_timeout("sk-...", None, 60000);
+    /// 
+    /// let client = LlmClient::openai_with_base_url(
+    ///     "sk-...", 
+    ///     "https://api.deepseek.com"
+    /// ).unwrap();
     /// ```
-    pub fn openai_with_timeout(api_key: &str, base_url: Option<&str>, timeout_ms: u64) -> Self {
-        let base = base_url.unwrap_or("https://api.openai.com/v1");
-        let protocol = OpenAIProtocol::with_url(api_key, base);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url(base)
-            .with_timeout_ms(timeout_ms);
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create OpenAI provider");
-        Self { provider: Arc::new(provider) }
+    pub fn openai_with_base_url(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai_with_base_url(api_key, base_url)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
-
-    /// Create new client with Aliyun protocol
-    ///
-    /// ```rust,ignore
+    
+    /// 创建Azure OpenAI客户端
+    /// 
+    /// # 参数
+    /// - `api_key`: Azure OpenAI API密钥
+    /// - `endpoint`: Azure OpenAI端点
+    /// - `api_version`: API版本
+    /// 
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    ///
-    /// let client = LlmClient::aliyun("sk-...");
+    /// 
+    /// let client = LlmClient::azure_openai(
+    ///     "your-api-key",
+    ///     "https://your-resource.openai.azure.com",
+    ///     "2024-02-15-preview"
+    /// ).unwrap();
     /// ```
-    pub fn aliyun(api_key: &str) -> Self {
-        let protocol = crate::protocols::aliyun::AliyunProtocol::new(api_key);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url("https://dashscope.aliyuncs.com/api/v1")
-            .with_timeout_ms(30000);
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create Aliyun provider");
-        Self { provider: Arc::new(provider) }
+    pub fn azure_openai(
+        api_key: &str,
+        endpoint: &str,
+        api_version: &str,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::azure_openai(api_key, endpoint, api_version)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
-
-    /// Create new client with Ollama protocol
+    
+    /// 创建阿里云DashScope客户端
     ///
-    /// Default base URL: `http://localhost:11434`. Pass `Some(url)` to override.
-    pub fn ollama(base_url: Option<&str>) -> Self {
-        let provider = if let Some(base) = base_url {
-            crate::protocols::ollama::ollama_with_url(base)
-        } else {
-            crate::protocols::ollama::ollama()
-        };
-        Self { provider: Arc::new(provider) }
-    }
-
-    /// Create new client for LongCat provider (OpenAI or Anthropic compatible)
+    /// # 参数
+    /// - `api_key`: 阿里云DashScope API密钥
     ///
-    /// Default is OpenAI-compatible. Pass `anthropic = true` to use Anthropic-compatible.
-    pub fn longcat(api_key: &str, anthropic: bool) -> Self {
-        let base_url = if anthropic {
-            "https://api.longcat.chat/anthropic"
-        } else {
-            "https://api.longcat.chat/openai/v1"
-        };
-
-        let config = ProviderConfig::new(api_key).with_base_url(base_url);
-
-        if anthropic {
-            let protocol = AnthropicProtocol::with_url(api_key, base_url);
-            let provider = GenericProvider::new(config, protocol)
-                .expect("Failed to create LongCat Anthropic-compatible provider");
-            Self { provider: Arc::new(provider) }
-        } else {
-            let protocol = OpenAIProtocol::with_url(api_key, base_url);
-            let provider = GenericProvider::new(config, protocol)
-                .expect("Failed to create LongCat OpenAI-compatible provider");
-            Self { provider: Arc::new(provider) }
-        }
-    }
-
-
-    /// Create new client with Anthropic protocol
-    ///
-    /// ```rust,ignore
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::anthropic("sk-ant-...");
+    /// let client = LlmClient::aliyun("sk-...").unwrap();
     /// ```
-    pub fn anthropic(api_key: &str) -> Self {
-        let protocol = AnthropicProtocol::new(api_key);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url("https://api.anthropic.com")
-            .with_timeout_ms(30000); // 默认30秒超时
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create Anthropic provider");
-        Self {
-            provider: Arc::new(provider),
-        }
+    pub fn aliyun(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::aliyun(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create new client with Anthropic protocol and custom timeout
+    /// 创建Anthropic Claude客户端
     ///
-    /// ```rust,ignore
+    /// # 参数
+    /// - `api_key`: Anthropic API密钥 (格式: sk-ant-...)
+    ///
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::anthropic_with_timeout("sk-ant-...", 60000);
+    /// let client = LlmClient::anthropic("sk-ant-...").unwrap();
     /// ```
-    pub fn anthropic_with_timeout(api_key: &str, timeout_ms: u64) -> Self {
-        let protocol = AnthropicProtocol::new(api_key);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url("https://api.anthropic.com")
-            .with_timeout_ms(timeout_ms);
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create Anthropic provider");
-        Self {
-            provider: Arc::new(provider),
-        }
+    pub fn anthropic(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::anthropic(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create new client with Zhipu protocol
+    /// 创建智谱GLM客户端
     ///
-    /// Uses the default PaaS v4 endpoint: `https://open.bigmodel.cn/api/paas/v4`
+    /// # 参数
+    /// - `api_key`: 智谱GLM API密钥
     ///
-    /// ```rust,ignore
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::zhipu("sk-...");
+    /// let client = LlmClient::zhipu("your-api-key").unwrap();
     /// ```
-    pub fn zhipu(api_key: &str) -> Self {
-        let provider = zhipu_with_timeout(api_key, 30000) // 默认30秒超时
-            .expect("Failed to create Zhipu provider");
-        Self { provider: Arc::new(provider) }
+    pub fn zhipu(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::zhipu_default(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create new client with Zhipu protocol and custom timeout
+    /// 创建智谱GLM客户端 (OpenAI兼容模式)
     ///
-    /// ```rust,ignore
+    /// # 参数
+    /// - `api_key`: 智谱GLM API密钥
+    ///
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::zhipu_with_timeout("sk-...", 60000);
+    /// let client = LlmClient::zhipu_openai_compatible("your-api-key").unwrap();
     /// ```
-    pub fn zhipu_with_timeout(api_key: &str, timeout_ms: u64) -> Self {
-        let provider = crate::protocols::zhipu_with_timeout(api_key, timeout_ms)
-            .expect("Failed to create Zhipu provider");
-        Self { provider: Arc::new(provider) }
+    pub fn zhipu_openai_compatible(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::zhipu_openai_compatible(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create new client with Tencent Hunyuan protocol
+    /// 创建Ollama客户端 (默认本地地址)
     ///
-    /// Uses the OpenAI-compatible endpoint: `https://api.hunyuan.cloud.tencent.com/v1`
-    ///
-    /// ```rust,ignore
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::hunyuan("sk-...");
+    /// let client = LlmClient::ollama().unwrap();
     /// ```
-    pub fn hunyuan(api_key: &str) -> Self {
-        let base_url = "https://api.hunyuan.cloud.tencent.com/v1";
-        let protocol = OpenAIProtocol::with_url(api_key, base_url);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url(base_url)
-            .with_timeout_ms(30000); // 默认30秒超时
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create Hunyuan provider");
-        Self { provider: Arc::new(provider) }
+    pub fn ollama() -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::ollama()?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create new client with Tencent Hunyuan protocol and custom timeout
+    /// 创建带有自定义URL的Ollama客户端
     ///
-    /// ```rust,ignore
+    /// # 参数
+    /// - `base_url`: Ollama服务的URL
+    ///
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::hunyuan_with_timeout("sk-...", 60000);
+    /// let client = LlmClient::ollama_with_url("http://192.168.1.100:11434").unwrap();
     /// ```
-    pub fn hunyuan_with_timeout(api_key: &str, timeout_ms: u64) -> Self {
-        let base_url = "https://api.hunyuan.cloud.tencent.com/v1";
-        let protocol = OpenAIProtocol::with_url(api_key, base_url);
-        let config = ProviderConfig::new(api_key)
-            .with_base_url(base_url)
-            .with_timeout_ms(timeout_ms);
-        let provider = GenericProvider::new(config, protocol)
-            .expect("Failed to create Hunyuan provider");
-        Self { provider: Arc::new(provider) }
+    pub fn ollama_with_url(base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::ollama_with_url(base_url)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
-
-    /// Create new client with Tencent Hunyuan native protocol
-    ///
-    /// Uses Tencent Cloud's native API with TC3-HMAC-SHA256 signature authentication.
-    /// Requires the "tencent-native" feature to be enabled.
-    ///
-    /// ```rust,ignore
+    
+    /// 创建OpenAI兼容服务客户端
+    /// 
+    /// # 参数
+    /// - `api_key`: API密钥
+    /// - `base_url`: 服务基础URL
+    /// - `service_name`: 服务名称
+    /// 
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    ///
-    /// let client = LlmClient::hunyuan_native("your-secret-id", "your-secret-key", Some("ap-beijing"));
+    /// 
+    /// // DeepSeek
+    /// let deepseek = LlmClient::openai_compatible(
+    ///     "sk-...",
+    ///     "https://api.deepseek.com",
+    ///     "deepseek"
+    /// ).unwrap();
+    /// 
+    /// // Moonshot
+    /// let moonshot = LlmClient::openai_compatible(
+    ///     "sk-...",
+    ///     "https://api.moonshot.cn",
+    ///     "moonshot"
+    /// ).unwrap();
     /// ```
-    #[cfg(feature = "tencent-native")]
-    pub fn hunyuan_native(secret_id: &str, secret_key: &str, region: Option<&str>) -> Self {
-        let provider = crate::protocols::hunyuan_native::hunyuan_native(secret_id, secret_key, region)
-            .expect("Failed to create Hunyuan native provider");
-        Self { provider: Arc::new(provider) }
+    pub fn openai_compatible(
+        api_key: &str,
+        base_url: &str,
+        service_name: &str,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai_compatible(api_key, base_url, service_name)?;
+        Ok(Self::from_provider(Arc::new(provider)))
     }
-
-    /// Create new client with Tencent Hunyuan native protocol and custom timeout
-    ///
-    /// ```rust,ignore
+    
+    /// 获取提供商名称
+    pub fn provider_name(&self) -> &str {
+        self.provider.name()
+    }
+    
+    /// 发送聊天完成请求
+    /// 
+    /// # 参数
+    /// - `request`: 聊天请求
+    /// 
+    /// # 返回
+    /// 聊天响应
+    /// 
+    /// # 示例
+    /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    ///
-    /// let client = LlmClient::hunyuan_native_with_timeout("secret-id", "secret-key", Some("ap-beijing"), 60000);
-    /// ```
-    #[cfg(feature = "tencent-native")]
-    pub fn hunyuan_native_with_timeout(secret_id: &str, secret_key: &str, region: Option<&str>, timeout_ms: u64) -> Self {
-        let provider = crate::protocols::hunyuan_native::hunyuan_native_with_timeout(secret_id, secret_key, region, timeout_ms)
-            .expect("Failed to create Hunyuan native provider");
-        Self { provider: Arc::new(provider) }
-    }
-
-    /// Send a chat completion request
-    ///
-    /// ```rust,ignore
-    /// use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-    ///
-    /// let client = LlmClient::openai("sk-...", None);
-    /// let request = ChatRequest {
-    ///     model: "gpt-4".to_string(),
-    ///     messages: vec![Message::user("Hello!")],
-    ///     ..Default::default()
-    /// };
-    ///
-    /// let response = client.chat(&request).await?;
-    /// println!("Response: {}", response.choices[0].message.content);
+    /// use llm_connector::types::{ChatRequest, Message};
+    /// 
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = LlmClient::openai("sk-...")?;
+    ///     
+    ///     let request = ChatRequest {
+    ///         model: "gpt-4".to_string(),
+    ///         messages: vec![Message::user("Hello!")],
+    ///         ..Default::default()
+    ///     };
+    ///     
+    ///     let response = client.chat(&request).await?;
+    ///     println!("Response: {}", response.content);
+    ///     
+    ///     Ok(())
+    /// }
     /// ```
     pub async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         self.provider.chat(request).await
     }
-
-    /// Send a streaming chat completion request
-    ///
-    /// Requires the "streaming" feature to be enabled.
+    
+    /// 发送流式聊天完成请求
+    /// 
+    /// # 参数
+    /// - `request`: 聊天请求
+    /// 
+    /// # 返回
+    /// 聊天流
+    /// 
+    /// # 示例
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    /// use llm_connector::types::{ChatRequest, Message};
+    /// use futures_util::StreamExt;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = LlmClient::openai("sk-...")?;
+    ///     
+    ///     let request = ChatRequest {
+    ///         model: "gpt-4".to_string(),
+    ///         messages: vec![Message::user("Hello!")],
+    ///         stream: Some(true),
+    ///         ..Default::default()
+    ///     };
+    ///     
+    ///     let mut stream = client.chat_stream(&request).await?;
+    ///     while let Some(chunk) = stream.next().await {
+    ///         let chunk = chunk?;
+    ///         if let Some(content) = chunk.get_content() {
+    ///             print!("{}", content);
+    ///         }
+    ///     }
+    ///     
+    ///     Ok(())
+    /// }
+    /// ```
     #[cfg(feature = "streaming")]
-    pub async fn chat_stream(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
+    pub async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         self.provider.chat_stream(request).await
     }
-
-    /// Send a streaming chat completion request with format configuration
-    ///
-    /// Allows specifying the output format (OpenAI or Ollama) and other streaming options.
-    /// Requires the "streaming" feature to be enabled.
-    ///
-    /// # Example
+    
+    /// 获取可用模型列表
+    /// 
+    /// # 返回
+    /// 模型名称列表
+    /// 
+    /// # 示例
     /// ```rust,no_run
-    /// use llm_connector::{LlmClient, types::{ChatRequest, Message, StreamingConfig, StreamingFormat}};
-    /// use futures_util::StreamExt;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LlmClient::openai("sk-...", None);
-    /// let request = ChatRequest {
-    ///     model: "gpt-4".to_string(),
-    ///     messages: vec![Message::user("Hello!")],
-    ///     ..Default::default()
-    /// };
-    ///
-    /// let config = StreamingConfig {
-    ///     format: StreamingFormat::Ollama,
-    ///     include_usage: true,
-    ///     include_reasoning: false,
-    /// };
-    ///
-    /// let mut stream = client.chat_stream_with_format(&request, &config).await?;
-    /// while let Some(chunk) = stream.next().await {
-    ///     let chunk = chunk?;
-    ///     println!("Chunk: {}", chunk.content);
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "streaming")]
-    pub async fn chat_stream_with_format(
-        &self,
-        request: &ChatRequest,
-        config: &crate::types::StreamingConfig,
-    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        self.provider.chat_stream_with_format(request, config).await
-    }
-
-    /// Send a streaming chat completion request in Ollama format (legacy)
-    ///
-    /// This method returns Ollama format embedded in OpenAI format for backward compatibility.
-    /// For pure Ollama format, use `chat_stream_ollama()` instead.
-    /// Requires the "streaming" feature to be enabled.
-    #[cfg(feature = "streaming")]
-    pub async fn chat_stream_ollama_embedded(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        let config = crate::types::StreamingConfig {
-            format: crate::types::StreamingFormat::Ollama,
-            stream_format: crate::types::StreamFormat::Json,
-            include_usage: true,
-            include_reasoning: false,
-        };
-        self.chat_stream_with_format(request, &config).await
-    }
-
-    /// Send a streaming chat completion request in pure Ollama format
-    ///
-    /// Returns a stream of pure Ollama format chunks, not wrapped in OpenAI format.
-    /// This is the correct method to use for Ollama-compatible tools like Zed.dev.
-    /// Requires the "streaming" feature to be enabled.
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-    /// use futures_util::StreamExt;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LlmClient::openai("sk-...", None);
-    /// let request = ChatRequest {
-    ///     model: "gpt-4".to_string(),
-    ///     messages: vec![Message::user("Hello!")],
-    ///     ..Default::default()
-    /// };
-    ///
-    /// let mut stream = client.chat_stream_ollama(&request).await?;
-    /// while let Some(chunk) = stream.next().await {
-    ///     let chunk = chunk?;
-    ///     // chunk is now a pure OllamaStreamChunk
-    ///     println!("Content: {}", chunk.message.content);
-    ///     if chunk.done {
-    ///         println!("Stream completed!");
-    ///         break;
+    /// use llm_connector::LlmClient;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = LlmClient::openai("sk-...")?;
+    ///     
+    ///     let models = client.models().await?;
+    ///     for model in models {
+    ///         println!("Available model: {}", model);
     ///     }
+    ///     
+    ///     Ok(())
     /// }
-    /// # Ok(())
-    /// # }
     /// ```
-    #[cfg(feature = "streaming")]
-    pub async fn chat_stream_ollama(&self, request: &ChatRequest) -> Result<crate::types::OllamaChatStream, LlmConnectorError> {
-        self.provider.chat_stream_ollama_pure(request).await
+    pub async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        self.provider.models().await
     }
-
-    /// Send a streaming chat completion request with universal format abstraction
+    
+    /// 获取底层提供商的引用 (用于特殊功能访问)
     ///
-    /// This method provides the most flexible streaming interface, allowing you to specify
-    /// both the content format (OpenAI vs Ollama) and the stream format (JSON, SSE, NDJSON).
-    /// Requires the "streaming" feature to be enabled.
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use llm_connector::{LlmClient, types::{ChatRequest, Message, StreamingConfig, StreamingFormat, StreamFormat}};
-    /// use futures_util::StreamExt;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LlmClient::openai("sk-...", None);
-    /// let request = ChatRequest {
-    ///     model: "gpt-4".to_string(),
-    ///     messages: vec![Message::user("Hello!")],
-    ///     ..Default::default()
-    /// };
-    ///
-    /// let config = StreamingConfig {
-    ///     format: StreamingFormat::Ollama,
-    ///     stream_format: StreamFormat::SSE,
-    ///     include_usage: true,
-    ///     include_reasoning: false,
-    /// };
-    ///
-    /// let mut stream = client.chat_stream_universal(&request, &config).await?;
-    /// while let Some(chunk) = stream.next().await {
-    ///     let chunk = chunk?;
-    ///     // chunk.to_format() returns the formatted string (SSE in this case)
-    ///     println!("{}", chunk.to_format());
-    ///
-    ///     // Or access the raw data
-    ///     if let Some(content) = chunk.extract_content() {
-    ///         print!("{}", content);
-    ///     }
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "streaming")]
-    pub async fn chat_stream_universal(
-        &self,
-        request: &ChatRequest,
-        config: &crate::types::StreamingConfig,
-    ) -> Result<crate::types::UniversalChatStream, LlmConnectorError> {
-        self.provider.chat_stream_universal(request, config).await
-    }
-
-    /// Send a streaming chat completion request in SSE format
-    ///
-    /// Convenience method for Server-Sent Events format streaming.
-    /// Perfect for web applications and real-time interfaces.
-    /// Requires the "streaming" feature to be enabled.
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-    /// use futures_util::StreamExt;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LlmClient::openai("sk-...", None);
-    /// let request = ChatRequest {
-    ///     model: "gpt-4".to_string(),
-    ///     messages: vec![Message::user("Hello!")],
-    ///     ..Default::default()
-    /// };
-    ///
-    /// let mut stream = client.chat_stream_sse(&request).await?;
-    /// while let Some(chunk) = stream.next().await {
-    ///     let chunk = chunk?;
-    ///     // chunk.to_format() returns SSE formatted string
-    ///     print!("{}", chunk.to_format()); // "data: {...}\n\n"
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "streaming")]
-    pub async fn chat_stream_sse(&self, request: &ChatRequest) -> Result<crate::types::UniversalChatStream, LlmConnectorError> {
-        let config = crate::types::StreamingConfig {
-            format: crate::types::StreamingFormat::OpenAI,
-            stream_format: crate::types::StreamFormat::SSE,
-            include_usage: true,
-            include_reasoning: true,
-        };
-        self.chat_stream_universal(request, &config).await
-    }
-
-    /// Send a streaming chat completion request in NDJSON format
-    ///
-    /// Convenience method for Newline-Delimited JSON format streaming.
-    /// Perfect for log processing and data pipelines.
-    /// Requires the "streaming" feature to be enabled.
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-    /// use futures_util::StreamExt;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LlmClient::openai("sk-...", None);
-    /// let request = ChatRequest {
-    ///     model: "gpt-4".to_string(),
-    ///     messages: vec![Message::user("Hello!")],
-    ///     ..Default::default()
-    /// };
-    ///
-    /// let mut stream = client.chat_stream_ndjson(&request).await?;
-    /// while let Some(chunk) = stream.next().await {
-    ///     let chunk = chunk?;
-    ///     // chunk.to_format() returns NDJSON formatted string
-    ///     print!("{}", chunk.to_format()); // "{...}\n"
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "streaming")]
-    pub async fn chat_stream_ndjson(&self, request: &ChatRequest) -> Result<crate::types::UniversalChatStream, LlmConnectorError> {
-        let config = crate::types::StreamingConfig {
-            format: crate::types::StreamingFormat::OpenAI,
-            stream_format: crate::types::StreamFormat::NDJSON,
-            include_usage: true,
-            include_reasoning: true,
-        };
-        self.chat_stream_universal(request, &config).await
-    }
-
-    /// Fetch available models from the API (online)
-    ///
-    /// This makes an API call to retrieve the list of available models.
-    /// Returns an error if the provider doesn't support model listing or if the API call fails.
-    ///
-    /// # Example
+    /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LlmClient::openai("sk-...", None);
-    /// let models = client.fetch_models().await?;
-    /// println!("Available models: {:?}", models);
-    /// # Ok(())
-    /// # }
+    /// let client = LlmClient::openai("sk-...").unwrap();
+    /// let provider = client.provider();
+    ///
+    /// // 可以进行类型转换以访问特定提供商的功能
     /// ```
-    pub async fn fetch_models(&self) -> Result<Vec<String>, LlmConnectorError> {
-        self.provider.fetch_models().await
+    pub fn provider(&self) -> &dyn Provider {
+        self.provider.as_ref()
     }
 
-    /// Get protocol name
-    pub fn protocol_name(&self) -> &str {
-        self.provider.name()
+    /// 获取Ollama特殊功能访问
+    ///
+    /// 如果当前客户端是Ollama提供商，返回Ollama特殊功能的访问接口。
+    ///
+    /// # 返回
+    /// 如果是Ollama提供商，返回Some(OllamaProvider)，否则返回None
+    ///
+    /// # 示例
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::ollama().unwrap();
+    /// if let Some(ollama) = client.as_ollama() {
+    ///     // 使用Ollama特殊功能
+    ///     let models = ollama.models().await.unwrap();
+    ///     ollama.pull_model("llama2").await.unwrap();
+    /// }
+    /// ```
+    pub fn as_ollama(&self) -> Option<&crate::providers::OllamaProvider> {
+        self.provider.as_any().downcast_ref::<crate::providers::OllamaProvider>()
     }
-
-    // Ollama model management methods moved to `ollama` trait module
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_client_creation() {
-        // Test all protocol creation methods
-        let _openai = LlmClient::openai("test-key", None);
-        let _anthropic = LlmClient::anthropic("test-key");
-        let _aliyun = LlmClient::aliyun("test-key");
-        let _zhipu = LlmClient::zhipu("test-key");
-        let _ollama = LlmClient::ollama(None);
+impl Clone for LlmClient {
+    fn clone(&self) -> Self {
+        Self {
+            provider: Arc::clone(&self.provider),
+        }
     }
+}
 
-    #[test]
-    fn test_protocol_names() {
-        let openai_client = LlmClient::openai("test-key", None);
-        assert_eq!(openai_client.protocol_name(), "openai");
-
-        let anthropic_client = LlmClient::anthropic("test-key");
-        assert_eq!(anthropic_client.protocol_name(), "anthropic");
-
-        let aliyun_client = LlmClient::aliyun("test-key");
-        assert_eq!(aliyun_client.protocol_name(), "aliyun");
-
-        let zhipu_client = LlmClient::zhipu("test-key");
-        assert_eq!(zhipu_client.protocol_name(), "zhipu");
-
-        let ollama_client = LlmClient::ollama(None);
-        assert_eq!(ollama_client.protocol_name(), "ollama");
+impl std::fmt::Debug for LlmClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LlmClient")
+            .field("provider", &self.provider.name())
+            .finish()
     }
 }

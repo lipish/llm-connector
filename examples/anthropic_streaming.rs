@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
     // 创建 Anthropic 客户端
-    let client = LlmClient::anthropic(&api_key);
+    let client = LlmClient::anthropic(&api_key).unwrap();
 
     // 1. 普通聊天请求
     println!("💬 普通聊天请求:");

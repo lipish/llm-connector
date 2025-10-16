@@ -16,7 +16,7 @@ pub trait OllamaModelOps {
     async fn pull_model(&self, model_name: &str) -> Result<(), LlmConnectorError>;
     async fn push_model(&self, model_name: &str) -> Result<(), LlmConnectorError>;
     async fn delete_model(&self, model_name: &str) -> Result<(), LlmConnectorError>;
-    async fn show_model(&self, model_name: &str) -> Result<crate::protocols::ollama::OllamaModel, LlmConnectorError>;
+    async fn show_model(&self, model_name: &str) -> Result<crate::v1::providers::ollama::OllamaModel, LlmConnectorError>;
 }
 
 #[async_trait]
@@ -33,7 +33,7 @@ impl OllamaModelOps for crate::LlmClient {
 
     async fn list_models(&self) -> Result<Vec<String>, LlmConnectorError> {
         self.ensure_ollama()?;
-        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::protocols::ollama::OllamaProvider>() {
+        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::v1::providers::ollama::OllamaProvider>() {
             ollama_provider.list_models().await
         } else {
             Err(LlmConnectorError::UnsupportedOperation(
@@ -44,7 +44,7 @@ impl OllamaModelOps for crate::LlmClient {
 
     async fn pull_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
         self.ensure_ollama()?;
-        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::protocols::ollama::OllamaProvider>() {
+        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::v1::providers::ollama::OllamaProvider>() {
             ollama_provider.pull_model(model_name).await
         } else {
             Err(LlmConnectorError::UnsupportedOperation(
@@ -55,7 +55,7 @@ impl OllamaModelOps for crate::LlmClient {
 
     async fn push_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
         self.ensure_ollama()?;
-        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::protocols::ollama::OllamaProvider>() {
+        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::v1::providers::ollama::OllamaProvider>() {
             ollama_provider.push_model(model_name).await
         } else {
             Err(LlmConnectorError::UnsupportedOperation(
@@ -66,7 +66,7 @@ impl OllamaModelOps for crate::LlmClient {
 
     async fn delete_model(&self, model_name: &str) -> Result<(), LlmConnectorError> {
         self.ensure_ollama()?;
-        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::protocols::ollama::OllamaProvider>() {
+        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::v1::providers::ollama::OllamaProvider>() {
             ollama_provider.delete_model(model_name).await
         } else {
             Err(LlmConnectorError::UnsupportedOperation(
@@ -75,9 +75,9 @@ impl OllamaModelOps for crate::LlmClient {
         }
     }
 
-    async fn show_model(&self, model_name: &str) -> Result<crate::protocols::ollama::OllamaModel, LlmConnectorError> {
+    async fn show_model(&self, model_name: &str) -> Result<crate::v1::providers::ollama::OllamaModel, LlmConnectorError> {
         self.ensure_ollama()?;
-        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::protocols::ollama::OllamaProvider>() {
+        if let Some(ollama_provider) = self.provider_dyn().as_any().downcast_ref::<crate::v1::providers::ollama::OllamaProvider>() {
             ollama_provider.show_model(model_name).await
         } else {
             Err(LlmConnectorError::UnsupportedOperation(

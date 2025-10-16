@@ -1,16 +1,13 @@
-//! Core traits and abstractions for llm-connector
+//! V2架构核心模块
 //!
-//! This module provides the fundamental abstractions for the two-tier architecture:
-//! - Protocols: Pure API specifications (OpenAI, Anthropic)
-//! - Providers: Service implementations (Aliyun, Zhipu, Ollama)
+//! 这个模块包含V2架构的所有核心组件：
+//! - 统一的trait定义 (Protocol, Provider)
+//! - HTTP客户端实现
+//! - 通用提供商实现
 
-pub mod protocol;
-pub mod provider;
-pub mod http;
-pub mod error;
+pub mod traits;
+pub mod client;
 
-// Re-export core traits
-pub use protocol::Protocol;
-pub use provider::Provider;
-pub use http::HttpTransport;
-pub use error::ErrorMapper;
+// 重新导出核心类型
+pub use traits::{Protocol, Provider, GenericProvider};
+pub use client::HttpClient;

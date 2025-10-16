@@ -5,14 +5,14 @@ use llm_connector::types::Role;
 
 #[test]
 fn test_openai_client_creation() {
-    let client = LlmClient::openai("test-key", None);
-    assert_eq!(client.protocol_name(), "openai");
+    let client = LlmClient::openai("test-key").unwrap();
+    assert_eq!(client.provider_name(), "openai");
 }
 
 #[test]
 fn test_openai_compatible_client_creation() {
-    let client = LlmClient::openai("test-key", Some("https://api.example.com/v1"));
-    assert_eq!(client.protocol_name(), "openai");
+    let client = LlmClient::openai_with_base_url("test-key", "https://api.example.com/v1").unwrap();
+    assert_eq!(client.provider_name(), "openai");
 }
 
 #[test]
@@ -139,19 +139,19 @@ fn test_chat_request_with_all_parameters() {
 
 #[tokio::test]
 async fn test_fetch_models_with_invalid_key() {
-    let client = LlmClient::openai("invalid-key", None);
+    let client = LlmClient::openai("invalid-key").unwrap();
     
     // This should fail with authentication error
-    let result = client.fetch_models().await;
+    let result = client.models().await;
     assert!(result.is_err(), "Should fail with invalid API key");
 }
 
 #[tokio::test]
 async fn test_fetch_models_with_custom_url() {
-    let client = LlmClient::openai("test-key", Some("https://invalid.example.com/v1"));
+    let client = LlmClient::openai_with_base_url("test-key", "https://invalid.example.com/v1").unwrap();
     
     // This should fail with connection error
-    let result = client.fetch_models().await;
+    let result = client.models().await;
     assert!(result.is_err(), "Should fail with invalid URL");
 }
 

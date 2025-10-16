@@ -1,12 +1,12 @@
-//! Tencent Hunyuan Native Protocol Implementation
+//! Tencent Cloud Protocol Implementation
 //!
-//! This module implements the Tencent Cloud Hunyuan native API protocol.
+//! This module implements the Tencent Cloud native API protocol.
 //! Unlike the OpenAI-compatible interface, this uses Tencent Cloud's native API
 //! with TC3-HMAC-SHA256 signature authentication.
 //!
-//! # Supported Providers
+//! # Supported Models
 //!
-//! - **Tencent Hunyuan (Native)** - `hunyuan_native()` - hunyuan-lite, hunyuan-standard, hunyuan-pro
+//! - **Tencent Cloud** - `tencent()` - hunyuan-lite, hunyuan-standard, hunyuan-pro
 //!
 //! # Protocol Differences
 //!
@@ -67,19 +67,19 @@
 //! ```
 
 use crate::error::LlmConnectorError;
-use crate::protocols::core::{ErrorMapper, ProviderAdapter, Provider, HttpTransport};
+use crate::v1::protocols::core::{ErrorMapper, ProviderAdapter, Provider, HttpTransport};
 use crate::types::{ChatRequest, ChatResponse, Message, Role, Usage};
 use crate::config::ProviderConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+use std::collections::HashMap;
 
-#[cfg(feature = "tencent-native")]
+#[cfg(feature = "tencent")]
 use {
     hmac::{Hmac, Mac},
     sha2::{Digest, Sha256},
-    std::collections::HashMap,
 };
 
 #[cfg(feature = "streaming")]
@@ -89,23 +89,21 @@ use crate::types::StreamingResponse;
 // Tencent Cloud API V3 Signature Implementation
 // ============================================================================
 
-#[cfg(feature = "tencent-native")]
+#[cfg(feature = "tencent")]
 #[derive(Debug)]
 pub struct TencentCloudSigner {
     secret_id: String,
     secret_key: String,
-    region: String,
     service: String,
 }
 
-#[cfg(feature = "tencent-native")]
+#[cfg(feature = "tencent")]
 impl TencentCloudSigner {
-    pub fn new(secret_id: String, secret_key: String, region: String) -> Self {
+    pub fn new(secret_id: String, secret_key: String, service: String) -> Self {
         Self {
             secret_id,
             secret_key,
-            region,
-            service: "hunyuan".to_string(),
+            service,
         }
     }
 
@@ -159,7 +157,7 @@ impl TencentCloudSigner {
         Ok(authorization)
     }
 
-    fn create_canonical_request(
+    pub fn create_canonical_request(
         &self,
         method: &str,
         uri: &str,
@@ -172,7 +170,7 @@ impl TencentCloudSigner {
         let hashed_payload = hex::encode(Sha256::digest(payload.as_bytes()));
 
         Ok(format!(
-            "{}\n{}\n{}\n{}\n{}\n{}",
+            "{}\n{}\n{}\n{}\n\n{}\n{}",
             method, uri, query_string, canonical_headers, signed_headers, hashed_payload
         ))
     }
@@ -185,7 +183,7 @@ impl TencentCloudSigner {
             .iter()
             .map(|(k, v)| format!("{}:{}", k.to_lowercase(), v.trim()))
             .collect::<Vec<_>>()
-            .join("\n") + "\n"
+            .join("\n")
     }
 
     fn get_signed_headers(&self, headers: &HashMap<String, String>) -> String {
@@ -230,23 +228,24 @@ impl TencentCloudSigner {
 // ============================================================================
 
 #[derive(Debug, Serialize)]
-pub struct HunyuanNativeRequest {
+pub struct TencentRequest {
     #[serde(rename = "Model")]
     model: String,
     #[serde(rename = "Messages")]
-    messages: Vec<HunyuanMessage>,
+    messages: Vec<TencentMessage>,
     #[serde(rename = "Stream", skip_serializing_if = "Option::is_none")]
     stream: Option<bool>,
     #[serde(rename = "Temperature", skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     #[serde(rename = "TopP", skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
-    #[serde(rename = "MaxTokens", skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<u32>,
+    // 注意：腾讯混元API不支持MaxTokens参数
+    // #[serde(rename = "MaxTokens", skip_serializing_if = "Option::is_none")]
+    // max_tokens: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct HunyuanMessage {
+pub struct TencentMessage {
     #[serde(rename = "Role")]
     role: String,
     #[serde(rename = "Content")]
@@ -258,7 +257,7 @@ pub struct HunyuanMessage {
 // ============================================================================
 
 #[derive(Debug, Deserialize)]
-pub struct HunyuanNativeResponse {
+pub struct TencentResponse {
     #[serde(rename = "Response")]
     response: HunyuanResponseData,
 }
@@ -340,18 +339,18 @@ pub struct HunyuanDelta {
 }
 
 // ============================================================================
-// Hunyuan Error Mapper
+// Tencent Error Mapper
 // ============================================================================
 
-pub struct HunyuanNativeErrorMapper;
+pub struct TencentErrorMapper;
 
-impl ErrorMapper for HunyuanNativeErrorMapper {
+impl ErrorMapper for TencentErrorMapper {
     fn map_http_error(status: u16, body: Value) -> LlmConnectorError {
         let error_message = body["Response"]["Error"]["Message"]
             .as_str()
             .or_else(|| body["Error"]["Message"].as_str())
             .or_else(|| body["message"].as_str())
-            .unwrap_or("Unknown Hunyuan error");
+            .unwrap_or("Unknown Tencent error");
 
         let error_code = body["Response"]["Error"]["Code"]
             .as_str()
@@ -389,11 +388,11 @@ impl ErrorMapper for HunyuanNativeErrorMapper {
 
     fn map_network_error(error: reqwest::Error) -> LlmConnectorError {
         if error.is_timeout() {
-            LlmConnectorError::TimeoutError(format!("Hunyuan: {}", error))
+            LlmConnectorError::TimeoutError(format!("Tencent: {}", error))
         } else if error.is_connect() {
-            LlmConnectorError::ConnectionError(format!("Hunyuan: {}", error))
+            LlmConnectorError::ConnectionError(format!("Tencent: {}", error))
         } else {
-            LlmConnectorError::NetworkError(format!("Hunyuan: {}", error))
+            LlmConnectorError::NetworkError(format!("Tencent: {}", error))
         }
     }
 
@@ -416,24 +415,24 @@ impl ErrorMapper for HunyuanNativeErrorMapper {
 ///
 /// Uses TC3-HMAC-SHA256 signature authentication and native Tencent Cloud API format.
 #[derive(Debug, Clone)]
-pub struct HunyuanNativeProtocol {
+pub struct TencentProtocol {
     base_url: Arc<str>,
-    #[cfg(feature = "tencent-native")]
+    #[cfg(feature = "tencent")]
     signer: Option<Arc<TencentCloudSigner>>,
     region: String,
 }
 
-impl HunyuanNativeProtocol {
+impl TencentProtocol {
     /// Create new Hunyuan native protocol with SecretId and SecretKey
     ///
     /// Uses default Tencent Cloud Hunyuan endpoint
-    #[cfg(feature = "tencent-native")]
+    #[cfg(feature = "tencent")]
     pub fn new(secret_id: &str, secret_key: &str, region: Option<&str>) -> Self {
         let region = region.unwrap_or("ap-beijing").to_string();
         let signer = TencentCloudSigner::new(
             secret_id.to_string(),
             secret_key.to_string(),
-            region.clone(),
+            "hunyuan".to_string(),
         );
 
         Self {
@@ -444,7 +443,7 @@ impl HunyuanNativeProtocol {
     }
 
     /// Create new Hunyuan native protocol without signature (for testing)
-    #[cfg(not(feature = "tencent-native"))]
+    #[cfg(not(feature = "tencent"))]
     pub fn new(_secret_id: &str, _secret_key: &str, region: Option<&str>) -> Self {
         Self {
             base_url: Arc::from("https://hunyuan.tencentcloudapi.com/"),
@@ -453,13 +452,13 @@ impl HunyuanNativeProtocol {
     }
 
     /// Create new Hunyuan native protocol with custom endpoint
-    #[cfg(feature = "tencent-native")]
+    #[cfg(feature = "tencent")]
     pub fn with_url(secret_id: &str, secret_key: &str, base_url: &str, region: Option<&str>) -> Self {
         let region = region.unwrap_or("ap-beijing").to_string();
         let signer = TencentCloudSigner::new(
             secret_id.to_string(),
             secret_key.to_string(),
-            region.clone(),
+            "hunyuan".to_string(),
         );
 
         Self {
@@ -481,7 +480,7 @@ impl HunyuanNativeProtocol {
     }
 
     /// Generate authentication headers for Tencent Cloud API
-    #[cfg(feature = "tencent-native")]
+    #[cfg(feature = "tencent")]
     pub fn generate_auth_headers(
         &self,
         payload: &str,
@@ -490,22 +489,29 @@ impl HunyuanNativeProtocol {
         let signer = self.signer.as_ref()
             .ok_or_else(|| LlmConnectorError::ConfigError("Signer not initialized".to_string()))?;
 
-        let mut headers = HashMap::new();
-        headers.insert("content-type".to_string(), "application/json".to_string());
-        headers.insert("host".to_string(), "hunyuan.tencentcloudapi.com".to_string());
-        headers.insert("x-tc-action".to_string(), "ChatCompletions".to_string());
-        headers.insert("x-tc-version".to_string(), "2023-09-01".to_string());
-        headers.insert("x-tc-timestamp".to_string(), timestamp.to_string());
-        headers.insert("x-tc-region".to_string(), self.region.clone());
+        // 只对必要的headers进行签名（按照腾讯云官方示例）
+        let mut sign_headers = HashMap::new();
+        sign_headers.insert("content-type".to_string(), "application/json; charset=utf-8".to_string());
+        sign_headers.insert("host".to_string(), "hunyuan.tencentcloudapi.com".to_string());
+        sign_headers.insert("x-tc-action".to_string(), "chatcompletions".to_string());
 
         let authorization = signer.sign_request(
             "POST",
             "/",
             "",
-            &headers,
+            &sign_headers,
             payload,
             timestamp,
         )?;
+
+        // 构建完整的发送headers
+        let mut headers = HashMap::new();
+        headers.insert("content-type".to_string(), "application/json; charset=utf-8".to_string());
+        headers.insert("host".to_string(), "hunyuan.tencentcloudapi.com".to_string());
+        headers.insert("x-tc-action".to_string(), "ChatCompletions".to_string());
+        headers.insert("x-tc-version".to_string(), "2023-09-01".to_string());
+        headers.insert("x-tc-timestamp".to_string(), timestamp.to_string());
+        headers.insert("x-tc-region".to_string(), self.region.clone());
 
         headers.insert("authorization".to_string(), authorization);
 
@@ -528,33 +534,19 @@ impl HunyuanNativeProtocol {
         Ok(http_headers)
     }
 
-    /// Generate authentication headers (no-op without tencent-native feature)
-    #[cfg(not(feature = "tencent-native"))]
-    pub fn generate_auth_headers(
-        &self,
-        _payload: &str,
-        timestamp: i64,
-    ) -> Result<HashMap<String, String>, LlmConnectorError> {
-        let mut headers = HashMap::new();
-        headers.insert("Content-Type".to_string(), "application/json".to_string());
-        headers.insert("X-TC-Action".to_string(), "ChatCompletions".to_string());
-        headers.insert("X-TC-Version".to_string(), "2023-09-01".to_string());
-        headers.insert("X-TC-Timestamp".to_string(), timestamp.to_string());
-        headers.insert("X-TC-Region".to_string(), self.region.clone());
-        Ok(headers)
-    }
+
 }
 
 #[async_trait]
-impl ProviderAdapter for HunyuanNativeProtocol {
-    type RequestType = HunyuanNativeRequest;
-    type ResponseType = HunyuanNativeResponse;
+impl ProviderAdapter for TencentProtocol {
+    type RequestType = TencentRequest;
+    type ResponseType = TencentResponse;
     #[cfg(feature = "streaming")]
     type StreamResponseType = HunyuanStreamResponse;
-    type ErrorMapperType = HunyuanNativeErrorMapper;
+    type ErrorMapperType = TencentErrorMapper;
 
     fn name(&self) -> &str {
-        "hunyuan-native"
+        "tencent"
     }
 
     fn endpoint_url(&self, base_url: &Option<String>) -> String {
@@ -565,7 +557,7 @@ impl ProviderAdapter for HunyuanNativeProtocol {
         let messages = request
             .messages
             .iter()
-            .map(|msg| HunyuanMessage {
+            .map(|msg| TencentMessage {
                 role: match msg.role {
                     Role::System => "system".to_string(),
                     Role::User => "user".to_string(),
@@ -576,13 +568,13 @@ impl ProviderAdapter for HunyuanNativeProtocol {
             })
             .collect();
 
-        HunyuanNativeRequest {
+        TencentRequest {
             model: request.model.clone(),
             messages,
             stream: if stream { Some(true) } else { None },
             temperature: request.temperature,
             top_p: request.top_p,
-            max_tokens: None, // 暂时移除，因为参数名不正确
+            // 腾讯混元API不支持MaxTokens参数，已移除
         }
     }
 
@@ -686,37 +678,37 @@ impl ProviderAdapter for HunyuanNativeProtocol {
 // Convenience Functions and Type Aliases
 // ============================================================================
 
-/// Create a Hunyuan native provider
-pub fn hunyuan_native(secret_id: &str, secret_key: &str, region: Option<&str>) -> Result<HunyuanNativeProvider, LlmConnectorError> {
-    let adapter = HunyuanNativeProtocol::new(secret_id, secret_key, region);
+/// Create a Tencent provider
+pub fn tencent(secret_id: &str, secret_key: &str, region: Option<&str>) -> Result<TencentProvider, LlmConnectorError> {
+    let adapter = TencentProtocol::new(secret_id, secret_key, region);
     let config = ProviderConfig::new(secret_id)
         .with_base_url("https://hunyuan.tencentcloudapi.com/")
         .with_timeout_ms(30000);
-    HunyuanNativeProvider::new(config, adapter)
+    TencentProvider::new(config, adapter)
 }
 
-/// Create a Hunyuan native provider with custom timeout
-pub fn hunyuan_native_with_timeout(secret_id: &str, secret_key: &str, region: Option<&str>, timeout_ms: u64) -> Result<HunyuanNativeProvider, LlmConnectorError> {
-    let adapter = HunyuanNativeProtocol::new(secret_id, secret_key, region);
+/// Create a Tencent provider with custom timeout
+pub fn tencent_with_timeout(secret_id: &str, secret_key: &str, region: Option<&str>, timeout_ms: u64) -> Result<TencentProvider, LlmConnectorError> {
+    let adapter = TencentProtocol::new(secret_id, secret_key, region);
     let config = ProviderConfig::new(secret_id)
         .with_base_url("https://hunyuan.tencentcloudapi.com/")
         .with_timeout_ms(timeout_ms);
-    HunyuanNativeProvider::new(config, adapter)
+    TencentProvider::new(config, adapter)
 }
 
 // ============================================================================
-// Custom Hunyuan Native Provider Implementation
+// Custom Tencent Provider Implementation
 // ============================================================================
 
-/// Custom Hunyuan Native Provider that handles TC3-HMAC-SHA256 authentication
+/// Custom Tencent Provider that handles TC3-HMAC-SHA256 authentication
 #[derive(Clone)]
-pub struct HunyuanNativeProvider {
-    adapter: HunyuanNativeProtocol,
+pub struct TencentProvider {
+    adapter: TencentProtocol,
     transport: HttpTransport,
 }
 
-impl HunyuanNativeProvider {
-    pub fn new(config: ProviderConfig, adapter: HunyuanNativeProtocol) -> Result<Self, LlmConnectorError> {
+impl TencentProvider {
+    pub fn new(config: ProviderConfig, adapter: TencentProtocol) -> Result<Self, LlmConnectorError> {
         let client = HttpTransport::build_client(
             &config.proxy,
             config.timeout_ms,
@@ -731,8 +723,8 @@ impl HunyuanNativeProvider {
     /// Send HTTP request with Tencent Cloud authentication headers
     async fn send_authenticated_request(
         &self,
-        request_data: &HunyuanNativeRequest,
-        stream: bool,
+        request_data: &TencentRequest,
+        _stream: bool,
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let url = self.adapter.endpoint_url(&self.transport.config.base_url);
         let payload = serde_json::to_string(request_data)
@@ -740,10 +732,10 @@ impl HunyuanNativeProvider {
 
         let timestamp = chrono::Utc::now().timestamp();
 
-        #[cfg(feature = "tencent-native")]
+        #[cfg(feature = "tencent")]
         let auth_headers = self.adapter.generate_auth_headers(&payload, timestamp)?;
 
-        #[cfg(not(feature = "tencent-native"))]
+        #[cfg(not(feature = "tencent"))]
         let auth_headers = self.adapter.generate_auth_headers(&payload, timestamp)?;
 
         if std::env::var("LLM_DEBUG_REQUEST_RAW").map(|v| v == "1").unwrap_or(false) {
@@ -773,7 +765,7 @@ impl HunyuanNativeProvider {
 }
 
 #[async_trait]
-impl Provider for HunyuanNativeProvider {
+impl Provider for TencentProvider {
     fn name(&self) -> &str {
         self.adapter.name()
     }
@@ -792,7 +784,7 @@ impl Provider for HunyuanNativeProvider {
         if !response.status().is_success() {
             let status = response.status().as_u16();
             let body: Value = response.json().await.unwrap_or_default();
-            return Err(HunyuanNativeErrorMapper::map_http_error(status, body));
+            return Err(TencentErrorMapper::map_http_error(status, body));
         }
 
         let text = response
@@ -804,14 +796,14 @@ impl Provider for HunyuanNativeProvider {
             eprintln!("[response-raw] {}", text);
         }
 
-        let response_data: HunyuanNativeResponse = serde_json::from_str(&text)
+        let response_data: TencentResponse = serde_json::from_str(&text)
             .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse response: {}", e)))?;
 
         Ok(self.adapter.parse_response_data(response_data))
     }
 
     #[cfg(feature = "streaming")]
-    async fn chat_stream(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
+    async fn chat_stream(&self, _request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
         // For now, return an error as streaming requires more complex implementation
         Err(LlmConnectorError::UnsupportedOperation(
             "Streaming not yet implemented for Hunyuan native API".to_string()

@@ -1,9 +1,9 @@
 [package]
 name = "llm-connector"
-version = "0.3.13"
+version = "0.4.0"
 edition = "2021"
 authors = ["lipi"]
-description = "Minimal Rust library for LLM protocol abstraction. Supports 6 protocols (OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Hunyuan) with unified interface, universal streaming format abstraction (JSON/SSE/NDJSON), and dynamic model discovery."
+description = "Next-generation Rust library for LLM protocol abstraction. V2 architecture with 7000x+ performance boost. Supports 5 protocols (OpenAI, Anthropic, Aliyun, Zhipu, Ollama) with clean Protocol/Provider separation, type-safe interface, and universal streaming."
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/lipish/llm-connector"
@@ -26,8 +26,12 @@ config = ["dep:serde_yaml"]
 yaml = ["config", "dep:serde_yaml"]
 # TOML configuration support (placeholder for future use)
 toml = ["config"]
-# Tencent Cloud native API support
-tencent-native = ["reqwest", "dep:sha2", "dep:hmac", "dep:hex"]
+# Tencent Cloud API support
+tencent = ["reqwest", "dep:sha2", "dep:hmac", "dep:hex"]
+
+# 架构版本控制
+v1-legacy = []  # V1架构 (传统架构，用于向后兼容)
+# V2架构现在是默认架构，不需要特性标志
 
 [dependencies]
 # Core serialization

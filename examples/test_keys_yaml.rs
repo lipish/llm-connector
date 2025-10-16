@@ -126,11 +126,11 @@ async fn test_provider(name: &str, config: &ProviderConfig) {
 async fn test_openai_compatible(name: &str, api_key: &str, base_url: &str) {
     use llm_connector::LlmClient;
     
-    let client = LlmClient::openai(api_key, Some(base_url));
+    let client = LlmClient::openai_with_base_url(api_key, base_url).unwrap();
     
     // Test 1: Fetch models
     println!("   Test 1: Fetching models from API...");
-    match client.fetch_models().await {
+    match client.models().await {
         Ok(models) => {
             println!("   ✅ SUCCESS! API key is valid");
             println!("   📦 Found {} model(s): {:?}", models.len(), models);
@@ -243,7 +243,7 @@ async fn test_anthropic(_name: &str, api_key: &str) {
     
     use llm_connector::{LlmClient, ChatRequest, Message};
     
-    let client = LlmClient::anthropic(api_key);
+    let client = LlmClient::anthropic(api_key).unwrap();
     
     let request = ChatRequest {
         model: "claude-3-5-sonnet-20241022".to_string(),
@@ -272,7 +272,7 @@ async fn test_aliyun(_name: &str, api_key: &str) {
     
     use llm_connector::{LlmClient, ChatRequest, Message};
     
-    let client = LlmClient::aliyun(api_key);
+    let client = LlmClient::aliyun(api_key).unwrap();
     
     let request = ChatRequest {
         model: "qwen-turbo".to_string(),
@@ -301,7 +301,7 @@ async fn test_ollama(_name: &str, base_url: &str) {
     
     use llm_connector::{LlmClient, ChatRequest, Message};
     
-    let client = LlmClient::ollama(Some(base_url));
+    let client = LlmClient::ollama_with_url(base_url).unwrap();
     
     let request = ChatRequest {
         model: "llama3.2".to_string(),

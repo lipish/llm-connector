@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦙 Ollama 流式响应示例\n");
 
     // 创建 Ollama 客户端（默认 http://localhost:11434）
-    let client = LlmClient::ollama(None);
+    let client = LlmClient::ollama().unwrap();
 
     // 准备请求（确保模型已安装，如 llama3.2）
     let request = ChatRequest {
