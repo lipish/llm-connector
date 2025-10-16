@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-10-16
+
+### 🔧 **HOTFIX: Compilation Error**
+
+#### **Fixed**
+- **Critical compilation error** - Fixed unresolved import `crate::sse::SseStream`
+  - Replaced incorrect `SseStream::new(response)` calls with `crate::sse::sse_events(response)`
+  - Affected files: `src/core/traits.rs`, `src/protocols/zhipu.rs`, `src/providers/ollama.rs`
+  - All streaming functionality now works correctly
+
+#### **Impact**
+- ✅ **Compilation**: Now compiles successfully without errors
+- ✅ **Streaming**: All streaming features work as expected
+- ✅ **Functionality**: No breaking changes to public API
+
 ## [0.4.0] - 2025-10-16
 
 ### 🚀 **MAJOR RELEASE: V2 Architecture**

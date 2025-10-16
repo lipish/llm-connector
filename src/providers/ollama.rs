@@ -282,8 +282,7 @@ impl Provider for OllamaProvider {
         }
         
         // Ollama使用JSONL格式而不是SSE
-        use crate::sse::SseStream;
-        Ok(Box::pin(SseStream::new(response)))
+        Ok(crate::sse::sse_events(response))
     }
     
     fn as_any(&self) -> &dyn Any {
