@@ -2,9 +2,9 @@
 //!
 //! Ollama是一个本地LLM服务，具有特殊的模型管理功能，因此需要自定义Provider实现。
 
-use crate::core::{Provider, HttpClient};
-use crate::types::{ChatRequest, ChatResponse, Message, Role, Choice};
+use crate::core::{HttpClient, Provider};
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -13,7 +13,7 @@ use std::any::Any;
 use crate::types::ChatStream;
 
 /// Ollama服务提供商
-/// 
+///
 /// 由于Ollama具有特殊的模型管理功能，我们使用自定义Provider实现
 /// 而不是GenericProvider模式。
 #[derive(Clone, Debug)]
@@ -24,26 +24,26 @@ pub struct OllamaProvider {
 
 impl OllamaProvider {
     /// 创建新的Ollama提供商
-    /// 
+    ///
     /// # 参数
     /// - `base_url`: Ollama服务的URL (默认: http://localhost:11434)
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::provider::OllamaProvider;
-    /// 
+    ///
     /// let provider = OllamaProvider::new("http://localhost:11434").unwrap();
     /// ```
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = HttpClient::new(base_url)?
             .with_header("Content-Type".to_string(), "application/json".to_string());
-            
+
         Ok(Self {
             client,
             base_url: base_url.to_string(),
         })
     }
-    
+
     /// 创建带有自定义配置的Ollama提供商
     pub fn with_config(
         base_url: &str,
@@ -52,18 +52,18 @@ impl OllamaProvider {
     ) -> Result<Self, LlmConnectorError> {
         let client = HttpClient::with_config(base_url, timeout_secs, proxy)?
             .with_header("Content-Type".to_string(), "application/json".to_string());
-            
+
         Ok(Self {
             client,
             base_url: base_url.to_string(),
         })
     }
-    
+
     /// 拉取模型
-    /// 
+    ///
     /// # 参数
     /// - `model_name`: 要拉取的模型名称 (如 "llama2", "codellama")
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// # use llm_connector::provider::OllamaProvider;
@@ -79,24 +79,29 @@ impl OllamaProvider {
             name: model_name.to_string(),
             stream: Some(false),
         };
-        
+
         let url = format!("{}/api/pull", self.base_url);
         let response = self.client.post(&url, &request).await?;
-        
+
         if !response.status().is_success() {
-            let text = response.text().await
+            let text = response
+                .text()
+                .await
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-            return Err(LlmConnectorError::ApiError(format!("Failed to pull model: {}", text)));
+            return Err(LlmConnectorError::ApiError(format!(
+                "Failed to pull model: {}",
+                text
+            )));
         }
-        
+
         Ok(())
     }
-    
+
     /// 删除模型
-    /// 
+    ///
     /// # 参数
     /// - `model_name`: 要删除的模型名称
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// # use llm_connector::provider::OllamaProvider;
@@ -111,45 +116,56 @@ impl OllamaProvider {
         let request = OllamaDeleteRequest {
             name: model_name.to_string(),
         };
-        
+
         let url = format!("{}/api/delete", self.base_url);
         let response = self.client.post(&url, &request).await?;
-        
+
         if !response.status().is_success() {
-            let text = response.text().await
+            let text = response
+                .text()
+                .await
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-            return Err(LlmConnectorError::ApiError(format!("Failed to delete model: {}", text)));
+            return Err(LlmConnectorError::ApiError(format!(
+                "Failed to delete model: {}",
+                text
+            )));
         }
-        
+
         Ok(())
     }
-    
+
     /// 获取模型信息
-    /// 
+    ///
     /// # 参数
     /// - `model_name`: 模型名称
-    /// 
+    ///
     /// # 返回
     /// 模型的详细信息
     pub async fn show_model(&self, model_name: &str) -> Result<OllamaModelInfo, LlmConnectorError> {
         let request = OllamaShowRequest {
             name: model_name.to_string(),
         };
-        
+
         let url = format!("{}/api/show", self.base_url);
         let response = self.client.post(&url, &request).await?;
         let status = response.status();
-        let text = response.text().await
+        let text = response
+            .text()
+            .await
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
 
         if !status.is_success() {
-            return Err(LlmConnectorError::ApiError(format!("Failed to show model: {}", text)));
+            return Err(LlmConnectorError::ApiError(format!(
+                "Failed to show model: {}",
+                text
+            )));
         }
-        
-        serde_json::from_str(&text)
-            .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse model info: {}", e)))
+
+        serde_json::from_str(&text).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to parse model info: {}", e))
+        })
     }
-    
+
     /// 检查模型是否存在
     pub async fn model_exists(&self, model_name: &str) -> Result<bool, LlmConnectorError> {
         match self.show_model(model_name).await {
@@ -165,36 +181,45 @@ impl Provider for OllamaProvider {
     fn name(&self) -> &str {
         "ollama"
     }
-    
+
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
         let url = format!("{}/api/tags", self.base_url);
         let response = self.client.get(&url).await?;
         let status = response.status();
-        let text = response.text().await
+        let text = response
+            .text()
+            .await
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
 
         if !status.is_success() {
-            return Err(LlmConnectorError::ApiError(format!("Failed to get models: {}", text)));
+            return Err(LlmConnectorError::ApiError(format!(
+                "Failed to get models: {}",
+                text
+            )));
         }
-        
+
         let models_response: OllamaModelsResponse = serde_json::from_str(&text)
             .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse models: {}", e)))?;
-            
+
         Ok(models_response.models.into_iter().map(|m| m.name).collect())
     }
-    
+
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         let ollama_request = OllamaChatRequest {
             model: request.model.clone(),
-            messages: request.messages.iter().map(|msg| OllamaMessage {
-                role: match msg.role {
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    Role::System => "system".to_string(),
-                    Role::Tool => "user".to_string(), // Ollama不支持tool角色
-                },
-                content: msg.content.clone(),
-            }).collect(),
+            messages: request
+                .messages
+                .iter()
+                .map(|msg| OllamaMessage {
+                    role: match msg.role {
+                        Role::User => "user".to_string(),
+                        Role::Assistant => "assistant".to_string(),
+                        Role::System => "system".to_string(),
+                        Role::Tool => "user".to_string(), // Ollama不支持tool角色
+                    },
+                    content: msg.content.clone(),
+                })
+                .collect(),
             stream: Some(false),
             options: Some(OllamaOptions {
                 temperature: request.temperature,
@@ -202,22 +227,28 @@ impl Provider for OllamaProvider {
                 top_p: request.top_p,
             }),
         };
-        
+
         let url = format!("{}/api/chat", self.base_url);
         let response = self.client.post(&url, &ollama_request).await?;
         let status = response.status();
-        let text = response.text().await
+        let text = response
+            .text()
+            .await
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
 
         if !status.is_success() {
-            return Err(LlmConnectorError::ApiError(format!("Ollama chat failed: {}", text)));
+            return Err(LlmConnectorError::ApiError(format!(
+                "Ollama chat failed: {}",
+                text
+            )));
         }
-        
-        let ollama_response: OllamaChatResponse = serde_json::from_str(&text)
-            .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse Ollama response: {}", e)))?;
-        
+
+        let ollama_response: OllamaChatResponse = serde_json::from_str(&text).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to parse Ollama response: {}", e))
+        })?;
+
         let content = ollama_response.message.content.clone();
-        
+
         let choices = vec![Choice {
             index: 0,
             message: Message {
@@ -234,7 +265,7 @@ impl Provider for OllamaProvider {
             finish_reason: Some("stop".to_string()),
             logprobs: None,
         }];
-        
+
         Ok(ChatResponse {
             id: "ollama-response".to_string(),
             object: "chat.completion".to_string(),
@@ -249,20 +280,24 @@ impl Provider for OllamaProvider {
             system_fingerprint: None,
         })
     }
-    
+
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
-        let mut ollama_request = OllamaChatRequest {
+        let ollama_request = OllamaChatRequest {
             model: request.model.clone(),
-            messages: request.messages.iter().map(|msg| OllamaMessage {
-                role: match msg.role {
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    Role::System => "system".to_string(),
-                    Role::Tool => "user".to_string(),
-                },
-                content: msg.content.clone(),
-            }).collect(),
+            messages: request
+                .messages
+                .iter()
+                .map(|msg| OllamaMessage {
+                    role: match msg.role {
+                        Role::User => "user".to_string(),
+                        Role::Assistant => "assistant".to_string(),
+                        Role::System => "system".to_string(),
+                        Role::Tool => "user".to_string(),
+                    },
+                    content: msg.content.clone(),
+                })
+                .collect(),
             stream: Some(true),
             options: Some(OllamaOptions {
                 temperature: request.temperature,
@@ -270,21 +305,26 @@ impl Provider for OllamaProvider {
                 top_p: request.top_p,
             }),
         };
-        
+
         let url = format!("{}/api/chat", self.base_url);
         let response = self.client.stream(&url, &ollama_request).await?;
         let status = response.status();
 
         if !status.is_success() {
-            let text = response.text().await
+            let text = response
+                .text()
+                .await
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-            return Err(LlmConnectorError::ApiError(format!("Ollama stream failed: {}", text)));
+            return Err(LlmConnectorError::ApiError(format!(
+                "Ollama stream failed: {}",
+                text
+            )));
         }
-        
+
         // Ollama使用JSONL格式而不是SSE
         Ok(crate::sse::sse_to_streaming_response(response))
     }
-    
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -378,11 +418,11 @@ struct OllamaModel {
 }
 
 /// 创建Ollama服务提供商 (默认本地地址)
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::provider::ollama;
-/// 
+///
 /// let provider = ollama().unwrap();
 /// ```
 pub fn ollama() -> Result<OllamaProvider, LlmConnectorError> {
@@ -390,14 +430,14 @@ pub fn ollama() -> Result<OllamaProvider, LlmConnectorError> {
 }
 
 /// 创建带有自定义URL的Ollama服务提供商
-/// 
+///
 /// # 参数
 /// - `base_url`: Ollama服务的URL
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::provider::ollama_with_url;
-/// 
+///
 /// let provider = ollama_with_url("http://192.168.1.100:11434").unwrap();
 /// ```
 pub fn ollama_with_url(base_url: &str) -> Result<OllamaProvider, LlmConnectorError> {
@@ -405,16 +445,16 @@ pub fn ollama_with_url(base_url: &str) -> Result<OllamaProvider, LlmConnectorErr
 }
 
 /// 创建带有自定义配置的Ollama服务提供商
-/// 
+///
 /// # 参数
 /// - `base_url`: Ollama服务的URL
 /// - `timeout_secs`: 超时时间(秒)
 /// - `proxy`: 代理URL (可选)
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::provider::ollama_with_config;
-/// 
+///
 /// let provider = ollama_with_config(
 ///     "http://localhost:11434",
 ///     Some(120), // 2分钟超时

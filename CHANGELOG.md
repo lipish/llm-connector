@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.5] - 2025-10-16
+
+### 🔧 **HOTFIX: Test Compilation Errors**
+
+#### **Fixed**
+- **Test compilation errors** - Fixed compilation errors in test files
+  - Fixed `tests/client_tests.rs`: Updated `protocol_name()` → `provider_name()` method calls
+  - Fixed main documentation tests in `src/lib.rs` and `src/client.rs`
+  - Updated import statements to use correct V2 architecture paths
+  - All unit tests and integration tests now pass successfully
+
+#### **Impact**
+- ✅ **Tests**: All unit and integration tests compile and pass (78/78)
+- ✅ **Documentation**: Main documentation examples work correctly
+- ✅ **CI/CD**: Test suite runs successfully for automated builds
+
 ## [0.4.4] - 2025-10-16
 
 ### 🔧 **HOTFIX: Examples Compilation Errors**

@@ -45,10 +45,10 @@ fn test_multiple_clients_can_coexist() {
     let aliyun = LlmClient::aliyun("sk-3").unwrap();
     let ollama = LlmClient::ollama().unwrap();
 
-    assert_eq!(openai.protocol_name(), "openai");
-    assert_eq!(anthropic.protocol_name(), "anthropic");
-    assert_eq!(aliyun.protocol_name(), "aliyun");
-    assert_eq!(ollama.protocol_name(), "ollama");
+    assert_eq!(openai.provider_name(), "openai");
+    assert_eq!(anthropic.provider_name(), "anthropic");
+    assert_eq!(aliyun.provider_name(), "aliyun");
+    assert_eq!(ollama.provider_name(), "ollama");
 }
 
 #[test]

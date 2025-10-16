@@ -80,7 +80,7 @@
 //!
 //! ### Ollama Protocol (Local)
 //! ```rust,no_run
-//! use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
+//! use llm_connector::{LlmClient, Provider, types::{ChatRequest, Message, Role}};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {

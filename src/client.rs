@@ -17,19 +17,22 @@ use crate::types::ChatStream;
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::{LlmClient, provider};
-/// use llm_connector::types::{ChatRequest, Message, Role};
-/// 
+/// use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
+///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // 创建OpenAI客户端
 ///     let client = LlmClient::openai("sk-...")?;
-///     
+///
 ///     // 创建请求
 ///     let request = ChatRequest {
 ///         model: "gpt-4".to_string(),
 ///         messages: vec![
-///             Message::user("Hello, how are you?")
+///             Message {
+///                 role: Role::User,
+///                 content: "Hello, how are you?".to_string(),
+///                 ..Default::default()
+///             }
 ///         ],
 ///         ..Default::default()
 ///     };
@@ -368,13 +371,17 @@ impl LlmClient {
     ///
     /// # 示例
     /// ```rust,no_run
-    /// use llm_connector::LlmClient;
+    /// use llm_connector::{LlmClient, Provider};
     ///
-    /// let client = LlmClient::ollama().unwrap();
-    /// if let Some(ollama) = client.as_ollama() {
-    ///     // 使用Ollama特殊功能
-    ///     let models = ollama.models().await.unwrap();
-    ///     ollama.pull_model("llama2").await.unwrap();
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = LlmClient::ollama()?;
+    ///     if let Some(ollama) = client.as_ollama() {
+    ///         // 使用Ollama特殊功能
+    ///         let models = ollama.models().await?;
+    ///         ollama.pull_model("llama2").await?;
+    ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub fn as_ollama(&self) -> Option<&crate::providers::OllamaProvider> {
