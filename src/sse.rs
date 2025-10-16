@@ -108,8 +108,8 @@ pub fn json_lines_events(
 #[cfg(feature = "streaming")]
 pub fn sse_to_streaming_response(
     response: reqwest::Response,
-) -> crate::types::streaming::ChatStream {
-    use crate::types::streaming::StreamingResponse;
+) -> crate::types::ChatStream {
+    use crate::types::StreamingResponse;
     use futures_util::StreamExt;
 
     let string_stream = sse_events(response);

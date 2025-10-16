@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2025-10-16
+
+### 🔧 **HOTFIX: Module Privacy Error**
+
+#### **Fixed**
+- **Critical module privacy error** - Fixed private module access in streaming functionality
+  - Fixed import path: `crate::types::streaming::ChatStream` → `crate::types::ChatStream`
+  - Fixed import path: `crate::types::streaming::StreamingResponse` → `crate::types::StreamingResponse`
+  - The `streaming` module is conditionally exported and should be accessed through `types` module
+  - Affected file: `src/sse.rs`
+
+#### **Impact**
+- ✅ **Compilation**: Now compiles successfully without privacy errors
+- ✅ **Streaming**: All streaming features work correctly
+- ✅ **Functionality**: No breaking changes to public API
+
 ## [0.4.2] - 2025-10-16
 
 ### 🔧 **HOTFIX: Type Mismatch Error**
