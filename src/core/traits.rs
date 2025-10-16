@@ -61,7 +61,7 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(&self, response: reqwest::Response) -> Result<ChatStream, LlmConnectorError> {
         // 默认使用通用SSE流解析
-        Ok(crate::sse::sse_events(response))
+        Ok(crate::sse::sse_to_streaming_response(response))
     }
 }
 

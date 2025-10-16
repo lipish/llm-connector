@@ -173,7 +173,7 @@ impl Protocol for ZhipuProtocol {
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(&self, response: reqwest::Response) -> Result<ChatStream, LlmConnectorError> {
         // 智谱使用标准SSE格式
-        Ok(crate::sse::sse_events(response))
+        Ok(crate::sse::sse_to_streaming_response(response))
     }
 }
 

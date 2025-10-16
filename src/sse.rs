@@ -103,3 +103,25 @@ pub fn json_lines_events(
 
         Box::pin(events_stream)
     }
+
+/// Convert SSE string stream to StreamingResponse stream
+#[cfg(feature = "streaming")]
+pub fn sse_to_streaming_response(
+    response: reqwest::Response,
+) -> crate::types::streaming::ChatStream {
+    use crate::types::streaming::StreamingResponse;
+    use futures_util::StreamExt;
+
+    let string_stream = sse_events(response);
+    let response_stream = string_stream.map(|result| {
+        result.and_then(|json_str| {
+            // Try to parse as StreamingResponse
+            serde_json::from_str::<StreamingResponse>(&json_str)
+                .map_err(|e| crate::error::LlmConnectorError::ParseError(
+                    format!("Failed to parse streaming response: {}", e)
+                ))
+        })
+    });
+
+    Box::pin(response_stream)
+}

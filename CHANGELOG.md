@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2025-10-16
+
+### 🔧 **HOTFIX: Type Mismatch Error**
+
+#### **Fixed**
+- **Critical type mismatch error** - Fixed streaming response type conversion
+  - Added `sse_to_streaming_response()` function to convert `String` stream to `StreamingResponse` stream
+  - Fixed type mismatch: expected `StreamingResponse` but found `String` in streaming methods
+  - Affected files: `src/sse.rs`, `src/core/traits.rs`, `src/protocols/zhipu.rs`, `src/providers/ollama.rs`
+  - All streaming functionality now works correctly with proper type conversion
+
+#### **Impact**
+- ✅ **Compilation**: Now compiles successfully without type errors
+- ✅ **Streaming**: All streaming features work with correct types
+- ✅ **Functionality**: No breaking changes to public API
+
 ## [0.4.1] - 2025-10-16
 
 ### 🔧 **HOTFIX: Compilation Error**
