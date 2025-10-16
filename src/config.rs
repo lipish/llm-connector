@@ -1,11 +1,10 @@
-//! Provider configuration types
+//! Configuration management for LLM providers
 //!
-//! This module defines the configuration structures for LLM providers.
-//! It provides a unified configuration interface that works across all protocols.
+//! This module provides simple configuration for LLM providers.
 //!
-//! # Examples
+//! # Direct API Key Configuration
 //!
-//! ## Simple configuration
+//! The simplest way to configure a provider:
 //!
 //! ```rust
 //! use llm_connector::config::ProviderConfig;
@@ -13,7 +12,9 @@
 //! let config = ProviderConfig::new("your-api-key");
 //! ```
 //!
-//! ## Advanced configuration
+//! # Advanced Configuration
+//!
+//! For custom settings:
 //!
 //! ```rust
 //! use llm_connector::config::{ProviderConfig, RetryConfig};
@@ -21,7 +22,12 @@
 //! let config = ProviderConfig::new("your-api-key")
 //!     .with_base_url("https://api.example.com/v1")
 //!     .with_timeout_ms(30000)
-//!     .with_retry(RetryConfig::default())
+//!     .with_retry(RetryConfig {
+//!         max_retries: 3,
+//!         initial_backoff_ms: 1000,
+//!         backoff_multiplier: 2.0,
+//!         max_backoff_ms: 30000,
+//!     })
 //!     .with_header("X-Custom-Header", "value");
 //! ```
 
