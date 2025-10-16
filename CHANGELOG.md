@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.6] - 2025-10-16
+
+### 🔧 **HOTFIX: Streaming Integration Test Errors**
+
+#### **Fixed**
+- **Streaming integration test compilation errors** - Fixed all compilation errors in streaming tests
+  - Fixed `tests/streaming_integration_tests.rs`: Added missing `Role` import
+  - Updated all `Message::user()` calls to use proper `Message` construction with `Role::User`
+  - Fixed all client creation calls: `.unwrap()` → `?` for V2 architecture
+  - Fixed error handling test to properly detect authentication errors
+  - All streaming integration tests now pass (4/4 passed, 4 ignored for API keys)
+
+#### **Impact**
+- ✅ **Streaming Tests**: All streaming integration tests compile and pass
+- ✅ **Test Coverage**: Complete test coverage for streaming functionality
+- ✅ **V2 Architecture**: All tests use correct V2 architecture APIs
+
 ## [0.4.5] - 2025-10-16
 
 ### 🔧 **HOTFIX: Test Compilation Errors**

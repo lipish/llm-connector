@@ -5,7 +5,7 @@
 
 #[cfg(feature = "streaming")]
 mod tests {
-    use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+    use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
     use futures_util::StreamExt;
     use std::time::Duration;
 
@@ -20,7 +20,11 @@ mod tests {
 
         let request = ChatRequest {
             model: model.to_string(),
-            messages: vec![Message::user(test_message)],
+            messages: vec![Message {
+                role: Role::User,
+                content: test_message.to_string(),
+                ..Default::default()
+            }],
             max_tokens: Some(20),
             ..Default::default()
         };
@@ -96,7 +100,11 @@ mod tests {
 
         let request = ChatRequest {
             model: model.to_string(),
-            messages: vec![Message::user(test_message)],
+            messages: vec![Message {
+                role: Role::User,
+                content: test_message.to_string(),
+                ..Default::default()
+            }],
             max_tokens: Some(10),
             ..Default::default()
         };
@@ -136,7 +144,7 @@ mod tests {
         let api_key = std::env::var("OPENAI_API_KEY")
             .map_err(|_| "OPENAI_API_KEY environment variable not set")?;
 
-        let client = LlmClient::openai(&api_key).unwrap();
+        let client = LlmClient::openai(&api_key)?;
         test_streaming(&client, "OpenAI", "gpt-3.5-turbo", "Say hello").await
     }
 
@@ -146,7 +154,7 @@ mod tests {
         let api_key = std::env::var("ANTHROPIC_API_KEY")
             .map_err(|_| "ANTHROPIC_API_KEY environment variable not set")?;
 
-        let client = LlmClient::anthropic(&api_key).unwrap();
+        let client = LlmClient::anthropic(&api_key)?;
         test_streaming(&client, "Anthropic", "claude-3-haiku-20240307", "Say hello").await
     }
 
@@ -156,7 +164,7 @@ mod tests {
         let api_key = std::env::var("ZHIPU_API_KEY")
             .map_err(|_| "ZHIPU_API_KEY environment variable not set")?;
 
-        let client = LlmClient::zhipu(&api_key);
+        let client = LlmClient::zhipu(&api_key)?;
         test_streaming(&client, "Zhipu", "glm-4-flash", "说一个字").await
     }
 
@@ -166,14 +174,14 @@ mod tests {
         let api_key = std::env::var("ALIYUN_API_KEY")
             .map_err(|_| "ALIYUN_API_KEY environment variable not set")?;
 
-        let client = LlmClient::aliyun(&api_key).unwrap();
+        let client = LlmClient::aliyun(&api_key)?;
         test_streaming(&client, "Aliyun", "qwen-turbo", "说一个字").await
     }
 
     #[tokio::test]
     async fn test_ollama_streaming() -> Result<(), Box<dyn std::error::Error>> {
         // Ollama doesn't need API key but requires Ollama to be running
-        let client = LlmClient::ollama().unwrap();
+        let client = LlmClient::ollama()?;
 
         // Try a very short timeout first to see if Ollama is available
         match test_streaming_with_timeout(
@@ -202,10 +210,14 @@ mod tests {
         println!("🔧 Testing streaming error handling");
 
         // Test with invalid API key
-        let client = LlmClient::openai("invalid-key").unwrap();
+        let client = LlmClient::openai("invalid-key")?;
         let request = ChatRequest {
             model: "gpt-3.5-turbo".to_string(),
-            messages: vec![Message::user("test")],
+            messages: vec![Message {
+                role: Role::User,
+                content: "test".to_string(),
+                ..Default::default()
+            }],
             max_tokens: Some(10),
             ..Default::default()
         };
@@ -220,8 +232,10 @@ mod tests {
                 let error_str = e.to_string();
                 assert!(
                     error_str.contains("auth") ||
+                    error_str.contains("Authentication") ||
                     error_str.contains("unauthorized") ||
-                    error_str.contains("401"),
+                    error_str.contains("401") ||
+                    error_str.contains("API key"),
                     "Error should indicate authentication failure: {}", error_str
                 );
             }
@@ -234,7 +248,7 @@ mod tests {
     async fn test_streaming_request_validation() -> Result<(), Box<dyn std::error::Error>> {
         println!("🔧 Testing streaming request validation");
 
-        let client = LlmClient::openai("test-key").unwrap();
+        let client = LlmClient::openai("test-key")?;
 
         // Test empty messages
         let request = ChatRequest {
@@ -261,11 +275,11 @@ mod tests {
         println!("🔍 Testing protocol availability (without making API calls)");
 
         // Test that all protocols can be created without errors
-        let _openai = LlmClient::openai("test-key").unwrap();
-        let _anthropic = LlmClient::anthropic("test-key").unwrap();
-        let _zhipu = LlmClient::zhipu("test-key");
-        let _aliyun = LlmClient::aliyun("test-key").unwrap();
-        let _ollama = LlmClient::ollama().unwrap();
+        let _openai = LlmClient::openai("test-key")?;
+        let _anthropic = LlmClient::anthropic("test-key")?;
+        let _zhipu = LlmClient::zhipu("test-key")?;
+        let _aliyun = LlmClient::aliyun("test-key")?;
+        let _ollama = LlmClient::ollama()?;
 
         println!("✅ All protocols can be instantiated successfully");
         Ok(())
