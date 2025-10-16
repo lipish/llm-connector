@@ -162,7 +162,7 @@ pub type ZhipuProvider = GenericProvider<ZhipuProtocol>;
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::zhipu;
+/// use llm_connector::providers::zhipu;
 /// 
 /// let provider = zhipu("your-api-key").unwrap();
 /// ```
@@ -180,7 +180,7 @@ pub fn zhipu(api_key: &str) -> Result<ZhipuProvider, LlmConnectorError> {
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::zhipu_openai_compatible;
+/// use llm_connector::providers::zhipu_openai_compatible;
 /// 
 /// let provider = zhipu_openai_compatible("your-api-key").unwrap();
 /// ```
@@ -199,7 +199,7 @@ pub fn zhipu_openai_compatible(api_key: &str) -> Result<ZhipuProvider, LlmConnec
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::zhipu_with_config;
+/// use llm_connector::providers::zhipu_with_config;
 /// 
 /// let provider = zhipu_with_config(
 ///     "your-api-key",
@@ -247,7 +247,7 @@ pub fn zhipu_with_config(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::zhipu_default;
+/// use llm_connector::providers::zhipu_default;
 /// 
 /// let provider = zhipu_default("your-api-key").unwrap();
 /// ```
@@ -264,7 +264,7 @@ pub fn zhipu_default(api_key: &str) -> Result<ZhipuProvider, LlmConnectorError> 
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::zhipu_with_timeout;
+/// use llm_connector::providers::zhipu_with_timeout;
 /// 
 /// // 设置120秒超时
 /// let provider = zhipu_with_timeout("your-api-key", 120).unwrap();
@@ -284,7 +284,7 @@ pub fn zhipu_with_timeout(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::zhipu_enterprise;
+/// use llm_connector::providers::zhipu_enterprise;
 /// 
 /// let provider = zhipu_enterprise(
 ///     "your-enterprise-key",
@@ -308,7 +308,7 @@ pub fn zhipu_enterprise(
 /// 
 /// # 示例
 /// ```rust
-/// use llm_connector::provider::validate_zhipu_key;
+/// use llm_connector::providers::validate_zhipu_key;
 /// 
 /// assert!(validate_zhipu_key("your-valid-key"));
 /// assert!(!validate_zhipu_key(""));

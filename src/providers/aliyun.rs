@@ -168,7 +168,7 @@ pub type AliyunProvider = GenericProvider<AliyunProtocol>;
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::aliyun;
+/// use llm_connector::providers::aliyun;
 /// 
 /// let provider = aliyun("sk-...").unwrap();
 /// ```
@@ -186,7 +186,7 @@ pub fn aliyun(api_key: &str) -> Result<AliyunProvider, LlmConnectorError> {
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::aliyun_with_config;
+/// use llm_connector::providers::aliyun_with_config;
 /// 
 /// let provider = aliyun_with_config(
 ///     "sk-...",
@@ -227,7 +227,7 @@ pub fn aliyun_with_config(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::aliyun_international;
+/// use llm_connector::providers::aliyun_international;
 /// 
 /// let provider = aliyun_international("sk-...", "us-west-1").unwrap();
 /// ```
@@ -247,7 +247,7 @@ pub fn aliyun_international(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::aliyun_private;
+/// use llm_connector::providers::aliyun_private;
 /// 
 /// let provider = aliyun_private(
 ///     "sk-...",
@@ -271,7 +271,7 @@ pub fn aliyun_private(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::aliyun_with_timeout;
+/// use llm_connector::providers::aliyun_with_timeout;
 /// 
 /// // 设置120秒超时，适用于长文本处理
 /// let provider = aliyun_with_timeout("sk-...", 120).unwrap();

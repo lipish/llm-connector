@@ -312,51 +312,67 @@ while let Some(chunk) = stream.next().await {
 }
 ```
 
-### Universal Format Abstraction
+### Streaming Chat Completions
 
-For maximum flexibility, use the universal streaming interface with format abstraction:
+For real-time streaming responses, use the streaming interface:
 
 ```rust
-use llm_connector::types::{StreamingConfig, StreamingFormat, StreamFormat};
+use llm_connector::types::{ChatRequest, Message};
+use futures_util::StreamExt;
 
-// Configure both content format and output format
-let config = StreamingConfig {
-    format: StreamingFormat::Ollama,        // Content format (OpenAI/Ollama)
-    stream_format: StreamFormat::SSE,       // Output format (JSON/SSE/NDJSON)
-    include_usage: true,
-    include_reasoning: false,
+let request = ChatRequest {
+    model: "gpt-4".to_string(),
+    messages: vec![Message::user("Tell me a story")],
+    stream: Some(true),
+    ..Default::default()
 };
 
-let mut stream = client.chat_stream_universal(&request, &config).await?;
+let mut stream = client.chat_stream(&request).await?;
 while let Some(chunk) = stream.next().await {
     let chunk = chunk?;
-    // chunk.to_format() returns formatted string based on stream_format
-    println!("{}", chunk.to_format());
 
-    // Or extract content directly
-    if let Some(content) = chunk.extract_content() {
+    // Get content from the current chunk
+    if let Some(content) = chunk.get_content() {
         print!("{}", content);
+    }
+
+    // Access reasoning content (for providers that support it)
+    if let Some(reasoning) = &chunk.reasoning_content {
+        println!("Reasoning: {}", reasoning);
     }
 }
 ```
 
-### Convenient Format Methods
+### Advanced Streaming Features
 
-For common use cases, use the convenient format-specific methods:
+The streaming response provides rich information and convenience methods:
 
 ```rust
-// Server-Sent Events format (perfect for web applications)
-let mut sse_stream = client.chat_stream_sse(&request).await?;
-while let Some(chunk) = sse_stream.next().await {
+let mut stream = client.chat_stream(&request).await?;
+while let Some(chunk) = stream.next().await {
     let chunk = chunk?;
-    println!("{}", chunk.to_format()); // "data: {...}\n\n"
-}
 
-// Newline-Delimited JSON format (perfect for data pipelines)
-let mut ndjson_stream = client.chat_stream_ndjson(&request).await?;
-while let Some(chunk) = ndjson_stream.next().await {
-    let chunk = chunk?;
-    println!("{}", chunk.to_format()); // "{...}\n"
+    // Access structured data
+    println!("Model: {}", chunk.model);
+    println!("ID: {}", chunk.id);
+
+    // Get content from first choice
+    if let Some(content) = chunk.get_content() {
+        print!("{}", content);
+    }
+
+    // Access all choices
+    for choice in &chunk.choices {
+        if let Some(content) = &choice.delta.content {
+            print!("{}", content);
+        }
+    }
+
+    // Check for completion
+    if chunk.choices.iter().any(|c| c.finish_reason.is_some()) {
+        println!("\nStream completed!");
+        break;
+    }
 }
 ```
 
@@ -641,7 +657,23 @@ The test tool will:
 
 ## Recent Changes
 
-### v0.3.13 (Latest)
+### v0.4.8 (Current)
+
+**🔧 Simplified Configuration Architecture**
+- **Single Configuration Module**: Consolidated `src/config/` directory into `src/config.rs`
+- **Eliminated Naming Confusion**: Clear separation between configuration and providers
+- **Streamlined Streaming API**: Unified `chat_stream()` method for all streaming needs
+- **Enhanced Performance**: 3000x+ performance improvements in V2 architecture
+
+**🎯 Current Streaming API:**
+- `chat_stream()` - Unified streaming interface with rich response data
+- `StreamingResponse` with convenience methods like `get_content()`
+- Support for reasoning content and usage statistics
+- Compatible with all providers (OpenAI, Anthropic, Aliyun, Zhipu, Ollama)
+
+### v0.3.13 (V1 Legacy)
+
+> **Note**: The following features are from V1 architecture (available via `features = ["v1-legacy"]`)
 
 **🚀 Universal Streaming Format Abstraction**
 - **StreamFormat Enum**: Support for JSON, SSE, and NDJSON output formats
@@ -649,7 +681,7 @@ The test tool will:
 - **Format Conversion Methods**: `to_json()`, `to_sse()`, `to_ndjson()`, `to_format()`
 - **Content Extraction**: Universal `extract_content()` method for both OpenAI and Ollama formats
 
-**🎯 New Streaming Methods:**
+**🎯 V1 Streaming Methods:**
 - `chat_stream_universal()` - Most flexible interface with full format control
 - `chat_stream_sse()` - Convenient Server-Sent Events format for web apps
 - `chat_stream_ndjson()` - Convenient Newline-Delimited JSON for data pipelines

@@ -20,7 +20,7 @@ pub type AnthropicProvider = GenericProvider<AnthropicProtocol>;
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::anthropic;
+/// use llm_connector::providers::anthropic;
 /// 
 /// let provider = anthropic("sk-ant-...").unwrap();
 /// ```
@@ -38,7 +38,7 @@ pub fn anthropic(api_key: &str) -> Result<AnthropicProvider, LlmConnectorError> 
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::anthropic_with_config;
+/// use llm_connector::providers::anthropic_with_config;
 /// 
 /// let provider = anthropic_with_config(
 ///     "sk-ant-...",
@@ -80,7 +80,7 @@ pub fn anthropic_with_config(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::anthropic_vertex;
+/// use llm_connector::providers::anthropic_vertex;
 /// 
 /// let provider = anthropic_vertex(
 ///     "my-project-id",
@@ -116,7 +116,7 @@ pub fn anthropic_vertex(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::anthropic_bedrock;
+/// use llm_connector::providers::anthropic_bedrock;
 /// 
 /// let provider = anthropic_bedrock(
 ///     "us-east-1",
@@ -151,7 +151,7 @@ pub fn anthropic_bedrock(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::anthropic_with_timeout;
+/// use llm_connector::providers::anthropic_with_timeout;
 /// 
 /// // 设置120秒超时，适用于长文本处理
 /// let provider = anthropic_with_timeout("sk-ant-...", 120).unwrap();
@@ -173,7 +173,7 @@ pub fn anthropic_with_timeout(
 /// 
 /// # 示例
 /// ```rust
-/// use llm_connector::provider::validate_anthropic_key;
+/// use llm_connector::providers::validate_anthropic_key;
 /// 
 /// assert!(validate_anthropic_key("sk-ant-api03-..."));
 /// assert!(!validate_anthropic_key("sk-..."));

@@ -30,7 +30,7 @@ impl OllamaProvider {
     ///
     /// # 示例
     /// ```rust,no_run
-    /// use llm_connector::provider::OllamaProvider;
+    /// use llm_connector::providers::OllamaProvider;
     ///
     /// let provider = OllamaProvider::new("http://localhost:11434").unwrap();
     /// ```
@@ -66,7 +66,7 @@ impl OllamaProvider {
     ///
     /// # 示例
     /// ```rust,no_run
-    /// # use llm_connector::provider::OllamaProvider;
+    /// # use llm_connector::providers::OllamaProvider;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let provider = OllamaProvider::new("http://localhost:11434")?;
@@ -104,7 +104,7 @@ impl OllamaProvider {
     ///
     /// # 示例
     /// ```rust,no_run
-    /// # use llm_connector::provider::OllamaProvider;
+    /// # use llm_connector::providers::OllamaProvider;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let provider = OllamaProvider::new("http://localhost:11434")?;
@@ -421,7 +421,7 @@ struct OllamaModel {
 ///
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::ollama;
+/// use llm_connector::providers::ollama;
 ///
 /// let provider = ollama().unwrap();
 /// ```
@@ -436,7 +436,7 @@ pub fn ollama() -> Result<OllamaProvider, LlmConnectorError> {
 ///
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::ollama_with_url;
+/// use llm_connector::providers::ollama_with_url;
 ///
 /// let provider = ollama_with_url("http://192.168.1.100:11434").unwrap();
 /// ```
@@ -453,7 +453,7 @@ pub fn ollama_with_url(base_url: &str) -> Result<OllamaProvider, LlmConnectorErr
 ///
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::ollama_with_config;
+/// use llm_connector::providers::ollama_with_config;
 ///
 /// let provider = ollama_with_config(
 ///     "http://localhost:11434",

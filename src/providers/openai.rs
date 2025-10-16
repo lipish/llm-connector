@@ -20,7 +20,7 @@ pub type OpenAIProvider = GenericProvider<OpenAIProtocol>;
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::openai;
+/// use llm_connector::providers::openai;
 /// 
 /// let provider = openai("sk-...").unwrap();
 /// ```
@@ -36,7 +36,7 @@ pub fn openai(api_key: &str) -> Result<OpenAIProvider, LlmConnectorError> {
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::openai_with_base_url;
+/// use llm_connector::providers::openai_with_base_url;
 /// 
 /// // 使用自定义端点 (如Azure OpenAI)
 /// let provider = openai_with_base_url("sk-...", "https://your-resource.openai.azure.com").unwrap();
@@ -55,7 +55,7 @@ pub fn openai_with_base_url(api_key: &str, base_url: &str) -> Result<OpenAIProvi
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::openai_with_config;
+/// use llm_connector::providers::openai_with_config;
 /// 
 /// let provider = openai_with_config(
 ///     "sk-...",
@@ -97,7 +97,7 @@ pub fn openai_with_config(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::azure_openai;
+/// use llm_connector::providers::azure_openai;
 /// 
 /// let provider = azure_openai(
 ///     "your-api-key",
@@ -132,7 +132,7 @@ pub fn azure_openai(
 /// 
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::provider::openai_compatible;
+/// use llm_connector::providers::openai_compatible;
 /// 
 /// // DeepSeek
 /// let deepseek = openai_compatible(

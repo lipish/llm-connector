@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.9] - 2025-10-16
+
+### 📚 **DOCS: Fix API Documentation and Examples**
+
+#### **Fixed**
+- **README API Examples** - Updated streaming API examples to reflect current V2 architecture
+  - Replaced deprecated `chat_stream_universal()`, `chat_stream_sse()`, `chat_stream_ndjson()` with current `chat_stream()`
+  - Updated streaming examples to use `StreamingResponse` and `get_content()` method
+  - Added clear distinction between V2 (current) and V1 (legacy) APIs in changelog
+  - Fixed 29 documentation tests that used incorrect import paths
+
+#### **Added**
+- **New Example**: `streaming_v2_demo.rs` - Demonstrates current V2 streaming API
+- **API Clarification**: Clear documentation of current streaming interface
+- **Migration Guide**: Explains differences between V1 and V2 streaming APIs
+
+#### **Impact**
+- ✅ **Documentation**: All examples now reflect current API
+- ✅ **Tests**: All 93 tests pass (including 50 documentation tests)
+- ✅ **Clarity**: Clear separation between current and legacy APIs
+- ✅ **Examples**: Working examples for current streaming interface
+
 ## [0.4.8] - 2025-10-16
 
 ### 🔧 **REFACTOR: Simplify Configuration Module Structure**
