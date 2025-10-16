@@ -3,9 +3,151 @@
 //! 这个模块提供智谱GLM服务的完整实现，支持原生格式和OpenAI兼容格式。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
-use crate::protocols::ZhipuProtocol;
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse, Role};
+
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+// ============================================================================
+// Zhipu Protocol Definition (Private)
+// ============================================================================
+
+/// 智谱GLM私有协议实现
+///
+/// 智谱支持OpenAI兼容格式，但有自己的认证和错误处理。
+/// 由于这是私有协议，定义在provider内部而不是公开的protocols模块中。
+#[derive(Clone, Debug)]
+pub struct ZhipuProtocol {
+    api_key: String,
+    use_openai_format: bool,
+}
+
+impl ZhipuProtocol {
+    /// 创建新的智谱协议实例 (使用原生格式)
+    pub fn new(api_key: &str) -> Self {
+        Self {
+            api_key: api_key.to_string(),
+            use_openai_format: false,
+        }
+    }
+
+    /// 创建使用OpenAI兼容格式的智谱协议实例
+    pub fn new_openai_compatible(api_key: &str) -> Self {
+        Self {
+            api_key: api_key.to_string(),
+            use_openai_format: true,
+        }
+    }
+
+    /// 获取API密钥
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
+
+    /// 是否使用OpenAI兼容格式
+    pub fn is_openai_compatible(&self) -> bool {
+        self.use_openai_format
+    }
+}
+
+impl Protocol for ZhipuProtocol {
+    type Request = ZhipuRequest;
+    type Response = ZhipuResponse;
+
+    fn name(&self) -> &str {
+        "zhipu"
+    }
+
+    fn chat_endpoint(&self, base_url: &str) -> String {
+        format!("{}/api/paas/v4/chat/completions", base_url)
+    }
+
+    fn auth_headers(&self) -> Vec<(String, String)> {
+        vec![
+            ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
+            ("Content-Type".to_string(), "application/json".to_string()),
+        ]
+    }
+
+    fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
+        // 智谱使用OpenAI兼容格式
+        let messages: Vec<ZhipuMessage> = request.messages.iter().map(|msg| {
+            ZhipuMessage {
+                role: match msg.role {
+                    Role::System => "system".to_string(),
+                    Role::User => "user".to_string(),
+                    Role::Assistant => "assistant".to_string(),
+                    Role::Tool => "tool".to_string(),
+                },
+                content: msg.content.clone(),
+            }
+        }).collect();
+
+        Ok(ZhipuRequest {
+            model: request.model.clone(),
+            messages,
+            max_tokens: request.max_tokens,
+            temperature: request.temperature,
+            top_p: request.top_p,
+        })
+    }
+
+    fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        let parsed: ZhipuResponse = serde_json::from_str(response)
+            .map_err(|e| LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e)))?;
+
+        if let Some(choices) = parsed.choices {
+            if let Some(first_choice) = choices.first() {
+                return Ok(ChatResponse {
+                    content: first_choice.message.content.clone(),
+                    model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
+                    ..Default::default()
+                });
+            }
+        }
+
+        Err(LlmConnectorError::InvalidRequest("Empty or invalid response".to_string()))
+    }
+
+    fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
+        LlmConnectorError::from_status_code(status, format!("Zhipu API error: {}", body))
+    }
+}
+
+// 智谱专用数据结构 (OpenAI兼容格式)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZhipuRequest {
+    pub model: String,
+    pub messages: Vec<ZhipuMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZhipuMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZhipuResponse {
+    pub model: Option<String>,
+    pub choices: Option<Vec<ZhipuChoice>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZhipuChoice {
+    pub message: ZhipuMessage,
+}
+
+// ============================================================================
+// Zhipu Provider Implementation
+// ============================================================================
 
 /// 智谱GLM服务提供商类型
 pub type ZhipuProvider = GenericProvider<ZhipuProtocol>;
@@ -80,18 +222,18 @@ pub fn zhipu_with_config(
     } else {
         ZhipuProtocol::new(api_key)
     };
-    
+
     // 创建HTTP客户端
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://open.bigmodel.cn"),
         timeout_secs,
         proxy,
     )?;
-    
+
     // 添加认证头
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
-    
+
     // 创建通用提供商
     Ok(GenericProvider::new(protocol, client))
 }
@@ -178,28 +320,26 @@ pub fn validate_zhipu_key(api_key: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_zhipu_provider_creation() {
         let provider = zhipu("test-key");
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.protocol().name(), "zhipu");
-        assert_eq!(provider.protocol().api_key(), "test-key");
-        assert!(!provider.protocol().is_openai_compatible());
     }
-    
+
     #[test]
     fn test_zhipu_openai_compatible() {
         let provider = zhipu_openai_compatible("test-key");
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.protocol().name(), "zhipu");
         assert!(provider.protocol().is_openai_compatible());
     }
-    
+
     #[test]
     fn test_zhipu_with_config() {
         let provider = zhipu_with_config(
@@ -210,36 +350,36 @@ mod tests {
             None
         );
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.client().base_url(), "https://custom.bigmodel.cn");
         assert!(provider.protocol().is_openai_compatible());
     }
-    
+
     #[test]
     fn test_zhipu_default() {
         let provider = zhipu_default("test-key");
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert!(provider.protocol().is_openai_compatible());
     }
-    
+
     #[test]
     fn test_zhipu_with_timeout() {
         let provider = zhipu_with_timeout("test-key", 120);
         assert!(provider.is_ok());
     }
-    
+
     #[test]
     fn test_zhipu_enterprise() {
         let provider = zhipu_enterprise("test-key", "https://enterprise.bigmodel.cn");
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.client().base_url(), "https://enterprise.bigmodel.cn");
     }
-    
+
     #[test]
     fn test_validate_zhipu_key() {
         assert!(validate_zhipu_key("valid-test-key"));

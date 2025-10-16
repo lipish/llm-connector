@@ -20,6 +20,7 @@ pub use openai::{
 
 pub use aliyun::{
     AliyunProvider,
+    AliyunProtocol, // 私有协议
     aliyun,
     aliyun_with_config,
     aliyun_international,
@@ -39,6 +40,7 @@ pub use anthropic::{
 
 pub use zhipu::{
     ZhipuProvider,
+    ZhipuProtocol, // 私有协议
     zhipu,
     zhipu_openai_compatible,
     zhipu_with_config,

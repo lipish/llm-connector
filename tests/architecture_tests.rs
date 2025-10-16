@@ -25,7 +25,7 @@ use llm_connector::providers::{validate_anthropic_key, validate_zhipu_key};
         assert_eq!(aliyun_protocol.api_key(), "sk-test");
         assert_eq!(
             aliyun_protocol.chat_endpoint("https://dashscope.aliyuncs.com"),
-            "https://dashscope.aliyuncs.com/services/aigc/text-generation/generation"
+            "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
         );
 
         // 测试Anthropic协议创建

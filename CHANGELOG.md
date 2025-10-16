@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.7] - 2025-10-16
+
+### 🏗️ **ARCHITECTURE: Correct Protocol vs Provider Separation**
+
+#### **Refactored**
+- **Protocol/Provider Architecture** - Implemented correct separation of public vs private protocols
+  - **Public Protocols** (`src/protocols/`): Only industry-standard protocols (OpenAI, Anthropic)
+  - **Private Protocols** (`src/providers/`): Provider-specific protocols inline with implementations
+  - Moved `AliyunProtocol` and `ZhipuProtocol` from `protocols/` to `providers/` as private protocols
+  - Updated exports: Standard protocols from `protocols`, private protocols from `providers`
+  - All 78 unit and integration tests pass
+
+#### **Design Principles**
+- **Public Protocols**: Industry-recognized standards that multiple providers might implement
+- **Private Protocols**: Provider-specific APIs that are tightly coupled to their implementations
+- **Clean Separation**: Protocols define API formats, providers implement service logic
+- **Maintainability**: Private protocols are co-located with their implementations
+
+#### **Impact**
+- ✅ **Architecture**: Clean separation of public vs private protocols
+- ✅ **Maintainability**: Private protocols are easier to maintain alongside providers
+- ✅ **Extensibility**: Clear guidelines for adding new protocols vs providers
+- ✅ **Tests**: All functionality tests pass (78/78)
+
 ## [0.4.6] - 2025-10-16
 
 ### 🔧 **HOTFIX: Streaming Integration Test Errors**

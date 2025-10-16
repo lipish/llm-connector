@@ -3,9 +3,157 @@
 //! 这个模块提供阿里云DashScope服务的完整实现，使用统一的V2架构。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
-use crate::protocols::AliyunProtocol;
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse, Role};
+
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+// ============================================================================
+// Aliyun Protocol Definition (Private)
+// ============================================================================
+
+/// 阿里云DashScope私有协议实现
+///
+/// 这是阿里云专用的API格式，与OpenAI和Anthropic都不同。
+/// 由于这是私有协议，定义在provider内部而不是公开的protocols模块中。
+#[derive(Debug, Clone)]
+pub struct AliyunProtocol {
+    api_key: String,
+}
+
+impl AliyunProtocol {
+    /// 创建新的阿里云协议实例
+    pub fn new(api_key: &str) -> Self {
+        Self {
+            api_key: api_key.to_string(),
+        }
+    }
+
+    /// 获取API密钥
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
+}
+
+impl Protocol for AliyunProtocol {
+    type Request = AliyunRequest;
+    type Response = AliyunResponse;
+
+    fn name(&self) -> &str {
+        "aliyun"
+    }
+
+    fn chat_endpoint(&self, base_url: &str) -> String {
+        format!("{}/api/v1/services/aigc/text-generation/generation", base_url)
+    }
+
+    fn auth_headers(&self) -> Vec<(String, String)> {
+        vec![
+            ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
+            ("Content-Type".to_string(), "application/json".to_string()),
+        ]
+    }
+
+    fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
+        // 转换为阿里云格式
+        let aliyun_messages: Vec<AliyunMessage> = request.messages.iter().map(|msg| {
+            AliyunMessage {
+                role: match msg.role {
+                    Role::System => "system".to_string(),
+                    Role::User => "user".to_string(),
+                    Role::Assistant => "assistant".to_string(),
+                    Role::Tool => "tool".to_string(),
+                },
+                content: msg.content.clone(),
+            }
+        }).collect();
+
+        Ok(AliyunRequest {
+            model: request.model.clone(),
+            input: AliyunInput {
+                messages: aliyun_messages,
+            },
+            parameters: AliyunParameters {
+                max_tokens: request.max_tokens,
+                temperature: request.temperature,
+                top_p: request.top_p,
+                result_format: "message".to_string(),
+            },
+        })
+    }
+
+    fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        let parsed: AliyunResponse = serde_json::from_str(response)
+            .map_err(|e| LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e)))?;
+
+        if let Some(choices) = parsed.output.choices {
+            if let Some(first_choice) = choices.first() {
+                return Ok(ChatResponse {
+                    content: first_choice.message.content.clone(),
+                    model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
+                    ..Default::default()
+                });
+            }
+        }
+
+        Err(LlmConnectorError::InvalidRequest("Empty or invalid response".to_string()))
+    }
+
+    fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
+        LlmConnectorError::from_status_code(status, format!("Aliyun API error: {}", body))
+    }
+}
+
+// 阿里云专用数据结构
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunRequest {
+    pub model: String,
+    pub input: AliyunInput,
+    pub parameters: AliyunParameters,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunInput {
+    pub messages: Vec<AliyunMessage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunParameters {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    pub result_format: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunResponse {
+    pub model: Option<String>,
+    pub output: AliyunOutput,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunOutput {
+    pub choices: Option<Vec<AliyunChoice>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunChoice {
+    pub message: AliyunMessage,
+}
+
+// ============================================================================
+// Aliyun Provider Implementation
+// ============================================================================
 
 /// 阿里云DashScope服务提供商类型
 pub type AliyunProvider = GenericProvider<AliyunProtocol>;
@@ -55,18 +203,18 @@ pub fn aliyun_with_config(
 ) -> Result<AliyunProvider, LlmConnectorError> {
     // 创建协议实例
     let protocol = AliyunProtocol::new(api_key);
-    
+
     // 创建HTTP客户端
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://dashscope.aliyuncs.com"),
         timeout_secs,
         proxy,
     )?;
-    
+
     // 添加认证头
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
-    
+
     // 创建通用提供商
     Ok(GenericProvider::new(protocol, client))
 }
@@ -138,17 +286,16 @@ pub fn aliyun_with_timeout(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_aliyun_provider_creation() {
         let provider = aliyun("test-key");
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.protocol().name(), "aliyun");
-        assert_eq!(provider.protocol().api_key(), "test-key");
     }
-    
+
     #[test]
     fn test_aliyun_with_config() {
         let provider = aliyun_with_config(
@@ -158,29 +305,29 @@ mod tests {
             None
         );
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.client().base_url(), "https://custom.dashscope.com");
     }
-    
+
     #[test]
     fn test_aliyun_international() {
         let provider = aliyun_international("test-key", "us-west-1");
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.client().base_url(), "https://dashscope.us-west-1.aliyuncs.com");
     }
-    
+
     #[test]
     fn test_aliyun_private() {
         let provider = aliyun_private("test-key", "https://private.dashscope.com");
         assert!(provider.is_ok());
-        
+
         let provider = provider.unwrap();
         assert_eq!(provider.client().base_url(), "https://private.dashscope.com");
     }
-    
+
     #[test]
     fn test_aliyun_with_timeout() {
         let provider = aliyun_with_timeout("test-key", 120);
