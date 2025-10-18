@@ -35,20 +35,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.4.0"
+llm-connector = "0.4.11"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.4.0", features = ["streaming"] }
-
-# V1 legacy compatibility
-llm-connector = { version = "0.4.0", features = ["v1-legacy"] }
-
-# Both streaming and V1 compatibility
-llm-connector = { version = "0.4.0", features = ["streaming", "v1-legacy"] }
+llm-connector = { version = "0.4.11", features = ["streaming"] }
 ```
 
 ### Basic Usage

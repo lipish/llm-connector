@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.11] - 2025-10-18
+
+### 🐛 Bug Fixes
+
+#### **修复智谱 GLM 流式响应和工具调用支持**
+
+**流式响应问题**:
+- ❌ 问题：智谱 API 使用单换行分隔 SSE（`data: {...}\n`），导致默认解析器失败
+- ❌ 问题：`StreamingResponse.content` 字段未填充，`get_content()` 返回空字符串
+- ❌ 问题：`ZhipuRequest` 缺少 `stream` 参数，API 不知道要返回流式响应
+
+**工具调用问题**:
+- ❌ 问题：`ZhipuRequest` 缺少 `tools` 和 `tool_choice` 字段
+- ❌ 问题：`ZhipuMessage` 不支持 `tool_calls` 响应
+- ❌ 问题：流式和非流式请求都无法传递工具参数
+
+**修复内容**:
+1. **流式解析器** (`src/providers/zhipu.rs:126-201`)
+   - 实现智谱专用 `parse_stream_response()`
+   - 支持单换行分隔的 SSE 格式
+   - 自动填充 `content` 字段（从 `delta.content` 复制）
+   
+2. **请求参数** (`src/providers/zhipu.rs:216-234`)
+   - 添加 `stream: Option<bool>` 字段
+   - 添加 `tools: Option<Vec<Tool>>` 字段
+   - 添加 `tool_choice: Option<ToolChoice>` 字段
+   
+3. **响应解析** (`src/providers/zhipu.rs:240-264`)
+   - `ZhipuMessage.content` 使用 `#[serde(default)]`（工具调用时可为空）
+   - `ZhipuMessage.tool_calls` 支持工具调用响应
+   - `ZhipuResponse` 包含完整元数据（id, created, usage）
+   - `ZhipuChoice` 支持 `finish_reason`（识别 `tool_calls` 结束）
+
+**测试验证**:
+- ✅ 流式响应：124 个数据块，642 字符输出
+- ✅ 非流式工具调用：`finish_reason: "tool_calls"`，正确解析参数
+- ✅ 流式工具调用：`finish_reason: "tool_calls"`，正确解析参数
+
+**影响范围**:
+- 仅影响智谱 GLM provider
+- 完全向后兼容
+- 修复后与 OpenAI 协议对齐
+
+**相关文件**:
+- `src/providers/zhipu.rs`
+- `examples/zhipu_streaming.rs`
+- `examples/test_zhipu_tools_force.rs`
+- `examples/test_zhipu_tools_stream_force.rs`
+
+---
+
 ## [Unreleased]
 
 ### 🐛 **BUGFIX: 修复智谱流式响应解析问题**

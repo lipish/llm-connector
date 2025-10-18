@@ -4,7 +4,7 @@
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Role};
+use crate::types::{ChatRequest, ChatResponse, Role, Tool, ToolChoice, Choice, Message as TypeMessage};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -87,6 +87,9 @@ impl Protocol for ZhipuProtocol {
                     Role::Tool => "tool".to_string(),
                 },
                 content: msg.content.clone(),
+                tool_calls: msg.tool_calls.as_ref().map(|calls| {
+                    calls.iter().map(|c| serde_json::to_value(c).unwrap_or_default()).collect()
+                }),
             })
             .collect();
 
@@ -97,6 +100,8 @@ impl Protocol for ZhipuProtocol {
             temperature: request.temperature,
             top_p: request.top_p,
             stream: request.stream,
+            tools: request.tools.clone(),
+            tool_choice: request.tool_choice.clone(),
         })
     }
 
@@ -107,10 +112,40 @@ impl Protocol for ZhipuProtocol {
 
         if let Some(choices) = parsed.choices {
             if let Some(first_choice) = choices.first() {
-                return Ok(ChatResponse {
+                // 转换 ZhipuMessage 到 TypeMessage
+                let type_message = TypeMessage {
+                    role: match first_choice.message.role.as_str() {
+                        "system" => Role::System,
+                        "user" => Role::User,
+                        "assistant" => Role::Assistant,
+                        "tool" => Role::Tool,
+                        _ => Role::Assistant,
+                    },
                     content: first_choice.message.content.clone(),
-                    model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
+                    tool_calls: first_choice.message.tool_calls.as_ref().map(|calls| {
+                        calls.iter().filter_map(|v| {
+                            serde_json::from_value(v.clone()).ok()
+                        }).collect()
+                    }),
                     ..Default::default()
+                };
+                
+                let choice = Choice {
+                    index: first_choice.index.unwrap_or(0),
+                    message: type_message,
+                    finish_reason: first_choice.finish_reason.clone(),
+                    logprobs: None,
+                };
+                
+                return Ok(ChatResponse {
+                    id: parsed.id.unwrap_or_else(|| "unknown".to_string()),
+                    object: "chat.completion".to_string(),
+                    created: parsed.created.unwrap_or(0),
+                    model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
+                    content: first_choice.message.content.clone(),
+                    choices: vec![choice],
+                    usage: parsed.usage.and_then(|v| serde_json::from_value(v).ok()),
+                    system_fingerprint: None,
                 });
             }
         }
@@ -225,23 +260,35 @@ pub struct ZhipuRequest {
     pub top_p: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<Tool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<ToolChoice>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZhipuMessage {
     pub role: String,
+    #[serde(default)]
     pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZhipuResponse {
+    pub id: Option<String>,
+    pub created: Option<u64>,
     pub model: Option<String>,
     pub choices: Option<Vec<ZhipuChoice>>,
+    pub usage: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZhipuChoice {
+    pub index: Option<u32>,
     pub message: ZhipuMessage,
+    pub finish_reason: Option<String>,
 }
 
 // ============================================================================
