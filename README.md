@@ -35,14 +35,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.4.12"
+llm-connector = "0.4.13"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.4.12", features = ["streaming"] }
+llm-connector = { version = "0.4.13", features = ["streaming"] }
 ```
 
 ### Basic Usage

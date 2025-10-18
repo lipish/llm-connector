@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.13] - 2025-10-18
+
+### 🐛 Bug Fixes
+
+#### **修复智谱 GLM 多轮工具调用支持**
+
+**问题描述**:
+- ❌ `ZhipuMessage` 缺少 `tool_call_id` 字段，无法在 Tool 消息中关联工具调用
+- ❌ `ZhipuMessage` 缺少 `name` 字段，无法传递工具名称
+- ❌ 导致多轮 Function Calling 对话失败（第二轮无法正确传递工具执行结果）
+
+**修复内容**:
+1. **ZhipuMessage 结构完善** (`src/providers/zhipu.rs:272-282`)
+   ```rust
+   pub struct ZhipuMessage {
+       pub role: String,
+       pub content: String,
+       pub tool_calls: Option<Vec<serde_json::Value>>,
+       pub tool_call_id: Option<String>,  // ✅ 新增
+       pub name: Option<String>,          // ✅ 新增
+   }
+   ```
+
+2. **build_request 映射补充** (`src/providers/zhipu.rs:77-96`)
+   - 正确映射 `tool_call_id` 字段
+   - 正确映射 `name` 字段
+
+**测试验证**:
+- ✅ 单轮工具调用：User 提问 → LLM 返回 tool_calls
+- ✅ 多轮工具调用：Tool 结果 → LLM 返回文本响应
+- ✅ 三轮对话：User 追问 → LLM 正确触发新的 tool_calls
+- ✅ Tool 消息序列化：`role="tool"`, `tool_call_id`, `name` 全部正确
+
+**新增示例**:
+- `examples/zhipu_multiround_tools.rs` - 多轮工具调用演示
+- `examples/zhipu_tools_edge_cases.rs` - 边缘情况测试
+- `examples/verify_tool_message_serialization.rs` - 序列化验证
+
+**影响范围**:
+- 修复智谱 GLM 的多轮工具调用功能
+- 完全符合 OpenAI Function Calling 规范
+- 完全向后兼容
+
+---
+
 ## [0.4.12] - 2025-10-18
 
 ### 🐛 Bug Fixes
