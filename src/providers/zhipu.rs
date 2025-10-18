@@ -96,6 +96,7 @@ impl Protocol for ZhipuProtocol {
             max_tokens: request.max_tokens,
             temperature: request.temperature,
             top_p: request.top_p,
+            stream: request.stream,
         })
     }
 
@@ -187,12 +188,23 @@ impl Protocol for ZhipuProtocol {
         // 将 JSON 字符串流转换为 StreamingResponse 流
         let response_stream = events_stream.map(|result| {
             result.and_then(|json_str| {
-                serde_json::from_str::<StreamingResponse>(&json_str).map_err(|e| {
+                let mut response = serde_json::from_str::<StreamingResponse>(&json_str).map_err(|e| {
                     LlmConnectorError::ParseError(format!(
                         "Failed to parse Zhipu streaming response: {}. JSON: {}",
                         e, json_str
                     ))
-                })
+                })?;
+                
+                // 填充 content 字段（从 delta.content 复制）
+                if response.content.is_empty() {
+                    if let Some(first_choice) = response.choices.first() {
+                        if let Some(ref delta_content) = first_choice.delta.content {
+                            response.content = delta_content.clone();
+                        }
+                    }
+                }
+                
+                Ok(response)
             })
         });
 
@@ -211,6 +223,8 @@ pub struct ZhipuRequest {
     pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

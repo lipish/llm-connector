@@ -48,6 +48,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(chunk) => {
                     chunk_count += 1;
                     
+                    // 调试输出：查看原始chunk数据
+                    if chunk_count <= 3 {
+                        eprintln!("\n🔍 [DEBUG] Chunk #{}: {:?}", chunk_count, chunk);
+                    }
+                    
                     if let Some(content) = chunk.get_content() {
                         print!("{}", content);
                         full_text.push_str(content);
