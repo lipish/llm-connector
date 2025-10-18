@@ -2,6 +2,87 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.14] - 2025-10-18
+
+### 🐛 Bug Fixes
+
+#### **修复 OpenAI 协议工具调用支持 + 移除智谱 GLM 流式强制切换**
+
+**问题 1: OpenAI 协议缺少工具调用支持**
+
+**问题描述**:
+- ❌ `OpenAIRequest` 缺少 `tools` 和 `tool_choice` 字段，无法传递工具定义
+- ❌ `OpenAIMessage` 缺少 `tool_calls`, `tool_call_id`, `name` 字段
+- ❌ `OpenAIResponseMessage` 缺少 `tool_calls` 字段，无法解析工具调用响应
+- ❌ 导致所有使用 OpenAI 协议的服务（DeepSeek, Moonshot 等）完全无法使用工具调用
+
+**修复内容**:
+1. **OpenAIRequest 添加工具字段** (`src/protocols/openai.rs`)
+   ```rust
+   pub struct OpenAIRequest {
+       // ... 其他字段
+       pub tools: Option<Vec<serde_json::Value>>,      // ✅ 新增
+       pub tool_choice: Option<serde_json::Value>,     // ✅ 新增
+   }
+   ```
+
+2. **OpenAIMessage 添加工具字段** (`src/protocols/openai.rs`)
+   ```rust
+   pub struct OpenAIMessage {
+       pub role: String,
+       pub content: String,
+       pub tool_calls: Option<Vec<serde_json::Value>>,  // ✅ 新增
+       pub tool_call_id: Option<String>,                // ✅ 新增
+       pub name: Option<String>,                        // ✅ 新增
+   }
+   ```
+
+3. **OpenAIResponseMessage 添加工具字段** (`src/protocols/openai.rs`)
+   ```rust
+   pub struct OpenAIResponseMessage {
+       pub content: Option<String>,                     // ✅ 改为 Option
+       pub tool_calls: Option<Vec<serde_json::Value>>,  // ✅ 新增
+   }
+   ```
+
+4. **build_request 完整映射工具调用** (`src/protocols/openai.rs:48-106`)
+   - 正确映射 `tools` 字段
+   - 正确映射 `tool_choice` 字段
+   - 正确映射消息中的 `tool_calls`, `tool_call_id`, `name` 字段
+
+5. **parse_response 正确解析工具调用** (`src/protocols/openai.rs:116-149`)
+   - 从响应中提取 `tool_calls`
+   - 转换为统一的 `ToolCall` 类型
+
+**问题 2: 智谱 GLM 流式响应被强制切换**
+
+**问题描述**:
+- ❌ `src/core/traits.rs` 中存在硬编码逻辑，检测到 `Role::Tool` 消息时强制切换为非流式
+- ❌ GLM-4.5 正常可返回 91 个流式块，但包含工具结果时被强制切换为 1 个块
+- ❌ 这是一个临时修复（workaround），现在已不再需要
+
+**修复内容**:
+- **移除硬编码修复逻辑** (`src/core/traits.rs:155-173`)
+  - 删除了检测 `Role::Tool` 和 `zhipu` 的特殊处理
+  - 智谱 GLM 现在可以在包含工具调用结果时正常使用流式响应
+
+**测试验证**:
+- ✅ OpenAI 协议完整支持工具调用（tools, tool_choice, tool_calls）
+- ✅ DeepSeek 现在可以正常使用工具调用
+- ✅ 所有 OpenAI 兼容服务（Moonshot, Together AI 等）都可以使用工具调用
+- ✅ 智谱 GLM 在包含 Role::Tool 时可以使用流式响应
+- ✅ 所有核心库测试通过（27 个测试）
+
+**新增示例**:
+- `examples/verify_tool_fix.rs` - 验证工具调用修复效果
+
+**影响范围**:
+- 修复所有使用 OpenAI 协议的服务的工具调用功能
+- 移除智谱 GLM 的流式响应限制
+- 完全向后兼容
+
+---
+
 ## [0.4.13] - 2025-10-18
 
 ### 🐛 Bug Fixes

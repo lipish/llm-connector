@@ -154,24 +154,21 @@ impl<P: Protocol> Provider for GenericProvider<P> {
     
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
-        // 创建流式请求
         let mut streaming_request = request.clone();
         streaming_request.stream = Some(true);
-        
+
         let protocol_request = self.protocol.build_request(&streaming_request)?;
         let url = self.protocol.chat_endpoint(self.client.base_url());
-        
-        // 发送流式请求
+
         let response = self.client.stream(&url, &protocol_request).await?;
         let status = response.status();
-        
+
         if !status.is_success() {
             let text = response.text().await
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }
-        
-        // 使用协议特定的流式解析
+
         self.protocol.parse_stream_response(response).await
     }
     

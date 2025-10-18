@@ -1,7 +1,7 @@
 //! Streaming types for chat completions
 
 use super::request::{Role, ToolCall};
-use super::response::Usage;
+use super::response::{Usage, ChatResponse};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "streaming")]
@@ -369,6 +369,44 @@ impl Default for StreamingResponse {
         }
     }
 }
+
+impl From<ChatResponse> for StreamingResponse {
+    fn from(response: ChatResponse) -> Self {
+        let first_choice = response.choices.first();
+        
+        Self {
+            id: response.id,
+            object: "chat.completion.chunk".to_string(),
+            created: response.created,
+            model: response.model,
+            choices: first_choice.map(|choice| {
+                vec![StreamingChoice {
+                    index: choice.index,
+                    delta: Delta {
+                        role: Some(choice.message.role),
+                        content: if choice.message.content.is_empty() { 
+                            None 
+                        } else { 
+                            Some(choice.message.content.clone()) 
+                        },
+                        tool_calls: choice.message.tool_calls.clone(),
+                        reasoning_content: None,
+                        reasoning: None,
+                        thought: None,
+                        thinking: None,
+                    },
+                    finish_reason: choice.finish_reason.clone(),
+                    logprobs: choice.logprobs.clone(),
+                }]
+            }).unwrap_or_default(),
+            content: response.content,
+            reasoning_content: None,
+            usage: response.usage,
+            system_fingerprint: response.system_fingerprint,
+        }
+    }
+}
+
 
 // ============================================================================
 // Ollama Format Streaming Types

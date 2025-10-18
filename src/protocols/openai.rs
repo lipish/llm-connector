@@ -55,8 +55,41 @@ impl Protocol for OpenAIProtocol {
                     Role::Tool => "tool".to_string(),
                 },
                 content: msg.content.clone(),
+                tool_calls: msg.tool_calls.as_ref().map(|calls| {
+                    calls.iter().map(|call| {
+                        serde_json::json!({
+                            "id": call.id,
+                            "type": call.call_type,
+                            "function": {
+                                "name": call.function.name,
+                                "arguments": call.function.arguments,
+                            }
+                        })
+                    }).collect()
+                }),
+                tool_call_id: msg.tool_call_id.clone(),
+                name: msg.name.clone(),
             })
             .collect();
+
+        // 转换 tools
+        let tools = request.tools.as_ref().map(|tools| {
+            tools.iter().map(|tool| {
+                serde_json::json!({
+                    "type": tool.tool_type,
+                    "function": {
+                        "name": tool.function.name,
+                        "description": tool.function.description,
+                        "parameters": tool.function.parameters,
+                    }
+                })
+            }).collect()
+        });
+
+        // 转换 tool_choice
+        let tool_choice = request.tool_choice.as_ref().map(|choice| {
+            serde_json::to_value(choice).unwrap_or(serde_json::json!("auto"))
+        });
 
         Ok(OpenAIRequest {
             model: request.model.clone(),
@@ -67,6 +100,8 @@ impl Protocol for OpenAIProtocol {
             frequency_penalty: request.frequency_penalty,
             presence_penalty: request.presence_penalty,
             stream: request.stream,
+            tools,
+            tool_choice,
         })
     }
     
@@ -79,21 +114,37 @@ impl Protocol for OpenAIProtocol {
         }
 
         let choices: Vec<Choice> = openai_response.choices.into_iter()
-            .map(|choice| Choice {
-                index: choice.index,
-                message: Message {
-                    role: Role::Assistant,
-                    content: choice.message.content,
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                    reasoning_content: None,
-                    reasoning: None,
-                    thought: None,
-                    thinking: None,
-                },
-                finish_reason: choice.finish_reason,
-                logprobs: None,
+            .map(|choice| {
+                // 转换 tool_calls
+                let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
+                    calls.iter().filter_map(|call| {
+                        Some(crate::types::ToolCall {
+                            id: call.get("id")?.as_str()?.to_string(),
+                            call_type: call.get("type")?.as_str()?.to_string(),
+                            function: crate::types::FunctionCall {
+                                name: call.get("function")?.get("name")?.as_str()?.to_string(),
+                                arguments: call.get("function")?.get("arguments")?.as_str()?.to_string(),
+                            },
+                        })
+                    }).collect()
+                });
+
+                Choice {
+                    index: choice.index,
+                    message: Message {
+                        role: Role::Assistant,
+                        content: choice.message.content.clone().unwrap_or_default(),
+                        name: None,
+                        tool_calls,
+                        tool_call_id: None,
+                        reasoning_content: None,
+                        reasoning: None,
+                        thought: None,
+                        thinking: None,
+                    },
+                    finish_reason: choice.finish_reason,
+                    logprobs: None,
+                }
             })
             .collect();
 
@@ -176,12 +227,22 @@ pub struct OpenAIRequest {
     pub presence_penalty: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Debug)]
 pub struct OpenAIMessage {
     pub role: String,
     pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 // OpenAI响应类型
@@ -205,7 +266,9 @@ pub struct OpenAIChoice {
 
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponseMessage {
-    pub content: String,
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Deserialize, Debug)]
