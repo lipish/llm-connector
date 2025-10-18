@@ -1,7 +1,9 @@
 #[cfg(feature = "streaming")]
-use futures_util::StreamExt;
-use llm_connector::{LlmClient, types::{ChatRequest, Message, Role, Tool, Function}};
-use serde_json::json;
+use {
+    futures_util::StreamExt,
+    llm_connector::{LlmClient, types::{ChatRequest, Message, Role, Tool, Function}},
+    serde_json::json,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
