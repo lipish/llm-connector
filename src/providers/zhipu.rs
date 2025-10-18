@@ -90,6 +90,8 @@ impl Protocol for ZhipuProtocol {
                 tool_calls: msg.tool_calls.as_ref().map(|calls| {
                     calls.iter().map(|c| serde_json::to_value(c).unwrap_or_default()).collect()
                 }),
+                tool_call_id: msg.tool_call_id.clone(),
+                name: msg.name.clone(),
             })
             .collect();
 
@@ -273,6 +275,10 @@ pub struct ZhipuMessage {
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

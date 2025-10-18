@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.11] - 2025-10-18
+## [0.4.12] - 2025-10-18
 
 ### 🐛 Bug Fixes
 
@@ -45,11 +45,20 @@ All notable changes to this project will be documented in this file.
 - 完全向后兼容
 - 修复后与 OpenAI 协议对齐
 
-**相关文件**:
-- `src/providers/zhipu.rs`
-- `examples/zhipu_streaming.rs`
-- `examples/test_zhipu_tools_force.rs`
-- `examples/test_zhipu_tools_stream_force.rs`
+**新增示例**:
+- `examples/zhipu_tools.rs` - 工具调用（非流式）
+- `examples/zhipu_tools_streaming.rs` - 工具调用（流式）
+
+---
+
+## [0.4.11] - 2025-10-17
+
+### 🐛 Bug Fixes
+
+**修复智谱流式响应解析问题（初步修复）**
+- 实现 `ZhipuProtocol::parse_stream_response()` 专用流式解析器
+- 支持单换行分隔的 SSE 格式
+- 正确处理 `data:` 前缀（带或不带空格）
 
 ---
 
