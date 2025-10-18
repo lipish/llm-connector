@@ -1,5 +1,5 @@
 /// 测试智谱 GLM 在包含 Role::Tool 消息时的流式响应问题
-/// 
+///
 /// 验证场景：
 /// 1. 第一轮请求（无 Tool 消息）- 应该正常流式返回
 /// 2. 第二轮请求（包含 Role::Tool 消息）- 检查是否返回空内容
@@ -198,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("\n   ❌ 问题确认: 包含 Role::Tool 时流式返回空内容！");
                 } else if chunk_count2 == 1 && chunk_count1 > 10 {
                     println!("\n   ⚠️  可能的问题: 流式块数量显著减少（可能被强制切换为非流式）");
-                } else if content2.len() > 0 {
+                } else if !content2.is_empty() {
                     println!("\n   ✅ 正常: 包含 Role::Tool 时流式响应正常");
                 }
             } else {

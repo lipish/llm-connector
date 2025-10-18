@@ -102,6 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct TestResult {
     round1_chunks: usize,
     round1_has_tool_calls: bool,

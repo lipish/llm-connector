@@ -14,19 +14,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "streaming")]
     {
         let api_key = std::env::var("OPENAI_API_KEY")
-            .or_else(|_| std::env::var("OPENROUTER_API_KEY"))
-            .expect("请设置环境变量 OPENAI_API_KEY 或 OPENROUTER_API_KEY");
-        
-        let use_openrouter = std::env::var("OPENROUTER_API_KEY").is_ok();
-        
-        let client = if use_openrouter {
-            println!("🔧 使用 OpenRouter");
-            LlmClient::openrouter(&api_key)?
-        } else {
-            println!("🔧 使用 OpenAI");
-            LlmClient::openai(&api_key)?
-        };
-        
+            .expect("请设置环境变量 OPENAI_API_KEY");
+
+        println!("🔧 使用 OpenAI");
+        let client = LlmClient::openai(&api_key)?;
+
         let tools = vec![Tool {
             tool_type: "function".to_string(),
             function: Function {
@@ -42,12 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }),
             },
         }];
-        
-        let model = if use_openrouter {
-            "openai/gpt-4o-mini"
-        } else {
-            "gpt-4o-mini"
-        };
+
+        let model = "gpt-4o-mini";
         
         println!("\n{}", "=".repeat(70));
         println!("🧪 测试 OpenAI 工具调用流式支持");
@@ -102,8 +90,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         if !tool_calls_buffer.is_empty() {
             println!("\n📝 第二轮请求（包含 tool 结果）");
-            
-            let first_call = &tool_calls_buffer[0];
+
+            let first_call = tool_calls_buffer[0].clone();
             
             let request2 = ChatRequest {
                 model: model.to_string(),
