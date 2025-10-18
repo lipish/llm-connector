@@ -2,6 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.15] - 2025-10-18
+
+### 🐛 Bug Fixes
+
+#### **修复示例代码编译错误和警告**
+
+**修复内容**:
+1. **移除不存在的方法调用** (`examples/test_openai_tool_streaming.rs`)
+   - 移除了对不存在的 `LlmClient::openrouter()` 方法的调用
+   - 改为使用 `LlmClient::openai()`
+
+2. **修复类型错误** (`examples/test_openai_tool_streaming.rs`)
+   - 修复 tool_calls 引用类型问题
+   - 将 `&tool_calls_buffer[0]` 改为 `tool_calls_buffer[0].clone()`
+
+3. **消除未使用导入警告** (7 个示例文件)
+   - 将 streaming 相关的导入移到 `#[cfg(feature = "streaming")]` 内
+   - 避免在非 streaming 模式下产生未使用导入警告
+   - 影响文件：
+     - `test_zhipu_tool_messages_detailed.rs`
+     - `test_deepseek_tools.rs`
+     - `test_openai_tool_streaming.rs`
+     - `test_zhipu_tool_streaming_issue.rs`
+     - `test_glm_models_tool_streaming.rs`
+     - `zhipu_tools_streaming.rs`
+     - `test_all_providers_tool_streaming.rs`
+
+4. **消除未使用字段警告** (`examples/test_all_providers_tool_streaming.rs`)
+   - 添加 `#[allow(dead_code)]` 到 `TestResult` 结构体
+
+5. **修复 clippy 警告**
+   - 修复 doc comments 空行警告
+   - 修复长度比较警告（`len() > 0` → `!is_empty()`）
+
+### 📝 Documentation
+
+- 添加 `docs/EXAMPLES_AND_TESTS_REVIEW.md` - Examples 和 Tests 审查报告
+- 添加 `docs/RELEASE_v0.4.14.md` - v0.4.14 发布总结
+
+**测试验证**:
+- ✅ 所有示例都能正常编译
+- ✅ 所有测试都能通过
+- ✅ 无编译错误
+- ✅ 大幅减少编译警告
+
+**影响范围**:
+- 修复示例代码的编译问题
+- 提升代码质量
+- 完全向后兼容
+
+---
+
 ## [0.4.14] - 2025-10-18
 
 ### 🐛 Bug Fixes
