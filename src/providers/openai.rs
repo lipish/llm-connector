@@ -163,6 +163,11 @@ pub fn openai_compatible(
     Ok(GenericProvider::new(protocol, client))
 }
 
+/// 验证OpenAI API密钥格式
+pub fn validate_openai_key(api_key: &str) -> bool {
+    api_key.starts_with("sk-") && api_key.len() > 20
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

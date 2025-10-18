@@ -34,7 +34,7 @@ fn test_ollama_client_creation() {
 
 #[test]
 fn test_ollama_with_custom_url() {
-    let client = LlmClient::ollama_with_url("http://localhost:11434").unwrap();
+    let client = LlmClient::ollama_with_base_url("http://localhost:11434").unwrap();
     assert_eq!(client.provider_name(), "ollama");
 }
 

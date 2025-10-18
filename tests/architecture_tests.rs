@@ -93,7 +93,7 @@ use llm_connector::providers::{validate_anthropic_key, validate_zhipu_key};
         assert!(LlmClient::zhipu("test-key").is_ok());
         assert!(LlmClient::zhipu_openai_compatible("test-key").is_ok());
         assert!(LlmClient::ollama().is_ok());
-        assert!(LlmClient::ollama_with_url("http://192.168.1.100:11434").is_ok());
+        assert!(LlmClient::ollama_with_base_url("http://192.168.1.100:11434").is_ok());
     }
 
     #[test]

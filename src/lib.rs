@@ -88,7 +88,7 @@
 //!     let client = LlmClient::ollama()?;
 //!
 //!     // Custom URL
-//!     let client = LlmClient::ollama_with_url("http://192.168.1.100:11434")?;
+//!     let client = LlmClient::ollama_with_base_url("http://192.168.1.100:11434")?;
 //!
 //!     let request = ChatRequest {
 //!         model: "llama3.2".to_string(),

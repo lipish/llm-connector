@@ -16,16 +16,18 @@ pub use openai::{
     openai_with_config,
     azure_openai,
     openai_compatible,
+    validate_openai_key,
 };
 
 pub use aliyun::{
     AliyunProvider,
-    AliyunProtocol, // 私有协议
+    AliyunProtocol,
     aliyun,
     aliyun_with_config,
     aliyun_international,
     aliyun_private,
     aliyun_with_timeout,
+    validate_aliyun_key,
 };
 
 pub use anthropic::{
@@ -40,11 +42,10 @@ pub use anthropic::{
 
 pub use zhipu::{
     ZhipuProvider,
-    ZhipuProtocol, // 私有协议
+    ZhipuProtocol,
     zhipu,
     zhipu_openai_compatible,
     zhipu_with_config,
-    zhipu_default,
     zhipu_with_timeout,
     zhipu_enterprise,
     validate_zhipu_key,
@@ -55,6 +56,6 @@ pub use ollama::{
     OllamaModelInfo,
     OllamaModelDetails,
     ollama,
-    ollama_with_url,
+    ollama_with_base_url,
     ollama_with_config,
 };

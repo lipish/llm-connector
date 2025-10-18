@@ -2,6 +2,79 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 🐛 **BUGFIX: 修复智谱流式响应解析问题**
+
+#### **问题描述**
+智谱 API 使用单换行分隔 SSE 事件（`data: {...}\n`），而不是标准的双换行（`data: {...}\n\n`），导致默认 SSE 解析器无法正确解析流式响应，产生 0 个数据块。
+
+#### **修复内容**
+- **新增**: `ZhipuProtocol::parse_stream_response()` 专用流式解析器
+  - 支持单换行分隔的 SSE 格式
+  - 正确处理 `data:` 前缀（带或不带空格）
+  - 跳过 `[DONE]` 标记和空 payload
+  - 提供详细的错误信息（包含原始 JSON）
+
+#### **测试改进**
+- 更新 `examples/zhipu_streaming.rs`
+  - 添加数据块计数器
+  - 显示解析器类型提示
+  - 使用 `glm-4-flash` 模型（更快响应）
+  - 添加零数据块警告
+
+#### **影响**
+- ✅ **修复**: 智谱流式 API 现在可以正常工作
+- ✅ **兼容性**: 不影响其他 Provider 的流式功能
+- ✅ **调试性**: 解析失败时显示原始 JSON
+
+---
+
+### ✨ **FEAT: API Naming Standardization**
+
+#### **Changed**
+- **Unified Constructor Naming**
+  - `ollama_with_url()` → `ollama_with_base_url()` (kept old name as deprecated)
+  - Removed redundant `zhipu_default()` (use `zhipu()` directly)
+  - All providers now follow consistent `{provider}_with_base_url()` pattern
+
+#### **Added**
+- **Type-Safe Provider Conversions**
+  - `LlmClient::as_ollama()` → `Option<&OllamaProvider>`
+  - `LlmClient::as_openai()` → `Option<&OpenAIProvider>`
+  - `LlmClient::as_aliyun()` → `Option<&AliyunProvider>`
+  - `LlmClient::as_anthropic()` → `Option<&AnthropicProvider>`
+  - `LlmClient::as_zhipu()` → `Option<&ZhipuProvider>`
+  
+- **API Key Validation Functions**
+  - `validate_openai_key()`
+  - `validate_aliyun_key()`
+  - `validate_anthropic_key()` (already existed)
+  - `validate_zhipu_key()` (already existed)
+
+- **Advanced Configuration Methods**
+  - All `{provider}_with_config()` methods now exposed in `LlmClient`
+  - All `{provider}_with_timeout()` methods now exposed in `LlmClient`
+  - Cloud-specific methods: `anthropic_vertex()`, `anthropic_bedrock()`, `aliyun_international()`, etc.
+
+#### **Documentation**
+- **NEW**: `docs/NAMING_CONVENTIONS.md` - Comprehensive naming standards guide
+- **NEW**: `.augment/rules/naming.md` - Qoder auto-check rules
+- Updated all examples to use new naming conventions
+
+#### **Deprecated**
+- `LlmClient::ollama_with_url()` → Use `ollama_with_base_url()`
+- `providers::zhipu_default()` → Use `zhipu()` directly
+- `LlmClient::ollama()` (the method, not constructor) → Use `as_ollama()`
+
+#### **Impact**
+- ✅ **Consistency**: All providers follow same naming pattern
+- ✅ **Type Safety**: No more manual `downcast_ref` needed
+- ✅ **Completeness**: All provider variants exposed in `LlmClient`
+- ✅ **Documentation**: Clear naming rules for contributors
+
+---
+
 ## [0.4.9] - 2025-10-16
 
 ### 📚 **DOCS: Fix API Documentation and Examples**

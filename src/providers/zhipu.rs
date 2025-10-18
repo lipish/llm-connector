@@ -51,6 +51,7 @@ impl ZhipuProtocol {
     }
 }
 
+#[async_trait::async_trait]
 impl Protocol for ZhipuProtocol {
     type Request = ZhipuRequest;
     type Response = ZhipuResponse;
@@ -65,15 +66,20 @@ impl Protocol for ZhipuProtocol {
 
     fn auth_headers(&self) -> Vec<(String, String)> {
         vec![
-            ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
+            (
+                "Authorization".to_string(),
+                format!("Bearer {}", self.api_key),
+            ),
             ("Content-Type".to_string(), "application/json".to_string()),
         ]
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         // 智谱使用OpenAI兼容格式
-        let messages: Vec<ZhipuMessage> = request.messages.iter().map(|msg| {
-            ZhipuMessage {
+        let messages: Vec<ZhipuMessage> = request
+            .messages
+            .iter()
+            .map(|msg| ZhipuMessage {
                 role: match msg.role {
                     Role::System => "system".to_string(),
                     Role::User => "user".to_string(),
@@ -81,8 +87,8 @@ impl Protocol for ZhipuProtocol {
                     Role::Tool => "tool".to_string(),
                 },
                 content: msg.content.clone(),
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(ZhipuRequest {
             model: request.model.clone(),
@@ -94,8 +100,9 @@ impl Protocol for ZhipuProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        let parsed: ZhipuResponse = serde_json::from_str(response)
-            .map_err(|e| LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e)))?;
+        let parsed: ZhipuResponse = serde_json::from_str(response).map_err(|e| {
+            LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e))
+        })?;
 
         if let Some(choices) = parsed.choices {
             if let Some(first_choice) = choices.first() {
@@ -107,11 +114,89 @@ impl Protocol for ZhipuProtocol {
             }
         }
 
-        Err(LlmConnectorError::InvalidRequest("Empty or invalid response".to_string()))
+        Err(LlmConnectorError::InvalidRequest(
+            "Empty or invalid response".to_string(),
+        ))
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
         LlmConnectorError::from_status_code(status, format!("Zhipu API error: {}", body))
+    }
+
+    /// 智谱专用流式解析器
+    ///
+    /// 智谱 API 使用单换行分隔 SSE 事件，而不是标准的双换行
+    /// 格式: data: {...}\n 而不是 data: {...}\n\n
+    #[cfg(feature = "streaming")]
+    async fn parse_stream_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        use crate::types::StreamingResponse;
+        use futures_util::StreamExt;
+
+        let stream = response.bytes_stream();
+
+        let events_stream = stream
+            .scan(String::new(), |buffer, chunk_result| {
+                let mut out: Vec<Result<String, LlmConnectorError>> = Vec::new();
+                match chunk_result {
+                    Ok(chunk) => {
+                        let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
+                        buffer.push_str(&chunk_str);
+
+                        // 智谱使用单换行分隔每个 data: 行
+                        while let Some(newline_idx) = buffer.find('\n') {
+                            let line: String = buffer.drain(..newline_idx + 1).collect();
+                            let trimmed = line.trim();
+
+                            // 跳过空行
+                            if trimmed.is_empty() {
+                                continue;
+                            }
+
+                            // 提取 data: 后的内容
+                            if let Some(payload) = trimmed
+                                .strip_prefix("data: ")
+                                .or_else(|| trimmed.strip_prefix("data:"))
+                            {
+                                let payload = payload.trim();
+
+                                // 跳过 [DONE] 标记
+                                if payload == "[DONE]" {
+                                    continue;
+                                }
+
+                                // 跳过空 payload
+                                if payload.is_empty() {
+                                    continue;
+                                }
+
+                                out.push(Ok(payload.to_string()));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        out.push(Err(LlmConnectorError::NetworkError(e.to_string())));
+                    }
+                }
+                std::future::ready(Some(out))
+            })
+            .flat_map(futures_util::stream::iter);
+
+        // 将 JSON 字符串流转换为 StreamingResponse 流
+        let response_stream = events_stream.map(|result| {
+            result.and_then(|json_str| {
+                serde_json::from_str::<StreamingResponse>(&json_str).map_err(|e| {
+                    LlmConnectorError::ParseError(format!(
+                        "Failed to parse Zhipu streaming response: {}. JSON: {}",
+                        e, json_str
+                    ))
+                })
+            })
+        });
+
+        Ok(Box::pin(response_stream))
     }
 }
 
@@ -153,17 +238,17 @@ pub struct ZhipuChoice {
 pub type ZhipuProvider = GenericProvider<ZhipuProtocol>;
 
 /// 创建智谱GLM服务提供商 (使用原生格式)
-/// 
+///
 /// # 参数
 /// - `api_key`: 智谱GLM API密钥
-/// 
+///
 /// # 返回
 /// 配置好的智谱服务提供商实例
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::providers::zhipu;
-/// 
+///
 /// let provider = zhipu("your-api-key").unwrap();
 /// ```
 pub fn zhipu(api_key: &str) -> Result<ZhipuProvider, LlmConnectorError> {
@@ -171,17 +256,17 @@ pub fn zhipu(api_key: &str) -> Result<ZhipuProvider, LlmConnectorError> {
 }
 
 /// 创建智谱GLM服务提供商 (使用OpenAI兼容格式)
-/// 
+///
 /// # 参数
 /// - `api_key`: 智谱GLM API密钥
-/// 
+///
 /// # 返回
 /// 配置好的智谱服务提供商实例 (OpenAI兼容模式)
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::providers::zhipu_openai_compatible;
-/// 
+///
 /// let provider = zhipu_openai_compatible("your-api-key").unwrap();
 /// ```
 pub fn zhipu_openai_compatible(api_key: &str) -> Result<ZhipuProvider, LlmConnectorError> {
@@ -189,18 +274,18 @@ pub fn zhipu_openai_compatible(api_key: &str) -> Result<ZhipuProvider, LlmConnec
 }
 
 /// 创建带有自定义配置的智谱GLM服务提供商
-/// 
+///
 /// # 参数
 /// - `api_key`: API密钥
 /// - `openai_compatible`: 是否使用OpenAI兼容格式
 /// - `base_url`: 自定义基础URL (可选)
 /// - `timeout_secs`: 超时时间(秒) (可选)
 /// - `proxy`: 代理URL (可选)
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::providers::zhipu_with_config;
-/// 
+///
 /// let provider = zhipu_with_config(
 ///     "your-api-key",
 ///     true, // 使用OpenAI兼容格式
@@ -238,34 +323,16 @@ pub fn zhipu_with_config(
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// 创建智谱GLM服务提供商 (默认配置)
-/// 
-/// 这是一个便利函数，使用推荐的默认配置。
-/// 
-/// # 参数
-/// - `api_key`: API密钥
-/// 
-/// # 示例
-/// ```rust,no_run
-/// use llm_connector::providers::zhipu_default;
-/// 
-/// let provider = zhipu_default("your-api-key").unwrap();
-/// ```
-pub fn zhipu_default(api_key: &str) -> Result<ZhipuProvider, LlmConnectorError> {
-    // 默认使用OpenAI兼容格式，因为它更标准
-    zhipu_openai_compatible(api_key)
-}
-
 /// 创建带有自定义超时的智谱GLM服务提供商
-/// 
+///
 /// # 参数
 /// - `api_key`: API密钥
 /// - `timeout_secs`: 超时时间(秒)
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::providers::zhipu_with_timeout;
-/// 
+///
 /// // 设置120秒超时
 /// let provider = zhipu_with_timeout("your-api-key", 120).unwrap();
 /// ```
@@ -277,15 +344,15 @@ pub fn zhipu_with_timeout(
 }
 
 /// 创建用于智谱GLM企业版的服务提供商
-/// 
+///
 /// # 参数
 /// - `api_key`: 企业版API密钥
 /// - `enterprise_endpoint`: 企业版端点URL
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::providers::zhipu_enterprise;
-/// 
+///
 /// let provider = zhipu_enterprise(
 ///     "your-enterprise-key",
 ///     "https://enterprise.bigmodel.cn"
@@ -299,17 +366,17 @@ pub fn zhipu_enterprise(
 }
 
 /// 验证智谱GLM API密钥格式
-/// 
+///
 /// # 参数
 /// - `api_key`: 要验证的API密钥
-/// 
+///
 /// # 返回
 /// 如果格式看起来正确返回true，否则返回false
-/// 
+///
 /// # 示例
 /// ```rust
 /// use llm_connector::providers::validate_zhipu_key;
-/// 
+///
 /// assert!(validate_zhipu_key("your-valid-key"));
 /// assert!(!validate_zhipu_key(""));
 /// ```
@@ -347,21 +414,12 @@ mod tests {
             true,
             Some("https://custom.bigmodel.cn"),
             Some(60),
-            None
+            None,
         );
         assert!(provider.is_ok());
 
         let provider = provider.unwrap();
         assert_eq!(provider.client().base_url(), "https://custom.bigmodel.cn");
-        assert!(provider.protocol().is_openai_compatible());
-    }
-
-    #[test]
-    fn test_zhipu_default() {
-        let provider = zhipu_default("test-key");
-        assert!(provider.is_ok());
-
-        let provider = provider.unwrap();
         assert!(provider.protocol().is_openai_compatible());
     }
 
@@ -377,7 +435,10 @@ mod tests {
         assert!(provider.is_ok());
 
         let provider = provider.unwrap();
-        assert_eq!(provider.client().base_url(), "https://enterprise.bigmodel.cn");
+        assert_eq!(
+            provider.client().base_url(),
+            "https://enterprise.bigmodel.cn"
+        );
     }
 
     #[test]

@@ -3,18 +3,18 @@
 //! 这个模块提供统一的客户端接口，支持所有LLM服务提供商。
 
 use crate::core::Provider;
-use crate::types::{ChatRequest, ChatResponse};
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse};
 use std::sync::Arc;
 
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
-/// V2统一LLM客户端
-/// 
+/// 统一LLM客户端
+///
 /// 这个客户端提供统一的接口来访问各种LLM服务，
 /// 使用V2架构的清晰抽象层。
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
@@ -36,11 +36,11 @@ use crate::types::ChatStream;
 ///         ],
 ///         ..Default::default()
 ///     };
-///     
+///
 ///     // 发送请求
 ///     let response = client.chat(&request).await?;
 ///     println!("Response: {}", response.content);
-///     
+///
 ///     Ok(())
 /// }
 /// ```
@@ -53,35 +53,35 @@ impl LlmClient {
     pub fn from_provider(provider: Arc<dyn Provider>) -> Self {
         Self { provider }
     }
-    
+
     /// 创建OpenAI客户端
-    /// 
+    ///
     /// # 参数
     /// - `api_key`: OpenAI API密钥
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    /// 
+    ///
     /// let client = LlmClient::openai("sk-...").unwrap();
     /// ```
     pub fn openai(api_key: &str) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::openai(api_key)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
-    
+
     /// 创建带有自定义基础URL的OpenAI客户端
-    /// 
+    ///
     /// # 参数
     /// - `api_key`: API密钥
     /// - `base_url`: 自定义基础URL
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    /// 
+    ///
     /// let client = LlmClient::openai_with_base_url(
-    ///     "sk-...", 
+    ///     "sk-...",
     ///     "https://api.deepseek.com"
     /// ).unwrap();
     /// ```
@@ -89,18 +89,18 @@ impl LlmClient {
         let provider = crate::providers::openai_with_base_url(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
-    
+
     /// 创建Azure OpenAI客户端
-    /// 
+    ///
     /// # 参数
     /// - `api_key`: Azure OpenAI API密钥
     /// - `endpoint`: Azure OpenAI端点
     /// - `api_version`: API版本
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    /// 
+    ///
     /// let client = LlmClient::azure_openai(
     ///     "your-api-key",
     ///     "https://your-resource.openai.azure.com",
@@ -115,7 +115,7 @@ impl LlmClient {
         let provider = crate::providers::azure_openai(api_key, endpoint, api_version)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
-    
+
     /// 创建阿里云DashScope客户端
     ///
     /// # 参数
@@ -160,7 +160,7 @@ impl LlmClient {
     /// let client = LlmClient::zhipu("your-api-key").unwrap();
     /// ```
     pub fn zhipu(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::zhipu_default(api_key)?;
+        let provider = crate::providers::zhipu(api_key)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -202,31 +202,31 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::ollama_with_url("http://192.168.1.100:11434").unwrap();
+    /// let client = LlmClient::ollama_with_base_url("http://192.168.1.100:11434").unwrap();
     /// ```
-    pub fn ollama_with_url(base_url: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::ollama_with_url(base_url)?;
+    pub fn ollama_with_base_url(base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::ollama_with_base_url(base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
-    
+
     /// 创建OpenAI兼容服务客户端
-    /// 
+    ///
     /// # 参数
     /// - `api_key`: API密钥
     /// - `base_url`: 服务基础URL
     /// - `service_name`: 服务名称
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    /// 
+    ///
     /// // DeepSeek
     /// let deepseek = LlmClient::openai_compatible(
     ///     "sk-...",
     ///     "https://api.deepseek.com",
     ///     "deepseek"
     /// ).unwrap();
-    /// 
+    ///
     /// // Moonshot
     /// let moonshot = LlmClient::openai_compatible(
     ///     "sk-...",
@@ -242,70 +242,200 @@ impl LlmClient {
         let provider = crate::providers::openai_compatible(api_key, base_url, service_name)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
-    
+
+    // ============================================================================
+    // 高级构造函数 - 自定义配置
+    // ============================================================================
+
+    /// 创建带有自定义配置的OpenAI客户端
+    pub fn openai_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider =
+            crate::providers::openai_with_config(api_key, base_url, timeout_secs, proxy)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的Aliyun客户端
+    pub fn aliyun_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider =
+            crate::providers::aliyun_with_config(api_key, base_url, timeout_secs, proxy)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建Aliyun国际版客户端
+    pub fn aliyun_international(api_key: &str, region: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::aliyun_international(api_key, region)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建Aliyun专有云客户端
+    pub fn aliyun_private(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::aliyun_private(api_key, base_url)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义超时的Aliyun客户端
+    pub fn aliyun_with_timeout(
+        api_key: &str,
+        timeout_secs: u64,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::aliyun_with_timeout(api_key, timeout_secs)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的Anthropic客户端
+    pub fn anthropic_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider =
+            crate::providers::anthropic_with_config(api_key, base_url, timeout_secs, proxy)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建Anthropic Vertex AI客户端
+    pub fn anthropic_vertex(
+        project_id: &str,
+        location: &str,
+        access_token: &str,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::anthropic_vertex(project_id, location, access_token)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建Anthropic AWS Bedrock客户端
+    pub fn anthropic_bedrock(
+        region: &str,
+        access_key: &str,
+        secret_key: &str,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::anthropic_bedrock(region, access_key, secret_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义超时的Anthropic客户端
+    pub fn anthropic_with_timeout(
+        api_key: &str,
+        timeout_secs: u64,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::anthropic_with_timeout(api_key, timeout_secs)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的Zhipu客户端
+    pub fn zhipu_with_config(
+        api_key: &str,
+        openai_compatible: bool,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::zhipu_with_config(
+            api_key,
+            openai_compatible,
+            base_url,
+            timeout_secs,
+            proxy,
+        )?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义超时的Zhipu客户端
+    pub fn zhipu_with_timeout(api_key: &str, timeout_secs: u64) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::zhipu_with_timeout(api_key, timeout_secs)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建Zhipu企业版客户端
+    pub fn zhipu_enterprise(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::zhipu_enterprise(api_key, base_url)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的Ollama客户端
+    pub fn ollama_with_config(
+        base_url: &str,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::ollama_with_config(base_url, timeout_secs, proxy)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     /// 获取提供商名称
     pub fn provider_name(&self) -> &str {
         self.provider.name()
     }
-    
+
     /// 发送聊天完成请求
-    /// 
+    ///
     /// # 参数
     /// - `request`: 聊天请求
-    /// 
+    ///
     /// # 返回
     /// 聊天响应
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     /// use llm_connector::types::{ChatRequest, Message};
-    /// 
+    ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = LlmClient::openai("sk-...")?;
-    ///     
+    ///
     ///     let request = ChatRequest {
     ///         model: "gpt-4".to_string(),
     ///         messages: vec![Message::user("Hello!")],
     ///         ..Default::default()
     ///     };
-    ///     
+    ///
     ///     let response = client.chat(&request).await?;
     ///     println!("Response: {}", response.content);
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
     pub async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         self.provider.chat(request).await
     }
-    
+
     /// 发送流式聊天完成请求
-    /// 
+    ///
     /// # 参数
     /// - `request`: 聊天请求
-    /// 
+    ///
     /// # 返回
     /// 聊天流
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     /// use llm_connector::types::{ChatRequest, Message};
     /// use futures_util::StreamExt;
-    /// 
+    ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = LlmClient::openai("sk-...")?;
-    ///     
+    ///
     ///     let request = ChatRequest {
     ///         model: "gpt-4".to_string(),
     ///         messages: vec![Message::user("Hello!")],
     ///         stream: Some(true),
     ///         ..Default::default()
     ///     };
-    ///     
+    ///
     ///     let mut stream = client.chat_stream(&request).await?;
     ///     while let Some(chunk) = stream.next().await {
     ///         let chunk = chunk?;
@@ -313,40 +443,43 @@ impl LlmClient {
     ///             print!("{}", content);
     ///         }
     ///     }
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
     #[cfg(feature = "streaming")]
-    pub async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
+    pub async fn chat_stream(
+        &self,
+        request: &ChatRequest,
+    ) -> Result<ChatStream, LlmConnectorError> {
         self.provider.chat_stream(request).await
     }
-    
+
     /// 获取可用模型列表
-    /// 
+    ///
     /// # 返回
     /// 模型名称列表
-    /// 
+    ///
     /// # 示例
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
-    /// 
+    ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = LlmClient::openai("sk-...")?;
-    ///     
+    ///
     ///     let models = client.models().await?;
     ///     for model in models {
     ///         println!("Available model: {}", model);
     ///     }
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
     pub async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
         self.provider.models().await
     }
-    
+
     /// 获取底层提供商的引用 (用于特殊功能访问)
     ///
     /// # 示例
@@ -362,30 +495,59 @@ impl LlmClient {
         self.provider.as_ref()
     }
 
-    /// 获取Ollama特殊功能访问
-    ///
-    /// 如果当前客户端是Ollama提供商，返回Ollama特殊功能的访问接口。
+    // ============================================================================
+    // 类型安全的Provider转换方法
+    // ============================================================================
+
+    /// 尝试将客户端转换为OllamaProvider
     ///
     /// # 返回
-    /// 如果是Ollama提供商，返回Some(OllamaProvider)，否则返回None
+    /// 如果底层Provider是OllamaProvider，返回Some引用，否则返回None
     ///
     /// # 示例
     /// ```rust,no_run
-    /// use llm_connector::{LlmClient, Provider};
+    /// use llm_connector::LlmClient;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = LlmClient::ollama()?;
-    ///     if let Some(ollama) = client.as_ollama() {
-    ///         // 使用Ollama特殊功能
-    ///         let models = ollama.models().await?;
-    ///         ollama.pull_model("llama2").await?;
-    ///     }
-    ///     Ok(())
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = LlmClient::ollama()?;
+    /// if let Some(ollama) = client.as_ollama() {
+    ///     let models = ollama.list_local_models().await?;
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn as_ollama(&self) -> Option<&crate::providers::OllamaProvider> {
-        self.provider.as_any().downcast_ref::<crate::providers::OllamaProvider>()
+        self.provider
+            .as_any()
+            .downcast_ref::<crate::providers::OllamaProvider>()
+    }
+
+    /// 尝试将客户端转换为OpenAIProvider
+    pub fn as_openai(&self) -> Option<&crate::providers::OpenAIProvider> {
+        self.provider
+            .as_any()
+            .downcast_ref::<crate::providers::OpenAIProvider>()
+    }
+
+    /// 尝试将客户端转换为AliyunProvider
+    pub fn as_aliyun(&self) -> Option<&crate::providers::AliyunProvider> {
+        self.provider
+            .as_any()
+            .downcast_ref::<crate::providers::AliyunProvider>()
+    }
+
+    /// 尝试将客户端转换为AnthropicProvider
+    pub fn as_anthropic(&self) -> Option<&crate::providers::AnthropicProvider> {
+        self.provider
+            .as_any()
+            .downcast_ref::<crate::providers::AnthropicProvider>()
+    }
+
+    /// 尝试将客户端转换为ZhipuProvider
+    pub fn as_zhipu(&self) -> Option<&crate::providers::ZhipuProvider> {
+        self.provider
+            .as_any()
+            .downcast_ref::<crate::providers::ZhipuProvider>()
     }
 }
 

@@ -4,5 +4,7 @@ examples/core
 keys.yaml
 .github
 .claude
+.qoder
 target
 CLAUDE.md
+.zed

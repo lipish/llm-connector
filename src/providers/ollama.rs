@@ -436,11 +436,11 @@ pub fn ollama() -> Result<OllamaProvider, LlmConnectorError> {
 ///
 /// # 示例
 /// ```rust,no_run
-/// use llm_connector::providers::ollama_with_url;
+/// use llm_connector::providers::ollama_with_base_url;
 ///
-/// let provider = ollama_with_url("http://192.168.1.100:11434").unwrap();
+/// let provider = ollama_with_base_url("http://192.168.1.100:11434").unwrap();
 /// ```
-pub fn ollama_with_url(base_url: &str) -> Result<OllamaProvider, LlmConnectorError> {
+pub fn ollama_with_base_url(base_url: &str) -> Result<OllamaProvider, LlmConnectorError> {
     OllamaProvider::new(base_url)
 }
 

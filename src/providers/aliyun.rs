@@ -283,6 +283,11 @@ pub fn aliyun_with_timeout(
     aliyun_with_config(api_key, None, Some(timeout_secs), None)
 }
 
+/// 验证Aliyun API密钥格式
+pub fn validate_aliyun_key(api_key: &str) -> bool {
+    api_key.starts_with("sk-") && api_key.len() > 20
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
