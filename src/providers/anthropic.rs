@@ -101,9 +101,9 @@ pub fn anthropic_vertex(
     );
     
     let client = HttpClient::new(&base_url)?
-        .with_header("Authorization".to_string(), format!("Bearer {}", access_token))
-        .with_header("Content-Type".to_string(), "application/json".to_string());
-    
+        .with_header("Authorization".to_string(), format!("Bearer {}", access_token));
+        // 注意: Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
+
     Ok(GenericProvider::new(protocol, client))
 }
 
@@ -134,10 +134,10 @@ pub fn anthropic_bedrock(
     let base_url = format!("https://bedrock-runtime.{}.amazonaws.com", region);
     
     // 注意: 这里简化了AWS签名过程，实际使用中需要实现AWS SigV4签名
+    // Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
     let client = HttpClient::new(&base_url)?
-        .with_header("Content-Type".to_string(), "application/json".to_string())
         .with_header("X-Amz-Target".to_string(), "BedrockRuntime_20231002.InvokeModel".to_string());
-    
+
     Ok(GenericProvider::new(protocol, client))
 }
 

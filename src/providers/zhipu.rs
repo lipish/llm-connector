@@ -70,7 +70,8 @@ impl Protocol for ZhipuProtocol {
                 "Authorization".to_string(),
                 format!("Bearer {}", self.api_key),
             ),
-            ("Content-Type".to_string(), "application/json".to_string()),
+            // 注意: Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
+            // 不要在这里重复设置，否则可能导致重复头部错误
         ]
     }
 

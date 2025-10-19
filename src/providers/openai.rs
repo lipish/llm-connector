@@ -111,12 +111,12 @@ pub fn azure_openai(
     api_version: &str,
 ) -> Result<OpenAIProvider, LlmConnectorError> {
     let protocol = OpenAIProtocol::new(api_key);
-    
+
+    // Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
     let client = HttpClient::new(endpoint)?
         .with_header("api-key".to_string(), api_key.to_string())
-        .with_header("api-version".to_string(), api_version.to_string())
-        .with_header("Content-Type".to_string(), "application/json".to_string());
-    
+        .with_header("api-version".to_string(), api_version.to_string());
+
     Ok(GenericProvider::new(protocol, client))
 }
 
@@ -154,12 +154,12 @@ pub fn openai_compatible(
     service_name: &str,
 ) -> Result<OpenAIProvider, LlmConnectorError> {
     let protocol = OpenAIProtocol::new(api_key);
-    
+
+    // Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
     let client = HttpClient::new(base_url)?
         .with_header("Authorization".to_string(), format!("Bearer {}", api_key))
-        .with_header("Content-Type".to_string(), "application/json".to_string())
         .with_header("User-Agent".to_string(), format!("llm-connector/{}", service_name));
-    
+
     Ok(GenericProvider::new(protocol, client))
 }
 

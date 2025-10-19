@@ -35,8 +35,8 @@ impl OllamaProvider {
     /// let provider = OllamaProvider::new("http://localhost:11434").unwrap();
     /// ```
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
-        let client = HttpClient::new(base_url)?
-            .with_header("Content-Type".to_string(), "application/json".to_string());
+        // Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
+        let client = HttpClient::new(base_url)?;
 
         Ok(Self {
             client,
@@ -50,8 +50,8 @@ impl OllamaProvider {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let client = HttpClient::with_config(base_url, timeout_secs, proxy)?
-            .with_header("Content-Type".to_string(), "application/json".to_string());
+        // Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
+        let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
 
         Ok(Self {
             client,
