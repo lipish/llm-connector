@@ -2,6 +2,91 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.16] - 2025-10-18
+
+### 🐛 Bug Fixes
+
+#### **修复重复 Content-Type 头部导致 Aliyun 等 Provider 无法使用**
+
+**问题描述**:
+- ❌ Aliyun Provider 完全无法使用
+- ❌ 错误信息: `Content-Type/Accept application/json,application/json is not supported`
+- ❌ 原因: `auth_headers()` 和 `HttpClient::post().json()` 都设置了 `Content-Type`
+- ❌ 导致 HTTP 头部重复: `Content-Type: application/json, application/json`
+
+**根本原因**:
+1. `Protocol::auth_headers()` 返回 `Content-Type: application/json`
+2. `HttpClient::post()` 使用 `.json(body)` 也会自动设置 `Content-Type: application/json`
+3. 两个头部值被合并，导致重复
+4. 阿里云 API（以及其他严格的 API）不接受重复的头部值
+
+**修复内容**:
+
+1. **Aliyun Provider** (`src/providers/aliyun.rs`)
+   - 从 `auth_headers()` 中移除 `Content-Type` 设置
+   - 添加注释说明 `.json()` 已自动设置
+
+2. **Zhipu Provider** (`src/providers/zhipu.rs`)
+   - 从 `auth_headers()` 中移除 `Content-Type` 设置
+   - 避免潜在的重复头部问题
+
+3. **Anthropic Provider** (`src/providers/anthropic.rs`)
+   - Vertex AI: 移除 `.with_header("Content-Type", ...)`
+   - Bedrock: 移除 `.with_header("Content-Type", ...)`
+
+4. **Ollama Provider** (`src/providers/ollama.rs`)
+   - `new()`: 移除 `.with_header("Content-Type", ...)`
+   - `with_config()`: 移除 `.with_header("Content-Type", ...)`
+
+5. **OpenAI Provider** (`src/providers/openai.rs`)
+   - Azure OpenAI: 移除 `.with_header("Content-Type", ...)`
+   - OpenAI Compatible: 移除 `.with_header("Content-Type", ...)`
+
+**影响的 Provider**:
+- ✅ **Aliyun (DashScope)** - 修复无法使用的问题
+- ✅ **Zhipu (GLM)** - 修复潜在问题
+- ✅ **Anthropic (Vertex AI, Bedrock)** - 修复潜在问题
+- ✅ **Ollama** - 修复潜在问题
+- ✅ **OpenAI (Azure, Compatible)** - 修复潜在问题
+
+**测试验证**:
+- ✅ 编译成功
+- ✅ 添加 `examples/test_aliyun_basic.rs` 验证修复
+- ✅ 所有 Provider 不再重复设置 Content-Type
+
+**修复统计**:
+- 修复的文件: 5 个
+- 修复的 Provider: 6 个
+- 删除的重复设置: 9 处
+- 添加的注释: 9 处
+
+**影响范围**:
+- ✅ 修复 Aliyun Provider 完全无法使用的严重问题
+- ✅ 修复其他 Provider 的潜在兼容性问题
+- ✅ 提升 HTTP 头部设置的规范性
+- ✅ 完全向后兼容，无需用户修改代码
+
+### 🧪 Testing
+
+#### **添加智谱流式 tool_calls 验证测试**
+
+**新增测试**:
+1. `tests/test_zhipu_streaming_direct.sh` - 直接测试智谱 API 原始响应
+2. `examples/test_zhipu_flash_streaming_tool_calls.rs` - 测试 llm-connector 解析
+3. `examples/debug_zhipu_streaming_tool_calls.rs` - 详细调试示例
+
+**验证结果**:
+- ✅ 智谱 API 在流式模式下返回 tool_calls
+- ✅ llm-connector 可以正确解析 tool_calls
+- ✅ 证明 llm-connector 0.4.15 没有 bug，功能正常
+
+### 📝 Documentation
+
+- 添加 `docs/FIX_DUPLICATE_CONTENT_TYPE_HEADER.md` - 重复头部问题修复文档
+- 添加 `docs/ZHIPU_STREAMING_TOOL_CALLS_VERIFICATION.md` - 智谱流式验证报告
+
+---
+
 ## [0.4.15] - 2025-10-18
 
 ### 🐛 Bug Fixes
