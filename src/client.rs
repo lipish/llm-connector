@@ -284,6 +284,40 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
+    /// 创建火山引擎（Volcengine）客户端
+    ///
+    /// 火山引擎使用 OpenAI 兼容的 API 格式，但端点路径不同
+    ///
+    /// # 参数
+    /// - `api_key`: 火山引擎 API 密钥 (UUID 格式)
+    ///
+    /// # 示例
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::volcengine("26f962bd-450e-4876-bc32-a732e6da9cd2").unwrap();
+    /// ```
+    pub fn volcengine(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::volcengine(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的火山引擎客户端
+    pub fn volcengine_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::volcengine_with_config(
+            api_key,
+            base_url,
+            timeout_secs,
+            proxy,
+        )?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     // ============================================================================
     // 高级构造函数 - 自定义配置
     // ============================================================================

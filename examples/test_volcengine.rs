@@ -12,22 +12,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 测试火山引擎（Volcengine）API");
     println!("{}", "=".repeat(80));
     
-    // 创建 OpenAI 兼容客户端
-    // 火山引擎使用 OpenAI 兼容的 API 格式
-    let client = LlmClient::openai_compatible(
-        &api_key,
-        "https://ark.cn-beijing.volces.com/api/v3",
-        "volcengine"
-    )?;
+    // 创建火山引擎客户端
+    // 火山引擎使用 OpenAI 兼容的 API 格式，但端点路径不同
+    let client = LlmClient::volcengine(&api_key)?;
     
     // 测试 1: 非流式响应
     println!("\n📝 测试 1: 非流式响应");
     println!("{}", "-".repeat(80));
     
-    // 注意：需要使用火山引擎的端点 ID 作为模型名称
-    // 端点 ID 可以在火山引擎控制台获取
+    // 使用实际的端点 ID
     let request = ChatRequest {
-        model: "ep-20250118155555-xxxxx".to_string(), // 替换为实际的端点 ID
+        model: "ep-20251006132256-vrq2p".to_string(),
         messages: vec![Message {
             role: Role::User,
             content: "你好，请用一句话介绍你自己".to_string(),

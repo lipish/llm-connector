@@ -13,13 +13,12 @@ echo ""
 echo "注意: 需要替换 model 为实际的端点 ID (ep-xxxxxx)"
 echo ""
 
-# 注意：这里的 model 需要替换为实际的端点 ID
-# 端点 ID 可以在火山引擎控制台获取
+# 使用实际的端点 ID
 curl -s -X POST https://ark.cn-beijing.volces.com/api/v3/chat/completions \
   -H "Authorization: Bearer $VOLCENGINE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "ep-20250118155555-xxxxx",
+    "model": "ep-20251006132256-vrq2p",
     "messages": [{"role": "user", "content": "你好"}],
     "max_tokens": 1000
   }' | jq '.' | tee /tmp/volcengine-response.json

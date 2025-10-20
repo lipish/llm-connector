@@ -8,6 +8,7 @@ pub mod anthropic;
 pub mod zhipu;
 pub mod ollama;
 pub mod longcat;
+pub mod volcengine;
 
 // 重新导出服务提供商类型和函数
 pub use openai::{
@@ -66,4 +67,11 @@ pub use longcat::{
     LongCatAnthropicProtocol,
     longcat_anthropic,
     longcat_anthropic_with_config,
+};
+
+pub use volcengine::{
+    VolcengineProvider,
+    VolcengineProtocol,
+    volcengine,
+    volcengine_with_config,
 };
