@@ -2,6 +2,103 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.17] - 2025-10-18
+
+### 🐛 Bug Fixes
+
+#### **修复 Aliyun 响应解析和流式响应问题**
+
+**问题 1: ChatResponse 结构不一致**
+
+**问题描述**:
+- ❌ Aliyun 的 `choices` 数组为空
+- ❌ `content` 字段有数据，但不是从 `choices[0]` 提取的
+- ❌ 缺少 `usage` 信息
+- ❌ 与 OpenAI 实现不一致，违反设计意图
+
+**根本原因**:
+- 使用 `..Default::default()` 导致 `choices` 为空数组
+- 直接设置 `content` 字段，而不是从 `choices[0].message.content` 提取
+- 没有提取 `usage` 和 `finish_reason` 信息
+
+**修复内容**:
+
+1. **更新响应数据结构** (`src/providers/aliyun.rs`)
+   - 添加 `AliyunUsage` 结构体
+   - 添加 `usage` 和 `request_id` 字段到 `AliyunResponse`
+   - 添加 `finish_reason` 字段到 `AliyunChoice`
+
+2. **修复 parse_response 方法**
+   - 构建完整的 `choices` 数组，包含 `Choice` 对象
+   - 从 `choices[0].message.content` 提取 `content` 作为便利字段
+   - 提取 `usage` 信息（`input_tokens`, `output_tokens`, `total_tokens`）
+   - 提取 `request_id` 到 `response.id`
+   - 提取 `finish_reason`
+
+**问题 2: 流式响应无法工作**
+
+**问题描述**:
+- ❌ 流式请求没有收到任何内容 chunks
+- ❌ 只收到最后一个空的 final chunk
+- ❌ 流式功能完全无法使用
+
+**根本原因**:
+- 缺少 `X-DashScope-SSE: enable` 头部
+- 缺少 `incremental_output: true` 参数
+- 使用默认的 SSE 解析，无法正确处理 Aliyun 的特殊格式
+
+**修复内容**:
+
+1. **添加流式参数**
+   - 添加 `incremental_output` 字段到 `AliyunParameters`
+   - 在 `build_request` 中根据 `stream` 参数设置 `incremental_output`
+
+2. **创建自定义 Provider 实现**
+   - 创建 `AliyunProviderImpl` 结构体
+   - 实现 `Provider` trait，包含 `chat`, `chat_stream`, `models` 方法
+   - 在 `chat_stream` 中添加 `X-DashScope-SSE: enable` 头部
+
+3. **实现自定义流式解析**
+   - 实现 `parse_stream_response` 方法
+   - 解析 Aliyun SSE 格式（`id:`, `event:`, `data:` 行）
+   - 处理 `finish_reason: "null"` (字符串) vs `"stop"`
+   - 转换为 `StreamingResponse` 格式
+
+**验证结果**:
+
+非流式响应:
+- ✅ `choices` 数组长度: 1
+- ✅ `choices[0].message.content == content`
+- ✅ 包含 `usage` 信息
+- ✅ 包含 `finish_reason`
+- ✅ 符合 OpenAI 标准格式
+
+流式响应:
+- ✅ 总流式块数: 10
+- ✅ 包含内容的块数: 9
+- ✅ 完整内容正常接收
+- ✅ 流式响应正常工作
+
+**影响范围**:
+- ✅ 完全向后兼容（`content` 字段继续工作）
+- ✅ 增强功能（现在可以访问 `choices` 数组和 `usage` 信息）
+- ✅ 修复流式响应（从完全不工作到正常工作）
+
+### 🧪 Testing
+
+**新增测试**:
+1. `examples/test_aliyun_streaming.rs` - 流式响应测试
+2. `examples/verify_aliyun_choices.rs` - choices 数组验证
+3. `tests/test_aliyun_streaming_format.sh` - API 原始响应测试
+
+### 📝 Documentation
+
+- 添加 `docs/ALIYUN_FIXES_SUMMARY.md` - Aliyun 修复总结
+- 添加 `docs/CHATRESPONSE_DESIGN_ANALYSIS.md` - ChatResponse 设计分析
+- 添加 `docs/ALIYUN_RESPONSE_VERIFICATION.md` - Aliyun 响应验证报告
+
+---
+
 ## [0.4.16] - 2025-10-18
 
 ### 🐛 Bug Fixes
