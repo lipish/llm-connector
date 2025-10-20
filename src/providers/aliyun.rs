@@ -2,12 +2,13 @@
 //!
 //! 这个模块提供阿里云DashScope服务的完整实现，使用统一的V2架构。
 
-use crate::core::{GenericProvider, HttpClient, Protocol};
+use crate::core::{HttpClient, Protocol};
 use crate::error::LlmConnectorError;
 use crate::types::{ChatRequest, ChatResponse, Role};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use async_trait::async_trait;
 
 // ============================================================================
 // Aliyun Protocol Definition (Private)
@@ -34,8 +35,17 @@ impl AliyunProtocol {
     pub fn api_key(&self) -> &str {
         &self.api_key
     }
+
+    /// 获取流式请求的额外头部
+    pub fn streaming_headers(&self) -> Vec<(String, String)> {
+        vec![
+            ("X-DashScope-SSE".to_string(), "enable".to_string()),
+        ]
+    }
 }
 
+#[async_trait]
+#[async_trait]
 impl Protocol for AliyunProtocol {
     type Request = AliyunRequest;
     type Response = AliyunResponse;
@@ -80,20 +90,164 @@ impl Protocol for AliyunProtocol {
                 temperature: request.temperature,
                 top_p: request.top_p,
                 result_format: "message".to_string(),
+                // 流式模式需要 incremental_output
+                incremental_output: if request.stream.unwrap_or(false) {
+                    Some(true)
+                } else {
+                    None
+                },
             },
         })
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn parse_stream_response(&self, response: reqwest::Response) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        use futures_util::StreamExt;
+        use crate::types::{StreamingResponse, StreamingChoice, Delta};
+
+        let stream = response.bytes_stream();
+        let mut lines_buffer = String::new();
+
+        let mapped_stream = stream.map(move |result| {
+            match result {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    lines_buffer.push_str(&text);
+
+                    let mut responses = Vec::new();
+                    let lines: Vec<&str> = lines_buffer.lines().collect();
+
+                    for line in &lines {
+                        if line.starts_with("data:") {
+                            let json_str = line.trim_start_matches("data:").trim();
+                            if json_str.is_empty() {
+                                continue;
+                            }
+
+                            // 解析 Aliyun 响应
+                            if let Ok(aliyun_resp) = serde_json::from_str::<AliyunResponse>(json_str) {
+                                if let Some(choices) = aliyun_resp.output.choices {
+                                    if let Some(first_choice) = choices.first() {
+                                        // 转换为 StreamingResponse
+                                        let streaming_choice = StreamingChoice {
+                                            index: 0,
+                                            delta: Delta {
+                                                role: Some(Role::Assistant),
+                                                content: if first_choice.message.content.is_empty() {
+                                                    None
+                                                } else {
+                                                    Some(first_choice.message.content.clone())
+                                                },
+                                                tool_calls: None,
+                                                reasoning_content: None,
+                                                reasoning: None,
+                                                thought: None,
+                                                thinking: None,
+                                            },
+                                            finish_reason: if first_choice.finish_reason.as_deref() == Some("stop") {
+                                                Some("stop".to_string())
+                                            } else {
+                                                None
+                                            },
+                                            logprobs: None,
+                                        };
+
+                                        let content = first_choice.message.content.clone();
+
+                                        let streaming_response = StreamingResponse {
+                                            id: aliyun_resp.request_id.clone().unwrap_or_default(),
+                                            object: "chat.completion.chunk".to_string(),
+                                            created: 0,
+                                            model: aliyun_resp.model.clone().unwrap_or_else(|| "unknown".to_string()),
+                                            choices: vec![streaming_choice],
+                                            content,
+                                            reasoning_content: None,
+                                            usage: aliyun_resp.usage.as_ref().map(|u| crate::types::Usage {
+                                                prompt_tokens: u.input_tokens,
+                                                completion_tokens: u.output_tokens,
+                                                total_tokens: u.total_tokens,
+                                                prompt_cache_hit_tokens: None,
+                                                prompt_cache_miss_tokens: None,
+                                                prompt_tokens_details: None,
+                                                completion_tokens_details: None,
+                                            }),
+                                            system_fingerprint: None,
+                                        };
+
+                                        responses.push(Ok(streaming_response));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 清空已处理的行
+                    if let Some(last_line) = lines.last() {
+                        if !last_line.is_empty() && !last_line.starts_with("data:") {
+                            lines_buffer = last_line.to_string();
+                        } else {
+                            lines_buffer.clear();
+                        }
+                    }
+
+                    futures_util::stream::iter(responses)
+                }
+                Err(e) => {
+                    futures_util::stream::iter(vec![Err(crate::error::LlmConnectorError::NetworkError(e.to_string()))])
+                }
+            }
+        }).flatten();
+
+        Ok(Box::pin(mapped_stream))
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
         let parsed: AliyunResponse = serde_json::from_str(response)
             .map_err(|e| LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e)))?;
 
-        if let Some(choices) = parsed.output.choices {
-            if let Some(first_choice) = choices.first() {
+        if let Some(aliyun_choices) = parsed.output.choices {
+            if let Some(first_choice) = aliyun_choices.first() {
+                // 构建 choices 数组（符合 OpenAI 标准格式）
+                let choices = vec![crate::types::Choice {
+                    index: 0,
+                    message: crate::types::Message {
+                        role: Role::Assistant,
+                        content: first_choice.message.content.clone(),
+                        name: None,
+                        tool_calls: None,
+                        tool_call_id: None,
+                        reasoning_content: None,
+                        reasoning: None,
+                        thought: None,
+                        thinking: None,
+                    },
+                    finish_reason: first_choice.finish_reason.clone(),
+                    logprobs: None,
+                }];
+
+                // 从 choices[0] 提取 content 作为便利字段
+                let content = first_choice.message.content.clone();
+
+                // 提取 usage 信息
+                let usage = parsed.usage.map(|u| crate::types::Usage {
+                    prompt_tokens: u.input_tokens,
+                    completion_tokens: u.output_tokens,
+                    total_tokens: u.total_tokens,
+                    prompt_cache_hit_tokens: None,
+                    prompt_cache_miss_tokens: None,
+                    prompt_tokens_details: None,
+                    completion_tokens_details: None,
+                });
+
                 return Ok(ChatResponse {
-                    content: first_choice.message.content.clone(),
+                    id: parsed.request_id.unwrap_or_default(),
+                    object: "chat.completion".to_string(),
+                    created: 0,  // Aliyun 不提供 created 时间戳
                     model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
-                    ..Default::default()
+                    choices,
+                    content,
+                    usage,
+                    system_fingerprint: None,
                 });
             }
         }
@@ -134,12 +288,18 @@ pub struct AliyunParameters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
     pub result_format: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub incremental_output: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AliyunResponse {
     pub model: Option<String>,
     pub output: AliyunOutput,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<AliyunUsage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,14 +310,96 @@ pub struct AliyunOutput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AliyunChoice {
     pub message: AliyunMessage,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub total_tokens: u32,
 }
 
 // ============================================================================
-// Aliyun Provider Implementation
+// Custom Aliyun Provider Implementation
+// ============================================================================
+
+/// 自定义 Aliyun Provider 实现
+///
+/// 需要特殊处理流式请求，因为 Aliyun 需要 X-DashScope-SSE 头部
+pub struct AliyunProviderImpl {
+    protocol: AliyunProtocol,
+    client: HttpClient,
+}
+
+#[async_trait]
+impl crate::core::Provider for AliyunProviderImpl {
+    fn name(&self) -> &str {
+        "aliyun"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
+        // 使用标准实现
+        let protocol_request = self.protocol.build_request(request)?;
+        let url = self.protocol.chat_endpoint(self.client.base_url());
+
+        let response = self.client.post(&url, &protocol_request).await?;
+        let status = response.status();
+
+        if !status.is_success() {
+            let text = response.text().await
+                .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+            return Err(self.protocol.map_error(status.as_u16(), &text));
+        }
+
+        let text = response.text().await
+            .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+
+        self.protocol.parse_response(&text)
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn chat_stream(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        let mut streaming_request = request.clone();
+        streaming_request.stream = Some(true);
+
+        let protocol_request = self.protocol.build_request(&streaming_request)?;
+        let url = self.protocol.chat_endpoint(self.client.base_url());
+
+        // 创建临时客户端，添加流式头部
+        let streaming_headers: HashMap<String, String> = self.protocol.streaming_headers().into_iter().collect();
+        let streaming_client = self.client.clone().with_headers(streaming_headers);
+
+        let response = streaming_client.stream(&url, &protocol_request).await?;
+        let status = response.status();
+
+        if !status.is_success() {
+            let text = response.text().await
+                .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+            return Err(self.protocol.map_error(status.as_u16(), &text));
+        }
+
+        self.protocol.parse_stream_response(response).await
+    }
+
+    async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        Err(LlmConnectorError::UnsupportedOperation(
+            "Aliyun DashScope does not provide a models list API".to_string()
+        ))
+    }
+}
+
+// ============================================================================
+// Aliyun Provider Public API
 // ============================================================================
 
 /// 阿里云DashScope服务提供商类型
-pub type AliyunProvider = GenericProvider<AliyunProtocol>;
+pub type AliyunProvider = AliyunProviderImpl;
 
 /// 创建阿里云DashScope服务提供商
 /// 
@@ -178,17 +420,17 @@ pub fn aliyun(api_key: &str) -> Result<AliyunProvider, LlmConnectorError> {
 }
 
 /// 创建带有自定义配置的阿里云服务提供商
-/// 
+///
 /// # 参数
 /// - `api_key`: API密钥
 /// - `base_url`: 自定义基础URL (可选，默认为官方端点)
 /// - `timeout_secs`: 超时时间(秒) (可选)
 /// - `proxy`: 代理URL (可选)
-/// 
+///
 /// # 示例
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_with_config;
-/// 
+///
 /// let provider = aliyun_with_config(
 ///     "sk-...",
 ///     None, // 使用默认URL
@@ -205,7 +447,7 @@ pub fn aliyun_with_config(
     // 创建协议实例
     let protocol = AliyunProtocol::new(api_key);
 
-    // 创建HTTP客户端
+    // 创建HTTP客户端（不包含流式头部）
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://dashscope.aliyuncs.com"),
         timeout_secs,
@@ -216,8 +458,11 @@ pub fn aliyun_with_config(
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
 
-    // 创建通用提供商
-    Ok(GenericProvider::new(protocol, client))
+    // 创建自定义 Aliyun Provider（需要特殊处理流式请求）
+    Ok(AliyunProviderImpl {
+        protocol,
+        client,
+    })
 }
 
 /// 创建用于阿里云国际版的服务提供商
