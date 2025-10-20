@@ -9,6 +9,7 @@ pub mod zhipu;
 pub mod ollama;
 pub mod longcat;
 pub mod volcengine;
+pub mod tencent;
 
 // 重新导出服务提供商类型和函数
 pub use openai::{
@@ -74,4 +75,11 @@ pub use volcengine::{
     VolcengineProtocol,
     volcengine,
     volcengine_with_config,
+};
+
+pub use tencent::{
+    TencentProvider,
+    TencentProtocol,
+    tencent,
+    tencent_with_config,
 };

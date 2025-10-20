@@ -318,6 +318,40 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
+    /// 创建腾讯云混元（Tencent Hunyuan）客户端
+    ///
+    /// 腾讯云混元使用 OpenAI 兼容的 API 格式
+    ///
+    /// # 参数
+    /// - `api_key`: 腾讯云混元 API 密钥 (格式: sk-...)
+    ///
+    /// # 示例
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::tencent("sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50").unwrap();
+    /// ```
+    pub fn tencent(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::tencent(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的腾讯云混元客户端
+    pub fn tencent_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::tencent_with_config(
+            api_key,
+            base_url,
+            timeout_secs,
+            proxy,
+        )?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     // ============================================================================
     // 高级构造函数 - 自定义配置
     // ============================================================================

@@ -12,14 +12,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 测试腾讯云混元（Tencent Hunyuan）API");
     println!("{}", "=".repeat(80));
     
-    // 创建 OpenAI 兼容客户端
-    // 腾讯云混元使用 OpenAI 兼容的 API 格式
-    // 注意：base_url 不包含 /v1，因为 OpenAI protocol 会自动添加
-    let client = LlmClient::openai_compatible(
-        &api_key,
-        "https://api.hunyuan.cloud.tencent.com",
-        "tencent"
-    )?;
+    // 创建腾讯云混元客户端
+    // 使用专用的 tencent() 方法，更简洁方便
+    let client = LlmClient::tencent(&api_key)?;
     
     // 测试 1: 非流式响应
     println!("\n📝 测试 1: 非流式响应");

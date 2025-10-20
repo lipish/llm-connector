@@ -29,10 +29,6 @@ toml = ["config"]
 # Tencent Cloud API support
 tencent = ["reqwest", "dep:sha2", "dep:hmac", "dep:hex"]
 
-# 架构版本控制
-v1-legacy = []  # V1架构 (传统架构，用于向后兼容)
-# V2架构现在是默认架构，不需要特性标志
-
 [dependencies]
 # Core serialization
 serde = { version = "1.0", features = ["derive"] }

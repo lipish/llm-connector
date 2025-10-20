@@ -140,10 +140,6 @@ pub mod types;
 // Server-Sent Events (SSE) utilities
 pub mod sse;
 
-// V1 Architecture (Legacy - for backward compatibility)
-#[cfg(feature = "v1-legacy")]
-pub mod v1;
-
 // Re-exports for convenience (V2 Architecture)
 pub use client::LlmClient;
 pub use config::ProviderConfig;

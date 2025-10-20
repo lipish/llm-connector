@@ -52,12 +52,15 @@ use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 创建客户端
-    let client = LlmClient::openai_compatible(
-        "sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50",  // API Key
-        "https://api.hunyuan.cloud.tencent.com",  // 端点（不包含 /v1）
-        "tencent"  // 服务名称
-    )?;
+    // 创建客户端（推荐方式）
+    let client = LlmClient::tencent("sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50")?;
+
+    // 或者使用 openai_compatible 方法
+    // let client = LlmClient::openai_compatible(
+    //     "sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50",
+    //     "https://api.hunyuan.cloud.tencent.com",
+    //     "tencent"
+    // )?;
     
     // 创建请求
     let request = ChatRequest {
@@ -125,7 +128,23 @@ cargo run --example test_tencent --features streaming
 
 ## ⚠️ 注意事项
 
-### 1. Base URL 设置
+### 1. 推荐使用专用方法
+
+**推荐方式**:
+```rust
+// ✅ 推荐：使用专用的 tencent() 方法
+let client = LlmClient::tencent(api_key)?;
+```
+
+**备选方式**:
+```rust
+// ✅ 也可以：使用 openai_compatible() 方法
+let client = LlmClient::openai_compatible(
+    api_key,
+    "https://api.hunyuan.cloud.tencent.com",  // 不包含 /v1
+    "tencent"
+)?;
+```
 
 **错误示例**:
 ```rust
@@ -133,16 +152,6 @@ cargo run --example test_tencent --features streaming
 let client = LlmClient::openai_compatible(
     api_key,
     "https://api.hunyuan.cloud.tencent.com/v1",  // 错误
-    "tencent"
-)?;
-```
-
-**正确示例**:
-```rust
-// ✅ 正确：不包含 /v1，OpenAI protocol 会自动添加
-let client = LlmClient::openai_compatible(
-    api_key,
-    "https://api.hunyuan.cloud.tencent.com",  // 正确
     "tencent"
 )?;
 ```
@@ -296,17 +305,13 @@ match client.chat(&request).await {
 ### 3. 超时设置
 
 ```rust
-use llm_connector::providers::openai_compatible_with_config;
-
-let provider = openai_compatible_with_config(
+// 使用专用方法设置超时
+let client = LlmClient::tencent_with_config(
     &api_key,
-    "https://api.hunyuan.cloud.tencent.com",
-    "tencent",
+    None,      // 使用默认 URL
     Some(60),  // 60秒超时
-    None
+    None       // 无代理
 )?;
-
-let client = LlmClient::from_provider(Arc::new(provider));
 ```
 
 ## 📚 参考资源
@@ -318,14 +323,19 @@ let client = LlmClient::from_provider(Arc::new(provider));
 
 ## 🎉 总结
 
-腾讯云混元使用 OpenAI 兼容的 API 格式，可以通过 `LlmClient::openai_compatible()` 方法轻松接入。
+腾讯云混元使用 OpenAI 兼容的 API 格式，可以通过专用的 `LlmClient::tencent()` 方法轻松接入。
 
 **关键点**:
 1. ✅ 使用 OpenAI 兼容格式
-2. ✅ 端点: `https://api.hunyuan.cloud.tencent.com`（不包含 `/v1`）
+2. ✅ 专用方法: `LlmClient::tencent(api_key)`
 3. ✅ 支持流式和非流式响应
 4. ✅ 多种模型可选（lite, standard, pro, turbo）
 5. ✅ 完全兼容 llm-connector
+
+**推荐使用方式**:
+```rust
+let client = LlmClient::tencent("sk-...")?;
+```
 
 ---
 
