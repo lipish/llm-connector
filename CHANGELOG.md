@@ -2,6 +2,87 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.19] - 2025-10-18
+
+### ✨ New Features
+
+#### **添加火山引擎（Volcengine）专用 Provider**
+
+**火山引擎简介**:
+- 火山引擎是字节跳动旗下的云服务平台
+- 提供大模型服务（火山方舟）
+- 使用 OpenAI 兼容的 API 格式，但端点路径不同
+
+**新增功能**:
+
+1. **创建 VolcengineProtocol 适配器**
+   - 包装 OpenAI protocol，但使用火山引擎的端点路径
+   - 端点: `/api/v3/chat/completions` (而不是 `/v1/chat/completions`)
+   - 完全兼容 OpenAI 请求/响应格式
+
+2. **添加专用 API 方法**
+   - `LlmClient::volcengine()` - 创建火山引擎客户端
+   - `LlmClient::volcengine_with_config()` - 带自定义配置的客户端
+
+3. **支持推理模型特性**
+   - 支持 `reasoning_content` 字段（思考过程）
+   - 流式响应中先返回思考过程，再返回实际回答
+   - 类似 OpenAI o1 的推理模型
+
+**使用示例**:
+
+```rust
+// 创建客户端
+let client = LlmClient::volcengine("26f962bd-450e-4876-bc32-a732e6da9cd2")?;
+
+// 创建请求（使用端点 ID）
+let request = ChatRequest {
+    model: "ep-20251006132256-vrq2p".to_string(),  // 端点 ID
+    messages: vec![Message {
+        role: Role::User,
+        content: "你好".to_string(),
+        ..Default::default()
+    }],
+    max_tokens: Some(1000),
+    ..Default::default()
+};
+
+// 非流式
+let response = client.chat(&request).await?;
+
+// 流式
+#[cfg(feature = "streaming")]
+{
+    let mut stream = client.chat_stream(&request).await?;
+    while let Some(chunk) = stream.next().await {
+        // 处理流式响应
+    }
+}
+```
+
+**测试结果**:
+
+| 功能 | 状态 | 详情 |
+|------|------|------|
+| 非流式响应 | ✅ | 完全可用 |
+| 流式响应 | ✅ | 完全可用 |
+| reasoning_content | ✅ | 支持推理过程 |
+| llm-connector 兼容性 | ✅ | 完全兼容 |
+
+**新增文件**:
+- `src/providers/volcengine.rs` - 火山引擎专用 Provider
+- `examples/test_volcengine.rs` - 测试示例
+- `tests/test_volcengine_raw.sh` - 原始 API 测试
+- `tests/test_volcengine_streaming_raw.sh` - 流式响应测试
+- `docs/VOLCENGINE_GUIDE.md` - 完整使用指南
+
+**重要说明**:
+- 火山引擎使用端点 ID（`ep-xxxxxx`）而不是模型名称
+- 端点 ID 需要在火山引擎控制台创建和获取
+- API Key 格式为 UUID 而不是 `sk-` 格式
+
+---
+
 ## [0.4.18] - 2025-10-18
 
 ### ✨ New Features
