@@ -2,6 +2,86 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.18] - 2025-10-18
+
+### ✨ New Features
+
+#### **添加 LongCat API 支持**
+
+**LongCat 简介**:
+- LongCat 是一个 AI 服务平台，提供高性能的对话模型
+- 支持 OpenAI 和 Anthropic 两种 API 格式
+- 每日免费额度: 500,000 Tokens
+
+**新增功能**:
+
+1. **LongCat OpenAI 格式支持** - ✅ 完全可用
+   - 使用 `LlmClient::openai_compatible()` 方法
+   - 端点: `https://api.longcat.chat/openai`
+   - 支持非流式和流式响应
+   - 完全兼容 llm-connector
+
+2. **LongCat Anthropic 格式支持** - ✅ 非流式可用
+   - 创建 `LongCatAnthropicProtocol` 适配器
+   - 使用 `Authorization: Bearer` 认证（而不是标准 Anthropic 的 `x-api-key`）
+   - 添加 `LlmClient::longcat_anthropic()` 方法
+   - 添加 `LlmClient::longcat_anthropic_with_config()` 方法
+   - 支持非流式响应
+   - ⚠️ 流式响应暂不支持（Anthropic 事件格式需要专门解析器）
+
+**使用示例**:
+
+```rust
+// 方式 1: OpenAI 格式（推荐，流式和非流式都可用）
+let client = LlmClient::openai_compatible(
+    "ak_...",
+    "https://api.longcat.chat/openai",
+    "longcat"
+)?;
+
+// 方式 2: Anthropic 格式（仅非流式）
+let client = LlmClient::longcat_anthropic("ak_...")?;
+```
+
+**测试结果**:
+
+| 测试项 | OpenAI 格式 | Anthropic 格式 |
+|--------|------------|---------------|
+| 非流式响应 | ✅ 成功 | ✅ 成功 |
+| 流式响应 | ✅ 成功 | ⚠️ 暂不支持 |
+| llm-connector 兼容性 | ✅ 完全兼容 | ✅ 非流式兼容 |
+
+**新增文件**:
+- `src/providers/longcat.rs` - LongCat Anthropic 适配器
+- `examples/test_longcat_openai.rs` - OpenAI 格式测试
+- `examples/test_longcat_anthropic.rs` - Anthropic 格式测试
+- `tests/test_longcat_anthropic_raw.sh` - Anthropic 原始 API 测试
+- `tests/test_longcat_anthropic_streaming_raw.sh` - 流式响应格式测试
+- `docs/LONGCAT_TESTING_REPORT.md` - 完整测试报告
+
+**推荐使用方式**:
+- 流式: `LlmClient::openai_compatible("ak_...", "https://api.longcat.chat/openai", "longcat")`
+- 非流式: `LlmClient::longcat_anthropic("ak_...")` 或 OpenAI 格式
+
+### 🐛 Bug Fixes
+
+#### **修复 AliyunProviderImpl 缺失方法**
+
+**问题**: 测试代码调用 `provider.protocol()` 和 `provider.client()` 方法，但这些方法不存在
+
+**修复**:
+- 添加 `protocol()` 方法返回协议实例引用
+- 添加 `client()` 方法返回 HTTP 客户端引用
+- 修复 `models()` 错误信息以匹配测试期望
+- 修复 `as_ollama()` doctest 中不存在的方法调用
+
+### 📝 Documentation
+
+- 添加 `docs/LONGCAT_TESTING_REPORT.md` - LongCat API 完整测试报告
+- 更新 `src/client.rs` - 添加 LongCat 使用示例
+
+---
+
 ## [0.4.17] - 2025-10-18
 
 ### 🐛 Bug Fixes
