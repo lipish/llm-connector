@@ -510,8 +510,8 @@ impl LlmClient {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = LlmClient::ollama()?;
-    /// if let Some(ollama) = client.as_ollama() {
-    ///     let models = ollama.list_local_models().await?;
+    /// if let Some(_ollama) = client.as_ollama() {
+    ///     // 可以访问 Ollama 特定的功能
     /// }
     /// # Ok(())
     /// # }

@@ -401,7 +401,7 @@ impl crate::core::Provider for AliyunProviderImpl {
 
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
         Err(LlmConnectorError::UnsupportedOperation(
-            "Aliyun DashScope does not provide a models list API".to_string()
+            "Aliyun DashScope does not support model listing".to_string()
         ))
     }
 }
