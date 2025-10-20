@@ -12,9 +12,9 @@
 
 | 测试项 | OpenAI 格式 | Anthropic 格式 |
 |--------|------------|---------------|
-| 非流式响应 | ✅ 成功 | ⚠️ 认证问题 |
-| 流式响应 | ✅ 成功 | ⚠️ 认证问题 |
-| llm-connector 兼容性 | ✅ 完全兼容 | ❌ 需要适配 |
+| 非流式响应 | ✅ 成功 | ✅ 成功 |
+| 流式响应 | ✅ 成功 | ⚠️ 暂不支持 |
+| llm-connector 兼容性 | ✅ 完全兼容 | ✅ 非流式兼容 |
 
 ## ✅ OpenAI 格式测试
 
@@ -82,28 +82,53 @@ cargo run --example test_longcat_openai --features streaming
 北京是中国的首都，拥有三千多年建城史和八百多年建都史，是政治、文化、国际交往和科技创新中心，荟萃了故宫、长城等世界文化遗产与现代都市风貌。
 ```
 
-## ⚠️ Anthropic 格式测试
+## ✅ Anthropic 格式测试
 
-### 问题描述
+### 非流式响应 - ✅ 成功
 
-**错误信息**:
-```
-Authentication failed: Anthropic: missing_api_key
-```
-
-### 根本原因
-
-LongCat 的 Anthropic 端点使用 **OpenAI 风格的认证**：
-```
-Authorization: Bearer YOUR_APP_KEY
+**测试命令**:
+```bash
+cargo run --example test_longcat_anthropic
 ```
 
-而标准的 Anthropic API 使用：
-```
-x-api-key: YOUR_API_KEY
+**结果**: ✅ 成功
+
+**响应示例**:
+```json
+{
+  "model": "longcat-flash-chatai-api",
+  "content": "你好，我是一个乐于助人的AI助手，随时为你解答问题、提供建议或陪你聊天！ 😊",
+  "usage": {
+    "prompt_tokens": 18,
+    "completion_tokens": 23,
+    "total_tokens": 41
+  },
+  "choices": [
+    {
+      "finish_reason": "end_turn",
+      "message": {
+        "role": "assistant",
+        "content": "..."
+      }
+    }
+  ]
+}
 ```
 
-llm-connector 的 `AnthropicProtocol` 实现了标准 Anthropic 认证方式，因此无法直接用于 LongCat 的 Anthropic 端点。
+**验证点**:
+- ✅ 请求成功
+- ✅ 返回正确的内容
+- ✅ 包含 usage 信息
+- ✅ choices 数组不为空
+- ✅ finish_reason 正确
+
+### 流式响应 - ⚠️ 暂不支持
+
+**问题**: Anthropic 的流式响应格式与 OpenAI 不同，使用特殊的事件类型（`message_start`, `content_block_delta` 等），需要专门的解析器。
+
+**当前状态**: 非流式响应完全可用，流式响应需要进一步开发。
+
+**建议**: 使用 OpenAI 格式的流式响应（完全可用）。
 
 ### 原始 API 测试
 
@@ -173,13 +198,23 @@ curl -X POST https://api.longcat.chat/anthropic/v1/messages \
 
 ## 💡 使用建议
 
-### 推荐方式：使用 OpenAI 格式
+### 推荐方式
 
-由于 LongCat 的两种格式都使用相同的认证方式（`Authorization: Bearer`），建议使用 OpenAI 格式，因为：
+#### 方式 1: OpenAI 格式（推荐用于流式）
+
+建议使用 OpenAI 格式，因为：
 
 1. ✅ llm-connector 完全兼容
 2. ✅ 流式和非流式都正常工作
 3. ✅ 无需额外适配
+
+#### 方式 2: Anthropic 格式（仅非流式）
+
+如果需要使用 Anthropic 格式：
+
+1. ✅ 非流式响应完全可用
+2. ⚠️ 流式响应暂不支持（需要专门的事件解析器）
+3. ✅ 使用 `LlmClient::longcat_anthropic()`
 
 **示例代码**:
 ```rust

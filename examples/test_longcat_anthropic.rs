@@ -12,13 +12,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 测试 LongCat Anthropic 格式 API");
     println!("{}", "=".repeat(80));
     
-    // 创建 Anthropic 兼容客户端
-    let client = LlmClient::anthropic_with_config(
-        &api_key,
-        Some("https://api.longcat.chat/anthropic"),
-        None,
-        None
-    )?;
+    // 创建 LongCat Anthropic 客户端
+    // 注意：LongCat 使用 Bearer 认证而不是标准 Anthropic 的 x-api-key
+    let client = LlmClient::longcat_anthropic(&api_key)?;
     
     // 测试 1: 非流式响应
     println!("\n📝 测试 1: 非流式响应");

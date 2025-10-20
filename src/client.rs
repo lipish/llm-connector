@@ -233,6 +233,13 @@ impl LlmClient {
     ///     "https://api.moonshot.cn",
     ///     "moonshot"
     /// ).unwrap();
+    ///
+    /// // LongCat (OpenAI format)
+    /// let longcat = LlmClient::openai_compatible(
+    ///     "ak_...",
+    ///     "https://api.longcat.chat/openai",
+    ///     "longcat"
+    /// ).unwrap();
     /// ```
     pub fn openai_compatible(
         api_key: &str,
@@ -240,6 +247,40 @@ impl LlmClient {
         service_name: &str,
     ) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::openai_compatible(api_key, base_url, service_name)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建LongCat Anthropic格式客户端
+    ///
+    /// LongCat的Anthropic端点使用Bearer认证而不是标准的x-api-key认证
+    ///
+    /// # 参数
+    /// - `api_key`: LongCat API密钥 (格式: ak_...)
+    ///
+    /// # 示例
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::longcat_anthropic("ak_...").unwrap();
+    /// ```
+    pub fn longcat_anthropic(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::longcat_anthropic(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的LongCat Anthropic客户端
+    pub fn longcat_anthropic_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::longcat_anthropic_with_config(
+            api_key,
+            base_url,
+            timeout_secs,
+            proxy,
+        )?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 

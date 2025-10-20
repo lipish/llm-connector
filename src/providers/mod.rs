@@ -7,6 +7,7 @@ pub mod aliyun;
 pub mod anthropic;
 pub mod zhipu;
 pub mod ollama;
+pub mod longcat;
 
 // 重新导出服务提供商类型和函数
 pub use openai::{
@@ -58,4 +59,11 @@ pub use ollama::{
     ollama,
     ollama_with_base_url,
     ollama_with_config,
+};
+
+pub use longcat::{
+    LongCatAnthropicProvider,
+    LongCatAnthropicProtocol,
+    longcat_anthropic,
+    longcat_anthropic_with_config,
 };
