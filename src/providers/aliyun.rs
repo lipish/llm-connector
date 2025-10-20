@@ -333,6 +333,18 @@ pub struct AliyunProviderImpl {
     client: HttpClient,
 }
 
+impl AliyunProviderImpl {
+    /// 获取协议实例的引用
+    pub fn protocol(&self) -> &AliyunProtocol {
+        &self.protocol
+    }
+
+    /// 获取 HTTP 客户端的引用
+    pub fn client(&self) -> &HttpClient {
+        &self.client
+    }
+}
+
 #[async_trait]
 impl crate::core::Provider for AliyunProviderImpl {
     fn name(&self) -> &str {
