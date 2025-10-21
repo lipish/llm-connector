@@ -1,7 +1,7 @@
 #[cfg(feature = "streaming")]
 use {
     futures_util::StreamExt,
-    llm_connector::{LlmClient, types::{ChatRequest, Message, Role, Tool, Function}},
+    llm_connector::{LlmClient, types::{ChatRequest, Message, MessageBlock, Role, Tool, Function}},
     serde_json::json,
 };
 
@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         },
                         Message {
                             role: Role::Tool,
-                            content: r#"{"location":"San Francisco","temperature":18,"unit":"celsius","condition":"sunny","humidity":65}"#.to_string(),
+                            content: vec![MessageBlock::text(r#"{"location":"San Francisco","temperature":18,"unit":"celsius","condition":"sunny","humidity":65}"#)],
                             tool_call_id: Some(first_call.id.clone()),
                             name: Some(first_call.function.name.clone()),
                             ..Default::default()

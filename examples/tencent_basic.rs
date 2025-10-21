@@ -12,16 +12,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "tencent")]
     {
-        // 腾讯云 SecretId 和 SecretKey
-        let secret_id = std::env::var("TENCENT_SECRET_ID")
-            .expect("请设置环境变量 TENCENT_SECRET_ID");
-        let secret_key = std::env::var("TENCENT_SECRET_KEY")
-            .expect("请设置环境变量 TENCENT_SECRET_KEY");
+        // 腾讯云混元 API Key (OpenAI 兼容格式)
+        let api_key = std::env::var("TENCENT_API_KEY")
+            .expect("请设置环境变量 TENCENT_API_KEY (格式: sk-...)");
 
-        // 可选：指定地域，默认为 ap-beijing
-        let region = std::env::var("TENCENT_REGION").ok();
-
-        let client = LlmClient::tencent(&secret_id, &secret_key, region.as_deref());
+        let client = LlmClient::tencent(&api_key)?;
 
         let model = std::env::var("HUNYUAN_MODEL").unwrap_or_else(|_| "hunyuan-lite".to_string());
         let request = ChatRequest {
@@ -31,13 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..Default::default()
         };
 
-        println!("🚀 腾讯混元原生API非流式连接测试 (model={})\n", request.model);
-        println!("🔐 使用TC3-HMAC-SHA256签名认证");
-        println!("🌍 地域: {}\n", region.as_deref().unwrap_or("ap-beijing"));
+        println!("🚀 腾讯混元 OpenAI 兼容 API 非流式连接测试 (model={})\n", request.model);
 
         match client.chat(&request).await {
             Ok(resp) => {
-                println!("✅ 成功，输出：\n{}", resp.choices[0].message.content);
+                println!("✅ 成功，输出：\n{}", resp.choices[0].message.content_as_text());
                 println!("\n📊 Token 使用情况:");
                 println!("  输入 tokens: {}", resp.prompt_tokens());
                 println!("  输出 tokens: {}", resp.completion_tokens());

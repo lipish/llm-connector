@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("   Claude 回复: {}\n", response.choices[0].message.content);
+            println!("   Claude 回复: {}\n", response.choices[0].message.content_as_text());
         }
         Err(e) => {
             println!("   ❌ 聊天错误: {}\n", e);

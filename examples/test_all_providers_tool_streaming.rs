@@ -1,7 +1,7 @@
 #[cfg(feature = "streaming")]
 use {
     futures_util::StreamExt,
-    llm_connector::{LlmClient, types::{ChatRequest, Message, Role, Tool, Function}},
+    llm_connector::{LlmClient, types::{ChatRequest, Message, MessageBlock, Role, Tool, Function}},
     serde_json::json,
     std::collections::HashMap,
 };

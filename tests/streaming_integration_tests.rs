@@ -5,7 +5,7 @@
 
 #[cfg(feature = "streaming")]
 mod tests {
-    use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
+    use llm_connector::{LlmClient, types::{ChatRequest, Message, MessageBlock, Role}};
     use futures_util::StreamExt;
     use std::time::Duration;
 
@@ -20,11 +20,7 @@ mod tests {
 
         let request = ChatRequest {
             model: model.to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: test_message.to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, test_message)],
             max_tokens: Some(20),
             ..Default::default()
         };
@@ -100,11 +96,7 @@ mod tests {
 
         let request = ChatRequest {
             model: model.to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: test_message.to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, test_message)],
             max_tokens: Some(10),
             ..Default::default()
         };
