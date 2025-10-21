@@ -1,34 +1,35 @@
 # LLM Connector Examples
 
-这个目录包含了 `llm-connector` 库的各种使用示例。
+这个目录包含了 `llm-connector` 库的精选使用示例。
 
-## 🚀 基础示例
+## 📚 示例列表
 
-### Provider基础用法
+### 基础示例 (6 个)
 
 | 示例文件 | 描述 | 运行命令 |
 |---------|------|----------|
-| `openai_basic.rs` | OpenAI基础聊天示例 | `cargo run --example openai_basic` |
+| `openai_basic.rs` | OpenAI 基础聊天示例 | `cargo run --example openai_basic` |
 | `aliyun_basic.rs` | 阿里云通义千问基础示例 | `cargo run --example aliyun_basic` |
-| `zhipu_basic.rs` | 智谱GLM基础示例 | `cargo run --example zhipu_basic` |
-| `tencent_basic.rs` | 腾讯混元基础示例 | `cargo run --example tencent_basic --features tencent` |
-| `ollama_basic.rs` | Ollama本地模型基础示例 | `cargo run --example ollama_basic` |
+| `zhipu_basic.rs` | 智谱 GLM 基础示例 | `cargo run --example zhipu_basic` |
+| `tencent_basic.rs` | 腾讯混元基础示例 | `cargo run --example tencent_basic` |
+| `ollama_basic.rs` | Ollama 本地模型基础示例 | `cargo run --example ollama_basic` |
+| `anthropic_streaming.rs` | Anthropic 流式响应示例 | `cargo run --example anthropic_streaming --features streaming` |
 
-### 流式响应示例
-
-| 示例文件 | 描述 | 运行命令 |
-|---------|------|----------|
-| `streaming_basic.rs` | 通用流式响应示例 | `cargo run --example streaming_basic --features streaming` |
-| `anthropic_streaming.rs` | Anthropic流式响应示例 | `cargo run --example anthropic_streaming --features streaming` |
-| `zhipu_streaming.rs` | 智谱GLM流式响应示例 | `cargo run --example zhipu_streaming --features streaming` |
-| `ollama_streaming.rs` | Ollama流式响应示例 | `cargo run --example ollama_streaming --features streaming` |
-
-### 高级功能示例
+### 特殊功能 (4 个)
 
 | 示例文件 | 描述 | 运行命令 |
 |---------|------|----------|
-| `ollama_model_management.rs` | Ollama模型管理示例 | `cargo run --example ollama_model_management` |
-| `test_keys_yaml.rs` | 批量测试API密钥 | `cargo run --example test_keys_yaml` |
+| `multimodal_basic.rs` | 多模态内容示例（文本+图片） | `cargo run --example multimodal_basic` |
+| `ollama_model_management.rs` | Ollama 模型管理（CRUD） | `cargo run --example ollama_model_management` |
+| `ollama_streaming.rs` | Ollama 流式响应示例 | `cargo run --example ollama_streaming --features streaming` |
+| `aliyun_thinking.rs` | Aliyun thinking 功能示例 | `cargo run --example aliyun_thinking` |
+
+### 工具调用 (2 个)
+
+| 示例文件 | 描述 | 运行命令 |
+|---------|------|----------|
+| `zhipu_tools.rs` | 智谱 GLM 工具调用基础示例 | `cargo run --example zhipu_tools` |
+| `zhipu_multiround_tools.rs` | 智谱 GLM 多轮工具调用示例 | `cargo run --example zhipu_multiround_tools` |
 
 ## 🔧 环境变量设置
 
@@ -49,9 +50,7 @@ export ZHIPU_API_KEY="your-zhipu-api-key"
 
 ### 腾讯混元
 ```bash
-export TENCENT_SECRET_ID="your-secret-id"
-export TENCENT_SECRET_KEY="your-secret-key"
-export TENCENT_REGION="ap-beijing"  # 可选
+export TENCENT_API_KEY="your-tencent-api-key"
 ```
 
 ### Anthropic
@@ -68,47 +67,48 @@ export OLLAMA_MODEL="llama2"
 
 ## 📋 功能特性
 
-### 支持的Provider
+### 支持的 Provider
 
-- **OpenAI** - GPT系列模型
-- **阿里云DashScope** - 通义千问系列
-- **智谱GLM** - GLM系列模型  
+- **OpenAI** - GPT 系列模型
+- **阿里云 DashScope** - 通义千问系列
+- **智谱 GLM** - GLM 系列模型
 - **腾讯混元** - 混元系列模型
-- **Anthropic** - Claude系列模型
+- **Anthropic** - Claude 系列模型
 - **Ollama** - 本地开源模型
 
 ### 核心功能
 
 - ✅ 统一的聊天接口
 - ✅ 流式响应支持
+- ✅ 多模态内容（文本 + 图片）
+- ✅ 工具调用（Function Calling）
 - ✅ 模型列表获取
-- ✅ Token使用统计
+- ✅ Token 使用统计
 - ✅ 错误处理和重试
-- ✅ 配置文件支持
 
 ## 🎯 快速开始
 
-1. **选择一个基础示例**开始：
+1. **从基础示例开始**：
    ```bash
    cargo run --example ollama_basic
    ```
 
-2. **尝试流式响应**：
+2. **尝试多模态内容**：
    ```bash
-   cargo run --example streaming_basic --features streaming
+   cargo run --example multimodal_basic
    ```
 
-3. **测试多个API密钥**：
+3. **尝试工具调用**：
    ```bash
-   cargo run --example test_keys_yaml
+   cargo run --example zhipu_tools
    ```
 
 ## 💡 提示
 
-- 大部分示例需要相应的API密钥
-- Ollama示例需要本地运行Ollama服务
+- 大部分示例需要相应的 API 密钥
+- Ollama 示例需要本地运行 Ollama 服务
 - 流式示例需要启用 `streaming` 功能
-- 腾讯混元示例需要启用 `tencent` 功能
+- 多模态示例需要支持视觉的模型（如 gpt-4o, claude-3-5-sonnet）
 
 ## 🔗 相关链接
 
