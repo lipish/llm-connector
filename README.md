@@ -2,7 +2,7 @@
 
 Next-generation Rust library for LLM protocol abstraction.
 
-Supports 9+ providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, and more.
+Supports 10+ providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, and more.
 Clean architecture with unified output format and configuration-driven design for maximum flexibility.
 
 ## 🚨 Having Authentication Issues?
@@ -16,7 +16,7 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 
 ## ✨ Key Features
 
-- **9+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, and more
+- **10+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, and more
 - **Configuration-Driven Architecture**: Clean Protocol/Provider separation with flexible configuration
 - **Extreme Performance**: 7,000x+ faster client creation (7µs vs 53ms)
 - **Memory Efficient**: Only 16 bytes per client instance
@@ -289,6 +289,30 @@ let client = LlmClient::longcat_anthropic("ak-...")?;
 **Models**: LongCat-Flash-Chat and other LongCat models
 
 **Note**: LongCat's Anthropic format uses `Authorization: Bearer` instead of `x-api-key`
+
+### 9. Moonshot (月之暗面)
+OpenAI-compatible API for Moonshot AI.
+
+```rust
+// Default
+let client = LlmClient::moonshot("sk-...")?;
+
+// With custom configuration
+let client = LlmClient::moonshot_with_config(
+    "sk-...",
+    None,      // base_url (uses default)
+    Some(60),  // timeout in seconds
+    None       // proxy
+)?;
+```
+
+**Models**: moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k
+
+**Features**:
+- ✅ OpenAI-compatible API format
+- ✅ Long context support (up to 128k tokens)
+- ✅ Streaming support
+- ✅ Unified output format
 
 ## Ollama Model Management
 

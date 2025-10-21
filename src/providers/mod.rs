@@ -10,6 +10,7 @@ pub mod ollama;
 pub mod longcat;
 pub mod volcengine;
 pub mod tencent;
+pub mod moonshot;
 
 // 重新导出服务提供商类型和函数
 pub use openai::{
@@ -82,4 +83,11 @@ pub use tencent::{
     TencentProtocol,
     tencent,
     tencent_with_config,
+};
+
+pub use moonshot::{
+    MoonshotProvider,
+    MoonshotProtocol,
+    moonshot,
+    moonshot_with_config,
 };

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Moonshot (月之暗面) Provider**
+  - OpenAI-compatible API
+  - `LlmClient::moonshot(api_key)`
+  - Models: moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k
+  - Long context support (up to 128k tokens)
+  - Full streaming support
+
 ## [0.4.20] - 2025-10-21
 
 ### 🎯 Major Update: Unified Output Format & Configuration-Driven Architecture
