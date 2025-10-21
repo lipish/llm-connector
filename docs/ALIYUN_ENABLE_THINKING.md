@@ -239,7 +239,7 @@ fn prepare_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmCon
 
 ---
 
-## 🎯 推荐实现：方案 4（组合方案）
+## 🎯 推荐实现：方案 2（ChatRequest 参数）
 
 ### 实现步骤
 
@@ -352,10 +352,10 @@ fn prepare_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmCon
 
 ## 🧪 使用示例
 
-### 示例 1: 自动启用（推荐）
+### 示例 1: 显式启用（推荐）
 
 ```rust
-// 使用混合推理模型，自动启用 enable_thinking
+// 使用混合推理模型，显式启用 enable_thinking
 let request = ChatRequest {
     model: "qwen-plus".to_string(),
     messages: vec![Message {
@@ -363,12 +363,13 @@ let request = ChatRequest {
         content: "9.11 和 9.9 哪个更大？".to_string(),
         ..Default::default()
     }],
+    enable_thinking: Some(true),  // 显式启用
     ..Default::default()
 };
 
 let response = client.chat(&request).await?;
 
-// 自动返回推理内容
+// 返回推理内容
 if let Some(reasoning) = response.reasoning_content {
     println!("推理过程: {}", reasoning);
 }

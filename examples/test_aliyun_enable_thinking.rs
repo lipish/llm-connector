@@ -16,11 +16,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 创建客户端
     let client = LlmClient::aliyun(&api_key)?;
 
-    println!("\n📝 测试 1: 混合推理模型 + 自动启用（推荐）");
+    println!("\n📝 测试 1: 混合推理模型 + 显式启用");
     println!("{}", "-".repeat(80));
     println!("模型: qwen-plus");
-    println!("enable_thinking: None（自动检测）");
-    println!("预期: 自动设置 enable_thinking=true，返回 reasoning_content");
+    println!("enable_thinking: Some(true)（显式启用）");
+    println!("预期: 返回 reasoning_content");
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
@@ -29,6 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             content: "9.11 和 9.9 哪个更大？请详细解释你的推理过程。".to_string(),
             ..Default::default()
         }],
+        enable_thinking: Some(true),  // 显式启用
         max_tokens: Some(500),
         ..Default::default()
     };
@@ -44,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", "-".repeat(80));
                 println!("{}", reasoning);
                 println!("{}", "-".repeat(80));
-                println!("✅ 成功返回 reasoning_content（自动启用生效）");
+                println!("✅ 成功返回 reasoning_content（显式启用生效）");
             } else {
                 println!("\n⚠️  未返回 reasoning_content");
                 println!("   可能原因:");
@@ -68,11 +69,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("\n\n📝 测试 2: 混合推理模型 + 手动启用");
+    println!("\n\n📝 测试 2: 混合推理模型 + 未指定（默认不启用）");
     println!("{}", "-".repeat(80));
     println!("模型: qwen-plus");
-    println!("enable_thinking: Some(true)（手动启用）");
-    println!("预期: 返回 reasoning_content");
+    println!("enable_thinking: None（未指定）");
+    println!("预期: 不返回 reasoning_content");
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
@@ -81,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             content: "如果一个数的平方是 144，这个数是多少？".to_string(),
             ..Default::default()
         }],
-        enable_thinking: Some(true),  // 手动启用
+        // enable_thinking 未指定
         max_tokens: Some(500),
         ..Default::default()
     };
@@ -91,18 +92,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.chat(&request).await {
         Ok(response) => {
             println!("\n✅ 请求成功！");
-            
-            if let Some(reasoning) = response.reasoning_content {
-                println!("\n🧠 推理过程:");
-                println!("{}", "-".repeat(80));
-                println!("{}", reasoning);
-                println!("{}", "-".repeat(80));
-                println!("✅ 成功返回 reasoning_content（手动启用生效）");
+
+            if response.reasoning_content.is_none() {
+                println!("\n✅ 正确：未返回 reasoning_content（默认不启用）");
             } else {
-                println!("\n⚠️  未返回 reasoning_content");
+                println!("\n⚠️  意外：返回了 reasoning_content");
             }
-            
-            println!("\n💡 最终答案:");
+
+            println!("\n💡 答案:");
             println!("{}", response.content);
         }
         Err(e) => {
@@ -111,10 +108,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("\n\n📝 测试 3: 混合推理模型 + 手动禁用");
+    println!("\n\n📝 测试 3: 混合推理模型 + 显式禁用");
     println!("{}", "-".repeat(80));
     println!("模型: qwen-plus");
-    println!("enable_thinking: Some(false)（手动禁用）");
+    println!("enable_thinking: Some(false)（显式禁用）");
     println!("预期: 不返回 reasoning_content");
 
     let request = ChatRequest {
@@ -136,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("\n✅ 请求成功！");
             
             if response.reasoning_content.is_none() {
-                println!("\n✅ 正确：未返回 reasoning_content（手动禁用生效）");
+                println!("\n✅ 正确：未返回 reasoning_content（显式禁用生效）");
             } else {
                 println!("\n⚠️  意外：返回了 reasoning_content");
             }
@@ -236,15 +233,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📝 总结:");
     println!("   1. 混合推理模型（qwen-plus 等）:");
-    println!("      - 自动启用: enable_thinking 自动设置为 true");
-    println!("      - 手动控制: 可以通过 enable_thinking 参数覆盖");
+    println!("      - 需要显式设置 enable_thinking: Some(true)");
+    println!("      - 未设置时默认不启用推理模式");
     println!("   2. 纯推理模型（qwq-plus 等）:");
     println!("      - 默认启用，无需配置");
     println!("   3. 非推理模型（qwen-max 等）:");
-    println!("      - 不启用 enable_thinking");
+    println!("      - 不支持 enable_thinking");
     println!("   4. 统一的 API:");
     println!("      - response.reasoning_content - 推理过程");
     println!("      - response.content - 最终答案");
+    println!("   5. 显式控制:");
+    println!("      - 用户完全控制是否启用推理模式");
+    println!("      - 无自动检测，行为明确可预测");
 
     Ok(())
 }
