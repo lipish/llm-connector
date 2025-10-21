@@ -165,25 +165,43 @@ fn parse_zhipu_content(content: &str) -> (Option<String>, String) {
 
 ---
 
-### 5. Aliyun (通义千问) ⚠️ 部分支持
+### 5. Aliyun (通义千问) ✅ 支持
 
-**推理模型**: 
-- `qwen3-reasoning` (Qwen3 推理模式)
+**推理模型**:
+- `qwen-plus` (混合推理模式，需启用)
+- `qwen-flash` (混合推理模式，需启用)
+- `qwen-turbo` (混合推理模式，需启用)
+- `qwen3-235b-a22b-thinking-2507` (纯推理模式)
+- `qwen3-30b-a3b-thinking-2507` (纯推理模式)
+- `qwq-plus` (纯推理模式)
 
-**字段名称**: 可能在 `thinking` 或特殊字段中
+**字段名称**: `reasoning_content`
 
-**API 响应格式**: 需要进一步调查
+**API 响应格式**:
+```json
+{
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "最终答案",
+      "reasoning_content": "思考过程..."
+    }
+  }]
+}
+```
 
-**官方文档**: https://www.alibabacloud.com/help/en/model-studio/use-qwen-by-calling-api
+**启用方式**:
+- 混合推理模式：设置 `enable_thinking: true`
+- 纯推理模式：默认启用，无法关闭
 
-**当前实现状态**: ❌ **未支持**
-- 当前实现未处理推理内容
-- 需要查看 Aliyun API 文档确认字段名
+**官方文档**: https://www.alibabacloud.com/help/en/model-studio/deep-thinking
 
-**改进建议**: 
-1. 查看 Aliyun API 文档
-2. 确认推理内容的字段名
-3. 在 parse_response 中提取
+**当前实现状态**: ✅ **已支持**
+- Aliyun 使用 OpenAI 兼容格式
+- 字段名为 `reasoning_content`
+- 自动提取到 ChatResponse.reasoning_content
+
+**测试建议**: 使用 qwen-plus 模型并设置 enable_thinking=true
 
 ---
 
@@ -241,8 +259,8 @@ fn parse_zhipu_content(content: &str) -> (Option<String>, String) {
 | **OpenAI** | o1 系列 | reasoning_content | 标准字段 | ✅ 已支持 | - |
 | **DeepSeek** | deepseek-reasoner | reasoning_content | 标准字段 | ✅ 已支持 | - |
 | **Moonshot** | kimi-thinking-preview | reasoning_content | 标准字段 | ✅ 已支持 | - |
-| **Zhipu** | glm-z1 | 嵌入 content | 标记分隔 | ❌ 未支持 | 🔴 高 |
-| **Aliyun** | qwen3-reasoning | thinking? | 未知 | ❌ 未支持 | 🟡 中 |
+| **Aliyun** | qwen-plus 等 | reasoning_content | 标准字段 | ✅ 已支持 | - |
+| **Zhipu** | glm-z1 | 嵌入 content | 标记分隔 | ✅ 已支持 | - |
 | Anthropic | - | - | - | ❌ 不支持 | - |
 | Tencent | - | - | - | ❌ 不支持 | - |
 | Volcengine | - | - | - | ❌ 不支持 | - |
@@ -253,51 +271,52 @@ fn parse_zhipu_content(content: &str) -> (Option<String>, String) {
 
 ## 🔧 改进建议
 
-### 高优先级
+### ✅ 已完成
 
-#### 1. Zhipu GLM-Z1 支持 🔴
+#### 1. Zhipu GLM-Z1 支持 ✅
 
-**问题**: 推理内容嵌入在 content 中，使用标记分隔
+**状态**: 已实现
 
-**解决方案**:
+**实现方式**:
 ```rust
-// 在 src/providers/zhipu.rs 的 parse_response 中
-fn extract_reasoning_content(content: &str) -> (Option<String>, String) {
+fn extract_zhipu_reasoning_content(content: &str) -> (Option<String>, String) {
     if content.contains("###Thinking") && content.contains("###Response") {
         let parts: Vec<&str> = content.split("###Response").collect();
-        if parts.len() == 2 {
+        if parts.len() >= 2 {
             let thinking = parts[0]
                 .replace("###Thinking", "")
                 .trim()
                 .to_string();
-            let response = parts[1].trim().to_string();
-            return (Some(thinking), response);
+            let response = parts[1..].join("###Response").trim().to_string();
+
+            if !thinking.is_empty() {
+                return (Some(thinking), response);
+            }
         }
     }
     (None, content.to_string())
 }
-
-// 在构建 ChatResponse 时使用
-let (reasoning_content, content) = extract_reasoning_content(&raw_content);
 ```
 
-**预期效果**:
-- 自动分离推理过程和最终答案
-- 统一的 API: `response.reasoning_content` 和 `response.content`
+**效果**:
+- ✅ 自动分离推理过程和最终答案
+- ✅ 统一的 API: `response.reasoning_content` 和 `response.content`
+- ✅ 5 个单元测试全部通过
 
----
+#### 2. Aliyun Qwen Reasoning 支持 ✅
 
-### 中优先级
+**状态**: 已支持（使用 OpenAI 兼容格式）
 
-#### 2. Aliyun Qwen3 Reasoning 支持 🟡
+**发现**:
+- Aliyun 使用 `reasoning_content` 字段（与 OpenAI 相同）
+- 混合推理模式需要设置 `enable_thinking: true`
+- 纯推理模式（qwq-plus 等）默认启用
 
-**问题**: 需要确认 API 响应格式
-
-**步骤**:
-1. 查看 Aliyun API 文档
-2. 测试 qwen3-reasoning 模型
-3. 确认推理内容字段名
-4. 实现提取逻辑
+**支持的模型**:
+- qwen-plus, qwen-flash, qwen-turbo (混合模式)
+- qwen3-235b-a22b-thinking-2507 (纯推理)
+- qwen3-30b-a3b-thinking-2507 (纯推理)
+- qwq-plus (纯推理)
 
 ---
 
@@ -347,29 +366,42 @@ ZHIPU_API_KEY="..." cargo run --example test_zhipu_reasoning
 - [x] OpenAI reasoning_content 支持
 - [x] DeepSeek reasoning_content 支持
 - [x] Moonshot reasoning_content 支持（自动支持，因为 OpenAI 兼容）
-- [ ] Zhipu GLM-Z1 推理内容解析
-- [ ] Aliyun Qwen3 推理内容支持
-- [ ] 流式推理内容优化
+- [x] Zhipu GLM-Z1 推理内容解析（已实现标记分隔解析）
+- [x] Aliyun Qwen 推理内容支持（已支持，使用 OpenAI 兼容格式）
+- [ ] 流式推理内容优化（Zhipu 流式解析）
 - [ ] 推理内容测试示例
+- [ ] 验证所有 providers 的 reasoning_content 提取
 
 ---
 
 ## 🎯 结论
 
 **当前状态**:
-- ✅ 3 个 providers 已支持 reasoning_content（OpenAI, DeepSeek, Moonshot）
-- ⚠️ 2 个 providers 需要改进（Zhipu, Aliyun）
-- ❌ 5 个 providers 暂不支持
+- ✅ **5 个 providers 已支持 reasoning_content**
+  - OpenAI (o1 系列)
+  - DeepSeek (deepseek-reasoner)
+  - Moonshot (kimi-thinking-preview)
+  - Aliyun (qwen-plus, qwq-plus 等)
+  - Zhipu (glm-z1, GLM-4.1V-Thinking)
+- ❌ 5 个 providers 暂不支持（Anthropic, Tencent, Volcengine, LongCat, Ollama）
+
+**已完成的工作**:
+1. ✅ 添加 reasoning_content 字段到 ChatResponse
+2. ✅ OpenAI protocol 自动提取 reasoning_content
+3. ✅ Zhipu GLM-Z1 标记分隔解析
+4. ✅ 验证 Aliyun 使用标准 reasoning_content 字段
+5. ✅ 单元测试覆盖
 
 **下一步行动**:
-1. **高优先级**: 实现 Zhipu GLM-Z1 推理内容解析
-2. **中优先级**: 调查 Aliyun Qwen3 推理模式
-3. **低优先级**: 优化流式推理内容处理
+1. **中优先级**: 优化 Zhipu 流式推理内容处理
+2. **低优先级**: 添加推理内容测试示例
+3. **低优先级**: 验证所有 providers 的实际行为
 
-**预期收益**:
-- 统一的推理内容 API
-- 更好的用户体验
-- 支持更多推理模型
+**已实现收益**:
+- ✅ 统一的推理内容 API
+- ✅ 更好的用户体验
+- ✅ 支持 5 个 providers 的推理模型
+- ✅ 自动处理不同格式（标准字段 vs 标记分隔）
 
 ---
 
