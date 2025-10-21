@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📤 发送流式请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
+    println!("   Message: {}", request.messages[0].content_as_text());
     println!("   Stream: true");
 
     #[cfg(feature = "streaming")]
@@ -156,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📤 发送流式请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
+    println!("   Message: {}", request.messages[0].content_as_text());
 
     #[cfg(feature = "streaming")]
     {

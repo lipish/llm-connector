@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("📤 请求信息:");
     println!("  - model: {}", request.model);
-    println!("  - 提示词: {}", request.messages[0].content_as_text()_as_text());
+    println!("  - 提示词: {}", request.messages[0].content_as_text());
     println!("  - tools 数量: {}\n", request.tools.as_ref().map(|t| t.len()).unwrap_or(0));
     
     let response = client.chat(&request).await?;

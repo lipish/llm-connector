@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🚀 发送请求到Ollama...");
     println!("📝 模型: {}", request.model);
-    println!("💬 消息: {}", request.messages[0].content_as_text()_as_text());
+    println!("💬 消息: {}", request.messages[0].content_as_text());
     println!();
 
     // 发送请求

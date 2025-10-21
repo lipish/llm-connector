@@ -27,13 +27,7 @@ use crate::types::ChatStream;
 ///     // 创建请求
 ///     let request = ChatRequest {
 ///         model: "gpt-4".to_string(),
-///         messages: vec![
-///             Message {
-///                 role: Role::User,
-///                 content: "Hello, how are you?".to_string(),
-///                 ..Default::default()
-///             }
-///         ],
+///         messages: vec![Message::text(Role::User, "Hello, how are you?")],
 ///         ..Default::default()
 ///     };
 ///

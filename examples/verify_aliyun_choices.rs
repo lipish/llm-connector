@@ -44,21 +44,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n2. choices[0]:");
         println!("   index: {}", first_choice.index);
         println!("   message.role: {:?}", first_choice.message.role);
-        println!("   message.content: {}", first_choice.message.content);
+        println!("   message.content: {}", first_choice.message.content_as_text());
         println!("   finish_reason: {:?}", first_choice.finish_reason);
-        
+
         // 检查 content 字段
         println!("\n3. content 便利字段:");
         println!("   content: {}", response.content);
-        
+
         // 验证一致性
         println!("\n4. 一致性检查:");
-        if first_choice.message.content == response.content {
+        let choice_content = first_choice.message.content_as_text();
+        if choice_content == response.content {
             println!("   ✅ choices[0].message.content == content");
             println!("   符合设计意图：content 是从 choices[0] 提取的便利字段");
         } else {
             println!("   ❌ choices[0].message.content != content");
-            println!("   choices[0].message.content: {}", first_choice.message.content);
+            println!("   choices[0].message.content: {}", choice_content);
             println!("   content: {}", response.content);
             return Err("content 字段与 choices[0] 不一致".into());
         }

@@ -1,10 +1,27 @@
 //! 调试 LongCat Anthropic 流式响应
+//!
+//! 需要 streaming feature: cargo run --example debug_longcat_anthropic_stream --features streaming
 
+#[cfg(feature = "streaming")]
 use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
+#[cfg(feature = "streaming")]
 use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(feature = "streaming"))]
+    {
+        eprintln!("❌ 此示例需要 streaming feature");
+        eprintln!("   运行方式: cargo run --example debug_longcat_anthropic_stream --features streaming");
+        return Ok(());
+    }
+
+    #[cfg(feature = "streaming")]
+    run().await
+}
+
+#[cfg(feature = "streaming")]
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = std::env::var("LONGCAT_API_KEY")
         .expect("LONGCAT_API_KEY environment variable not set");
 

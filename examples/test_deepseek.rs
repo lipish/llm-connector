@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📤 发送请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
+    println!("   Message: {}", request.messages[0].content_as_text());
 
     // 发送请求
     match client.chat(&request).await {
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📤 发送请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
+    println!("   Message: {}", request.messages[0].content_as_text());
 
     match client.chat(&request).await {
         Ok(response) => {
@@ -118,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("\n📤 发送流式请求:");
         println!("   Model: {}", request.model);
-        println!("   Message: {}", request.messages[0].content_as_text()_as_text());
+        println!("   Message: {}", request.messages[0].content_as_text());
         println!("   Stream: true");
 
         println!("\n📥 接收流式响应:");
@@ -207,7 +207,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("\n📤 发送流式请求:");
         println!("   Model: {}", request.model);
-        println!("   Message: {}", request.messages[0].content_as_text()_as_text());
+        println!("   Message: {}", request.messages[0].content_as_text());
 
         println!("\n📥 接收流式响应:");
         println!("{}", "-".repeat(80));

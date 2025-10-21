@@ -18,11 +18,7 @@
 //!
 //!     let request = ChatRequest {
 //!         model: "gpt-4".to_string(),
-//!         messages: vec![Message {
-//!             role: Role::User,
-//!             content: "Hello!".to_string(),
-//!             ..Default::default()
-//!         }],
+//!         messages: vec![Message::text(Role::User, "Hello!")],
 //!         ..Default::default()
 //!     };
 //!
@@ -41,11 +37,7 @@
 //!     let client = LlmClient::anthropic("sk-ant-...")?;
 //!     let request = ChatRequest {
 //!         model: "claude-3-5-sonnet-20241022".to_string(),
-//!         messages: vec![Message {
-//!             role: Role::User,
-//!             content: "Hello!".to_string(),
-//!             ..Default::default()
-//!         }],
+//!         messages: vec![Message::text(Role::User, "Hello!")],
 //!         ..Default::default()
 //!     };
 //!
@@ -64,11 +56,7 @@
 //!     let client = LlmClient::aliyun("sk-...")?;
 //!     let request = ChatRequest {
 //!         model: "qwen-turbo".to_string(),
-//!         messages: vec![Message {
-//!             role: Role::User,
-//!             content: "Hello!".to_string(),
-//!             ..Default::default()
-//!         }],
+//!         messages: vec![Message::text(Role::User, "Hello!")],
 //!         ..Default::default()
 //!     };
 //!
@@ -92,11 +80,7 @@
 //!
 //!     let request = ChatRequest {
 //!         model: "llama3.2".to_string(),
-//!         messages: vec![Message {
-//!             role: Role::User,
-//!             content: "Hello!".to_string(),
-//!             ..Default::default()
-//!         }],
+//!         messages: vec![Message::text(Role::User, "Hello!")],
 //!         ..Default::default()
 //!     };
 //!

@@ -1,5 +1,5 @@
 use llm_connector::{
-    types::{ChatRequest, Function, Message, Role, Tool},
+    types::{ChatRequest, Function, Message, MessageBlock, Role, Tool},
     LlmClient,
 };
 use serde_json::json;
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // 添加 assistant 的工具调用消息
             messages.push(Message {
                 role: Role::Assistant,
-                content: String::new(),
+                content: vec![],
                 tool_calls: Some(tool_calls.clone()),
                 ..Default::default()
             });
@@ -77,12 +77,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for call in tool_calls {
                 messages.push(Message {
                     role: Role::Tool,
-                    content: json!({
+                    content: vec![MessageBlock::text(json!({
                         "location": "北京",
                         "temperature": "15°C",
                         "condition": "晴天"
                     })
-                    .to_string(),
+                    .to_string())],
                     tool_call_id: Some(call.id.clone()),
                     name: Some(call.function.name.clone()),
                     ..Default::default()
@@ -93,14 +93,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  消息数量: {}", messages.len());
             println!("  消息历史:");
             for (i, msg) in messages.iter().enumerate() {
+                let content_text = msg.content_as_text();
                 println!(
                     "    [{}] role={:?}, content={}, tool_calls={}, tool_call_id={:?}",
                     i,
                     msg.role,
-                    if msg.content.len() > 50 {
-                        format!("{}...", &msg.content[..50])
+                    if content_text.len() > 50 {
+                        format!("{}...", &content_text[..50])
                     } else {
-                        msg.content.clone()
+                        content_text
                     },
                     msg.tool_calls.as_ref().map(|t| t.len()).unwrap_or(0),
                     msg.tool_call_id

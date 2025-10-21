@@ -4,7 +4,7 @@
 /// 1. OpenAI 协议现在支持工具调用（tools, tool_choice, tool_calls 字段）
 /// 2. 智谱 GLM 不再强制切换流式响应
 
-use llm_connector::types::{ChatRequest, Message, Role, Tool, Function};
+use llm_connector::types::{ChatRequest, Message, MessageBlock, Role, Tool, Function};
 use serde_json::json;
 
 fn main() {
@@ -32,7 +32,7 @@ fn main() {
             Message::text(Role::User, "What's the weather?"),
             Message {
                 role: Role::Assistant,
-                content: String::new(),
+                content: vec![],
                 tool_calls: Some(vec![llm_connector::types::ToolCall {
                     id: "call_123".to_string(),
                     call_type: "function".to_string(),
@@ -45,7 +45,7 @@ fn main() {
             },
             Message {
                 role: Role::Tool,
-                content: r#"{"temperature": 20}"#.to_string(),
+                content: vec![MessageBlock::text(r#"{"temperature": 20}"#)],
                 tool_call_id: Some("call_123".to_string()),
                 name: Some("get_weather".to_string()),
                 ..Default::default()
