@@ -2,8 +2,8 @@
 
 Next-generation Rust library for LLM protocol abstraction.
 
-Supports 5 protocols: OpenAI, Anthropic, Zhipu, Aliyun, Ollama.
-Clean architecture with clear Protocol/Provider separation for maximum performance and extensibility.
+Supports 9+ providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, and more.
+Clean architecture with unified output format and configuration-driven design for maximum flexibility.
 
 ## 🚨 Having Authentication Issues?
 
@@ -16,8 +16,8 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 
 ## ✨ Key Features
 
-- **5 Protocol Support**: OpenAI, Anthropic, Zhipu, Aliyun, Ollama
-- **V2 Architecture**: Clean Protocol/Provider separation for maximum extensibility
+- **9+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, and more
+- **Configuration-Driven Architecture**: Clean Protocol/Provider separation with flexible configuration
 - **Extreme Performance**: 7,000x+ faster client creation (7µs vs 53ms)
 - **Memory Efficient**: Only 16 bytes per client instance
 - **Type-Safe**: Full Rust type safety with Result-based error handling
@@ -26,6 +26,59 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 - **Universal Streaming**: Real-time streaming with format abstraction (JSON/SSE/NDJSON)
 - **Ollama Model Management**: Full CRUD operations for local models
 - **Unified Interface**: Same API for all protocols
+- **🎯 Unified Output Format**: All providers return the same `StreamingResponse` type
+
+## 🎯 Unified Output Format
+
+**All providers output the same unified `StreamingResponse` format**, regardless of their native API format.
+
+```
+Different Input Formats → Protocol Conversion → Unified StreamingResponse
+```
+
+### Why This Matters
+
+✅ **Consistent API** - Same code works with all providers
+✅ **Easy Switching** - Change providers without changing business logic
+✅ **Type Safety** - Compile-time guarantees across all providers
+✅ **Lower Learning Curve** - Learn once, use everywhere
+
+### Example
+
+```rust
+// Same code works with ANY provider
+let mut stream = client.chat_stream(&request).await?;
+
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;  // Always StreamingResponse
+
+    // Unified access methods
+    if let Some(content) = chunk.get_content() {
+        print!("{}", content);
+    }
+
+    if let Some(reason) = chunk.get_finish_reason() {
+        println!("\nfinish_reason: {}", reason);
+    }
+
+    if let Some(usage) = chunk.usage {
+        println!("usage: {:?}", usage);
+    }
+}
+```
+
+### How It Works
+
+| Provider | Native Format | Conversion | Complexity |
+|----------|--------------|------------|------------|
+| OpenAI | OpenAI standard | Direct mapping | ⭐ Simple |
+| Tencent | OpenAI compatible | Direct mapping | ⭐ Simple |
+| Volcengine | OpenAI compatible | Direct mapping | ⭐ Simple |
+| Anthropic | Multi-event stream | Custom parser | ⭐⭐⭐ Complex |
+| Aliyun | DashScope format | Custom parser | ⭐⭐ Medium |
+| Zhipu | GLM format | Custom parser | ⭐⭐ Medium |
+
+**All conversions happen transparently in the Protocol layer** - you just get consistent `StreamingResponse` objects!
 
 ## Quick Start
 
@@ -35,14 +88,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.4.13"
+llm-connector = "0.4.20"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.4.13", features = ["streaming"] }
+llm-connector = { version = "0.4.20", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -185,6 +238,57 @@ let client = LlmClient::ollama_with_config(
 - ✅ Local server support with custom URLs
 - ✅ Enhanced error handling for Ollama-specific operations
 - ✅ Direct access to Ollama-specific features
+
+### 6. Tencent Hunyuan (腾讯混元)
+OpenAI-compatible API for Tencent Cloud.
+
+```rust
+// Default
+let client = LlmClient::tencent("sk-...")?;
+
+// With custom configuration
+let client = LlmClient::tencent_with_config(
+    "sk-...",
+    None,      // base_url (uses default)
+    Some(60),  // timeout in seconds
+    None       // proxy
+)?;
+```
+
+**Models**: hunyuan-lite, hunyuan-standard, hunyuan-pro, hunyuan-turbo
+
+### 7. Volcengine (火山引擎)
+OpenAI-compatible API with custom endpoint paths.
+
+```rust
+// Default
+let client = LlmClient::volcengine("api-key")?;
+
+// With custom configuration
+let client = LlmClient::volcengine_with_config(
+    "api-key",
+    None,      // base_url (uses default)
+    Some(120), // timeout in seconds
+    None       // proxy
+)?;
+```
+
+**Endpoint**: Uses `/api/v3/chat/completions` instead of `/v1/chat/completions`
+
+### 8. LongCat API
+Supports both OpenAI and Anthropic formats.
+
+```rust
+// OpenAI format
+let client = LlmClient::longcat_openai("ak-...")?;
+
+// Anthropic format (with Bearer auth)
+let client = LlmClient::longcat_anthropic("ak-...")?;
+```
+
+**Models**: LongCat-Flash-Chat and other LongCat models
+
+**Note**: LongCat's Anthropic format uses `Authorization: Bearer` instead of `x-api-key`
 
 ## Ollama Model Management
 

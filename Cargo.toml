@@ -1,9 +1,9 @@
 [package]
 name = "llm-connector"
-version = "0.4.19"
+version = "0.4.20"
 edition = "2021"
 authors = ["lipi"]
-description = "Next-generation Rust library for LLM protocol abstraction. V2 architecture with 7000x+ performance boost. Supports 5 protocols (OpenAI, Anthropic, Aliyun, Zhipu, Ollama) with clean Protocol/Provider separation, type-safe interface, and universal streaming."
+description = "Next-generation Rust library for LLM protocol abstraction. Configuration-driven architecture with unified output format. Supports 9+ providers (OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat) with clean Protocol/Provider separation, type-safe interface, and universal streaming."
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/lipish/llm-connector"
