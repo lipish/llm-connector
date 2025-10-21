@@ -386,6 +386,40 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
+    /// 创建 DeepSeek 客户端
+    ///
+    /// DeepSeek 使用 OpenAI 兼容的 API 格式，支持推理模型
+    ///
+    /// # 参数
+    /// - `api_key`: DeepSeek API 密钥 (格式: sk-...)
+    ///
+    /// # 示例
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::deepseek("sk-...").unwrap();
+    /// ```
+    pub fn deepseek(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::deepseek(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// 创建带有自定义配置的 DeepSeek 客户端
+    pub fn deepseek_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::deepseek_with_config(
+            api_key,
+            base_url,
+            timeout_secs,
+            proxy,
+        )?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     // ============================================================================
     // 高级构造函数 - 自定义配置
     // ============================================================================

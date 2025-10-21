@@ -11,6 +11,7 @@ pub mod longcat;
 pub mod volcengine;
 pub mod tencent;
 pub mod moonshot;
+pub mod deepseek;
 
 // 重新导出服务提供商类型和函数
 pub use openai::{
@@ -90,4 +91,11 @@ pub use moonshot::{
     MoonshotProtocol,
     moonshot,
     moonshot_with_config,
+};
+
+pub use deepseek::{
+    DeepSeekProvider,
+    DeepSeekProtocol,
+    deepseek,
+    deepseek_with_config,
 };

@@ -2,7 +2,7 @@
 
 Next-generation Rust library for LLM protocol abstraction.
 
-Supports 10+ providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, and more.
+Supports 11+ providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, and more.
 Clean architecture with unified output format and configuration-driven design for maximum flexibility.
 
 ## 🚨 Having Authentication Issues?
@@ -16,7 +16,7 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 
 ## ✨ Key Features
 
-- **10+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, and more
+- **11+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, and more
 - **Configuration-Driven Architecture**: Clean Protocol/Provider separation with flexible configuration
 - **Extreme Performance**: 7,000x+ faster client creation (7µs vs 53ms)
 - **Memory Efficient**: Only 16 bytes per client instance
@@ -313,6 +313,56 @@ let client = LlmClient::moonshot_with_config(
 - ✅ Long context support (up to 128k tokens)
 - ✅ Streaming support
 - ✅ Unified output format
+
+### 10. DeepSeek
+OpenAI-compatible API with reasoning models support.
+
+```rust
+// Default
+let client = LlmClient::deepseek("sk-...")?;
+
+// With custom configuration
+let client = LlmClient::deepseek_with_config(
+    "sk-...",
+    None,      // base_url (uses default)
+    Some(60),  // timeout in seconds
+    None       // proxy
+)?;
+```
+
+**Models**:
+- `deepseek-chat` - Standard chat model
+- `deepseek-reasoner` - Reasoning model with thinking process
+
+**Features**:
+- ✅ OpenAI-compatible API format
+- ✅ Reasoning content support (thinking process)
+- ✅ Streaming support
+- ✅ Unified output format
+- ✅ Automatic extraction of reasoning content
+
+**Reasoning Model Example**:
+```rust
+let request = ChatRequest {
+    model: "deepseek-reasoner".to_string(),
+    messages: vec![Message {
+        role: Role::User,
+        content: "9.11 和 9.9 哪个更大？".to_string(),
+        ..Default::default()
+    }],
+    ..Default::default()
+};
+
+let response = client.chat(&request).await?;
+
+// Get reasoning process (thinking)
+if let Some(reasoning) = response.reasoning_content {
+    println!("Thinking: {}", reasoning);
+}
+
+// Get final answer
+println!("Answer: {}", response.content);
+```
 
 ## Ollama Model Management
 

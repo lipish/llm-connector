@@ -12,6 +12,14 @@ All notable changes to this project will be documented in this file.
   - Long context support (up to 128k tokens)
   - Full streaming support
 
+- **DeepSeek Provider**
+  - OpenAI-compatible API
+  - `LlmClient::deepseek(api_key)`
+  - Models: deepseek-chat, deepseek-reasoner
+  - Reasoning model support with thinking process
+  - Automatic extraction of reasoning content
+  - Full streaming support for both chat and reasoning models
+
 ## [0.4.20] - 2025-10-21
 
 ### 🎯 Major Update: Unified Output Format & Configuration-Driven Architecture
