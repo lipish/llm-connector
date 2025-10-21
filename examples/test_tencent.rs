@@ -22,11 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let request = ChatRequest {
         model: "hunyuan-lite".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "你好，请用一句话介绍你自己".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "你好，请用一句话介绍你自己")],
         max_tokens: Some(1000),
         temperature: Some(0.7),
         ..Default::default()
@@ -75,11 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", "-".repeat(80));
         
         let mut streaming_request = request.clone();
-        streaming_request.messages = vec![Message {
-            role: Role::User,
-            content: "用一句话介绍北京".to_string(),
-            ..Default::default()
-        }];
+        streaming_request.messages = vec![Message::text(Role::User, "用一句话介绍北京")];
         streaming_request.stream = Some(true);
         
         println!("\n📤 发送流式请求:");

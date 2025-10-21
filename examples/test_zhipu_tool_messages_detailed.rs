@@ -58,11 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let request1 = ChatRequest {
             model: model.to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "上海的天气怎么样？".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "上海的天气怎么样？")],
             tools: Some(tools.clone()),
             stream: Some(true),
             ..Default::default()
@@ -156,11 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let request2 = ChatRequest {
             model: model.to_string(),
             messages: vec![
-                Message {
-                    role: Role::User,
-                    content: "上海的天气怎么样？".to_string(),
-                    ..Default::default()
-                },
+                Message::text(Role::User, "上海的天气怎么样？"),
                 Message {
                     role: Role::Assistant,
                     content: String::new(),

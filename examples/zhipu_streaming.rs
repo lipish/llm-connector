@@ -22,11 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let request = ChatRequest {
             model: "glm-4-flash".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "请简要说明流式响应的好处。".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "请简要说明流式响应的好处。")],
             max_tokens: Some(128),
             ..Default::default()
         };

@@ -48,11 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let request1 = ChatRequest {
             model: "deepseek-chat".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "Call the get_weather function for San Francisco".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "Call the get_weather function for San Francisco")],
             tools: Some(tools.clone()),
             tool_choice: Some(llm_connector::types::ToolChoice::required()),
             ..Default::default()
@@ -79,11 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let request2 = ChatRequest {
                     model: "deepseek-chat".to_string(),
                     messages: vec![
-                        Message {
-                            role: Role::User,
-                            content: "Call the get_weather function for San Francisco".to_string(),
-                            ..Default::default()
-                        },
+                        Message::text(Role::User, "Call the get_weather function for San Francisco"),
                         Message {
                             role: Role::Assistant,
                             content: String::new(),

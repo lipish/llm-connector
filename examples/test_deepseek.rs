@@ -22,18 +22,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 创建请求
     let request = ChatRequest {
         model: "deepseek-chat".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "你好，请用一句话介绍你自己".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "你好，请用一句话介绍你自己")],
         max_tokens: Some(100),
         ..Default::default()
     };
 
     println!("\n📤 发送请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content);
+    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
 
     // 发送请求
     match client.chat(&request).await {
@@ -68,18 +64,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "deepseek-reasoner".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "9.11 和 9.9 哪个更大？".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "9.11 和 9.9 哪个更大？")],
         max_tokens: Some(500),
         ..Default::default()
     };
 
     println!("\n📤 发送请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content);
+    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
 
     match client.chat(&request).await {
         Ok(response) => {
@@ -118,11 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let request = ChatRequest {
             model: "deepseek-chat".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "用一句话介绍北京".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "用一句话介绍北京")],
             stream: Some(true),
             max_tokens: Some(100),
             ..Default::default()
@@ -130,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("\n📤 发送流式请求:");
         println!("   Model: {}", request.model);
-        println!("   Message: {}", request.messages[0].content);
+        println!("   Message: {}", request.messages[0].content_as_text()_as_text());
         println!("   Stream: true");
 
         println!("\n📥 接收流式响应:");
@@ -211,11 +199,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let request = ChatRequest {
             model: "deepseek-reasoner".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "计算 15 * 23".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "计算 15 * 23")],
             stream: Some(true),
             max_tokens: Some(500),
             ..Default::default()
@@ -223,7 +207,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("\n📤 发送流式请求:");
         println!("   Model: {}", request.model);
-        println!("   Message: {}", request.messages[0].content);
+        println!("   Message: {}", request.messages[0].content_as_text()_as_text());
 
         println!("\n📥 接收流式响应:");
         println!("{}", "-".repeat(80));

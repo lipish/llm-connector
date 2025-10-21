@@ -29,11 +29,7 @@ fn main() {
     let request = ChatRequest {
         model: "test-model".to_string(),
         messages: vec![
-            Message {
-                role: Role::User,
-                content: "What's the weather?".to_string(),
-                ..Default::default()
-            },
+            Message::text(Role::User, "What's the weather?"),
             Message {
                 role: Role::Assistant,
                 content: String::new(),

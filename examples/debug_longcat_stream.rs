@@ -15,11 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 创建请求
     let request = ChatRequest {
         model: "LongCat-Flash-Chat".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "你好".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "你好")],
         stream: Some(true),
         max_tokens: Some(50),
         ..Default::default()

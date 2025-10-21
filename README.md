@@ -1,9 +1,9 @@
 # llm-connector
 
-Next-generation Rust library for LLM protocol abstraction.
+Next-generation Rust library for LLM protocol abstraction with **native multi-modal support**.
 
 Supports 11+ providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, and more.
-Clean architecture with unified output format and configuration-driven design for maximum flexibility.
+Clean architecture with unified output format, multi-modal content support, and configuration-driven design for maximum flexibility.
 
 ## 🚨 Having Authentication Issues?
 
@@ -16,6 +16,7 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 
 ## ✨ Key Features
 
+- **🎨 Multi-modal Content Support**: Native support for text + images in a single message (v0.5.0+)
 - **11+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, and more
 - **Configuration-Driven Architecture**: Clean Protocol/Provider separation with flexible configuration
 - **Extreme Performance**: 7,000x+ faster client creation (7µs vs 53ms)
@@ -88,14 +89,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.4.20"
+llm-connector = "0.5.0"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.4.20", features = ["streaming"] }
+llm-connector = { version = "0.5.0", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -122,11 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "gpt-4".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "Hello!".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "Hello!")],
         ..Default::default()
     };
 
@@ -135,6 +132,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### Multi-modal Content (v0.5.0+)
+
+Send text and images in a single message:
+
+```rust
+use llm_connector::{LlmClient, types::{ChatRequest, Message, MessageBlock, Role}};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = LlmClient::openai("sk-...")?;
+
+    // Text + Image URL
+    let request = ChatRequest {
+        model: "gpt-4o".to_string(),
+        messages: vec![
+            Message::new(
+                Role::User,
+                vec![
+                    MessageBlock::text("What's in this image?"),
+                    MessageBlock::image_url("https://example.com/image.jpg"),
+                ],
+            ),
+        ],
+        ..Default::default()
+    };
+
+    // Text + Base64 Image
+    let request = ChatRequest {
+        model: "gpt-4o".to_string(),
+        messages: vec![
+            Message::new(
+                Role::User,
+                vec![
+                    MessageBlock::text("Analyze this image"),
+                    MessageBlock::image_base64("image/jpeg", base64_data),
+                ],
+            ),
+        ],
+        ..Default::default()
+    };
+
+    let response = client.chat(&request).await?;
+    println!("Response: {}", response.content);
+    Ok(())
+}
+```
+
+**Supported Content Types**:
+- `MessageBlock::text(text)` - Text content
+- `MessageBlock::image_url(url)` - Image from URL (OpenAI format)
+- `MessageBlock::image_base64(media_type, data)` - Base64 encoded image
+- `MessageBlock::image_url_anthropic(url)` - Image from URL (Anthropic format)
+
+**Provider Support**:
+- ✅ OpenAI - Full support (text + images)
+- ✅ Anthropic - Full support (text + images)
+- ⚠️ Other providers - Text only (images converted to text description)
+
+See `examples/multimodal_basic.rs` for more examples.
 
 ## Supported Protocols
 

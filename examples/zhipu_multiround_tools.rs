@@ -32,11 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 测试智谱多轮工具调用\n");
 
     // === 第一轮：用户提问 ===
-    let mut messages = vec![Message {
-        role: Role::User,
-        content: "请使用 get_weather 函数查询北京的天气".to_string(),
-        ..Default::default()
-    }];
+    let mut messages = vec![Message::text(Role::User, "请使用 get_weather 函数查询北京的天气")];
 
     let request = ChatRequest {
         model: "glm-4-flash".to_string(),

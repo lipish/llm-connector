@@ -1,4 +1,4 @@
-use llm_connector::{LlmClient, types::{ChatRequest, Message, Role, Tool, Function}};
+use llm_connector::{LlmClient, types::{ChatRequest, Message, MessageBlock, Role, Tool, Function}};
 use serde_json::json;
 
 #[tokio::main]
@@ -45,11 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📋 测试1：请求需要多个工具");
     let request = ChatRequest {
         model: "glm-4-flash".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "请先搜索今天的新闻，然后查询北京的天气".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "请先搜索今天的新闻，然后查询北京的天气")],
         tools: Some(tools.clone()),
         ..Default::default()
     };
@@ -69,11 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // === 测试2：三轮对话 ===
     println!("\n📋 测试2：三轮工具调用对话");
-    let mut messages = vec![Message {
-        role: Role::User,
-        content: "帮我查询上海的天气".to_string(),
-        ..Default::default()
-    }];
+    let mut messages = vec![Message::text(Role::User, "帮我查询上海的天气")];
     
     // 第一轮
     let request = ChatRequest {
@@ -91,14 +83,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // 添加 assistant 和 tool 消息
             messages.push(Message {
                 role: Role::Assistant,
-                content: String::new(),
+                content: vec![],
                 tool_calls: Some(tool_calls.clone()),
                 ..Default::default()
             });
-            
+
             messages.push(Message {
                 role: Role::Tool,
-                content: json!({"temperature": "20°C", "condition": "多云"}).to_string(),
+                content: vec![MessageBlock::text(json!({"temperature": "20°C", "condition": "多云"}).to_string())],
                 tool_call_id: Some(tool_calls[0].id.clone()),
                 name: Some("get_weather".to_string()),
                 ..Default::default()
@@ -117,17 +109,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  轮次2: content={}", response2.content);
             
             // 继续追问
-            messages.push(Message {
-                role: Role::Assistant,
-                content: response2.content.clone(),
-                ..Default::default()
-            });
+            messages.push(Message::text(Role::Assistant, &response2.content));
             
-            messages.push(Message {
-                role: Role::User,
-                content: "那北京呢？".to_string(),
-                ..Default::default()
-            });
+            messages.push(Message::text(Role::User, "那北京呢？"));
             
             // 第三轮
             let request3 = ChatRequest {

@@ -49,11 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let request = ChatRequest {
             model: "glm-4.6".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "请列出当前目录的文件".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "请列出当前目录的文件")],
             tools: Some(tools),
             stream: Some(true),
             ..Default::default()

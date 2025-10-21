@@ -50,11 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let request = ChatRequest {
             model: "glm-4-flash".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "List files in the current directory".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "List files in the current directory")],
             tools: Some(tools),
             stream: Some(true),
             ..Default::default()

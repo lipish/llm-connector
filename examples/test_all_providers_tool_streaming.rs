@@ -134,11 +134,7 @@ async fn test_provider(
     
     let request1 = ChatRequest {
         model: model.to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "What's the current weather in San Francisco? Use the get_weather function.".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "What's the current weather in San Francisco? Use the get_weather function.")],
         tools: Some(tools.to_vec()),
         ..Default::default()
     };
@@ -203,11 +199,7 @@ async fn test_provider(
     let request2 = ChatRequest {
         model: model.to_string(),
         messages: vec![
-            Message {
-                role: Role::User,
-                content: "What's the current weather in San Francisco? Use the get_weather function.".to_string(),
-                ..Default::default()
-            },
+            Message::text(Role::User, "What's the current weather in San Francisco? Use the get_weather function."),
             Message {
                 role: Role::Assistant,
                 content: String::new(),

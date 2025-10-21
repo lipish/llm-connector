@@ -29,11 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let request = ChatRequest {
             model: "qwen-turbo".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "用一句话介绍北京".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "用一句话介绍北京")],
             stream: Some(true),
             ..Default::default()
         };

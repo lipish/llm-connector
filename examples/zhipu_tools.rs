@@ -35,11 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 使用更明确的提示词，引导模型使用工具
     let request = ChatRequest {
         model: "glm-4-flash".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "请使用 get_weather 函数查询北京的天气".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "请使用 get_weather 函数查询北京的天气")],
         tools: Some(tools),
         ..Default::default()
     };
@@ -48,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("📤 请求信息:");
     println!("  - model: {}", request.model);
-    println!("  - 提示词: {}", request.messages[0].content);
+    println!("  - 提示词: {}", request.messages[0].content_as_text()_as_text());
     println!("  - tools 数量: {}\n", request.tools.as_ref().map(|t| t.len()).unwrap_or(0));
     
     let response = client.chat(&request).await?;

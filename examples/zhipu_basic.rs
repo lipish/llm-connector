@@ -11,11 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model = std::env::var("ZHIPU_MODEL").unwrap_or_else(|_| "glm-4.5".to_string());
     let request = ChatRequest {
         model,
-        messages: vec![Message {
-            role: Role::User,
-            content: "请简要说明流式响应的好处。".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "请简要说明流式响应的好处。")],
         max_tokens: Some(128),
         ..Default::default()
     };

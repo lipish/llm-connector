@@ -21,11 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "glm-z1".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "9.11 和 9.9 哪个更大？请详细解释你的推理过程。".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "9.11 和 9.9 哪个更大？请详细解释你的推理过程。")],
         stream: Some(true),
         max_tokens: Some(1000),
         ..Default::default()
@@ -33,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📤 发送流式请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content);
+    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
     println!("   Stream: true");
 
     #[cfg(feature = "streaming")]
@@ -152,11 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "glm-4".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "你好，请用一句话介绍你自己".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "你好，请用一句话介绍你自己")],
         stream: Some(true),
         max_tokens: Some(100),
         ..Default::default()
@@ -164,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n📤 发送流式请求:");
     println!("   Model: {}", request.model);
-    println!("   Message: {}", request.messages[0].content);
+    println!("   Message: {}", request.messages[0].content_as_text()_as_text());
 
     #[cfg(feature = "streaming")]
     {

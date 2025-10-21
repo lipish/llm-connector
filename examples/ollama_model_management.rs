@@ -96,11 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chat_request = ChatRequest {
         model: "llama3.2".to_string(), // 使用你实际拥有的模型
         messages: vec![
-            Message {
-                role: Role::User,
-                content: "你好！请用中文回答。".to_string(),
-                ..Default::default()
-            }
+            Message::text(Role::User, "你好！请用中文回答。")
         ],
         ..Default::default()
     };

@@ -24,11 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "9.11 和 9.9 哪个更大？请详细解释你的推理过程。".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "9.11 和 9.9 哪个更大？请详细解释你的推理过程。")],
         enable_thinking: Some(true),  // 显式启用
         max_tokens: Some(500),
         ..Default::default()
@@ -77,11 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "如果一个数的平方是 144，这个数是多少？".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "如果一个数的平方是 144，这个数是多少？")],
         // enable_thinking 未指定
         max_tokens: Some(500),
         ..Default::default()
@@ -116,11 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "你好，请介绍一下你自己".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "你好，请介绍一下你自己")],
         enable_thinking: Some(false),  // 手动禁用
         max_tokens: Some(100),
         ..Default::default()
@@ -155,11 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwq-plus".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "解释为什么天空是蓝色的".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "解释为什么天空是蓝色的")],
         max_tokens: Some(500),
         ..Default::default()
     };
@@ -197,11 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwen-max".to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "你好".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "你好")],
         max_tokens: Some(50),
         ..Default::default()
     };

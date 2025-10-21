@@ -62,11 +62,7 @@ async fn test_first_request(
     
     let request = ChatRequest {
         model: model.to_string(),
-        messages: vec![Message {
-            role: Role::User,
-            content: "上海的天气怎么样？".to_string(),
-            ..Default::default()
-        }],
+        messages: vec![Message::text(Role::User, "上海的天气怎么样？")],
         tools: Some(tools.to_vec()),
         ..Default::default()
     };
@@ -124,11 +120,7 @@ async fn test_with_tool_result(
     let request = ChatRequest {
         model: model.to_string(),
         messages: vec![
-            Message {
-                role: Role::User,
-                content: "上海的天气怎么样？".to_string(),
-                ..Default::default()
-            },
+            Message::text(Role::User, "上海的天气怎么样？"),
             Message {
                 role: Role::Assistant,
                 content: String::new(),

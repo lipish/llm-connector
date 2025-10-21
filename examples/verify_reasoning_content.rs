@@ -17,11 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let client = LlmClient::deepseek(&api_key)?;
         let request = ChatRequest {
             model: "deepseek-reasoner".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "9.11 和 9.9 哪个更大？".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "9.11 和 9.9 哪个更大？")],
             max_tokens: Some(500),
             ..Default::default()
         };
@@ -54,11 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let client = LlmClient::moonshot(&api_key)?;
         let request = ChatRequest {
             model: "kimi-thinking-preview".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "计算 15 * 23".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "计算 15 * 23")],
             max_tokens: Some(500),
             ..Default::default()
         };
@@ -91,11 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let client = LlmClient::zhipu(&api_key)?;
         let request = ChatRequest {
             model: "glm-z1".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "解释为什么天空是蓝色的".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "解释为什么天空是蓝色的")],
             max_tokens: Some(500),
             ..Default::default()
         };
@@ -141,11 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let client = LlmClient::openai(&api_key)?;
         let request = ChatRequest {
             model: "o1-mini".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "如果一个数的平方是 144，这个数是多少？".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "如果一个数的平方是 144，这个数是多少？")],
             max_tokens: Some(500),
             ..Default::default()
         };
@@ -179,11 +163,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let client = LlmClient::deepseek(&api_key)?;
         let request = ChatRequest {
             model: "deepseek-chat".to_string(),  // 非推理模型
-            messages: vec![Message {
-                role: Role::User,
-                content: "你好".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "你好")],
             max_tokens: Some(50),
             ..Default::default()
         };
