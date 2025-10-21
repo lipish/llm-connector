@@ -217,7 +217,8 @@ impl Provider for OllamaProvider {
                         Role::System => "system".to_string(),
                         Role::Tool => "user".to_string(), // Ollama不支持tool角色
                     },
-                    content: msg.content.clone(),
+                    // Ollama 使用纯文本格式
+                    content: msg.content_as_text(),
                 })
                 .collect(),
             stream: Some(false),
@@ -253,7 +254,7 @@ impl Provider for OllamaProvider {
             index: 0,
             message: Message {
                 role: Role::Assistant,
-                content: content.clone(),
+                content: vec![crate::types::MessageBlock::text(&content)],
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,

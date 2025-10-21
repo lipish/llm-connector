@@ -76,7 +76,8 @@ impl Protocol for AliyunProtocol {
                     Role::Assistant => "assistant".to_string(),
                     Role::Tool => "tool".to_string(),
                 },
-                content: msg.content.clone(),
+                // Aliyun 使用纯文本格式
+                content: msg.content_as_text(),
             }
         }).collect();
 
@@ -214,7 +215,7 @@ impl Protocol for AliyunProtocol {
                     index: 0,
                     message: crate::types::Message {
                         role: Role::Assistant,
-                        content: first_choice.message.content.clone(),
+                        content: vec![crate::types::MessageBlock::text(&first_choice.message.content)],
                         name: None,
                         tool_calls: None,
                         tool_call_id: None,
@@ -615,11 +616,7 @@ mod tests {
         // 测试显式启用
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "test".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "test")],
             enable_thinking: Some(true),  // 显式启用
             ..Default::default()
         };
@@ -630,11 +627,7 @@ mod tests {
         // 测试显式禁用
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "test".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "test")],
             enable_thinking: Some(false),  // 显式禁用
             ..Default::default()
         };
@@ -645,11 +638,7 @@ mod tests {
         // 测试未指定（默认不启用）
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: "test".to_string(),
-                ..Default::default()
-            }],
+            messages: vec![Message::text(Role::User, "test")],
             // enable_thinking 未指定
             ..Default::default()
         };

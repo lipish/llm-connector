@@ -232,7 +232,8 @@ impl Protocol for ZhipuProtocol {
                     Role::Assistant => "assistant".to_string(),
                     Role::Tool => "tool".to_string(),
                 },
-                content: msg.content.clone(),
+                // Zhipu 使用纯文本格式
+                content: msg.content_as_text(),
                 tool_calls: msg.tool_calls.as_ref().map(|calls| {
                     calls.iter().map(|c| serde_json::to_value(c).unwrap_or_default()).collect()
                 }),
@@ -273,7 +274,7 @@ impl Protocol for ZhipuProtocol {
                         "tool" => Role::Tool,
                         _ => Role::Assistant,
                     },
-                    content: final_content.clone(),
+                    content: vec![crate::types::MessageBlock::text(&final_content)],
                     tool_calls: first_choice.message.tool_calls.as_ref().map(|calls| {
                         calls.iter().filter_map(|v| {
                             serde_json::from_value(v.clone()).ok()

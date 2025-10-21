@@ -47,28 +47,39 @@ impl Protocol for OpenAIProtocol {
     
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         let messages = request.messages.iter()
-            .map(|msg| OpenAIMessage {
-                role: match msg.role {
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    Role::System => "system".to_string(),
-                    Role::Tool => "tool".to_string(),
-                },
-                content: msg.content.clone(),
-                tool_calls: msg.tool_calls.as_ref().map(|calls| {
-                    calls.iter().map(|call| {
-                        serde_json::json!({
-                            "id": call.id,
-                            "type": call.call_type,
-                            "function": {
-                                "name": call.function.name,
-                                "arguments": call.function.arguments,
-                            }
-                        })
-                    }).collect()
-                }),
-                tool_call_id: msg.tool_call_id.clone(),
-                name: msg.name.clone(),
+            .map(|msg| {
+                // 转换 MessageBlock 到 OpenAI 格式
+                let content = if msg.content.len() == 1 && msg.content[0].is_text() {
+                    // 纯文本：使用字符串格式
+                    serde_json::json!(msg.content[0].as_text().unwrap())
+                } else {
+                    // 多模态：使用数组格式
+                    serde_json::to_value(&msg.content).unwrap()
+                };
+
+                OpenAIMessage {
+                    role: match msg.role {
+                        Role::User => "user".to_string(),
+                        Role::Assistant => "assistant".to_string(),
+                        Role::System => "system".to_string(),
+                        Role::Tool => "tool".to_string(),
+                    },
+                    content,
+                    tool_calls: msg.tool_calls.as_ref().map(|calls| {
+                        calls.iter().map(|call| {
+                            serde_json::json!({
+                                "id": call.id,
+                                "type": call.call_type,
+                                "function": {
+                                    "name": call.function.name,
+                                    "arguments": call.function.arguments,
+                                }
+                            })
+                        }).collect()
+                    }),
+                    tool_call_id: msg.tool_call_id.clone(),
+                    name: msg.name.clone(),
+                }
             })
             .collect();
 
@@ -129,11 +140,27 @@ impl Protocol for OpenAIProtocol {
                     }).collect()
                 });
 
+                // 转换 content 到 MessageBlock
+                let content = if let Some(content_value) = &choice.message.content {
+                    if let Some(text) = content_value.as_str() {
+                        // 纯文本
+                        vec![crate::types::MessageBlock::text(text)]
+                    } else if let Some(array) = content_value.as_array() {
+                        // 多模态数组
+                        serde_json::from_value(serde_json::Value::Array(array.clone()))
+                            .unwrap_or_else(|_| vec![])
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![]
+                };
+
                 Choice {
                     index: choice.index,
                     message: Message {
                         role: Role::Assistant,
-                        content: choice.message.content.clone().unwrap_or_default(),
+                        content,
                         name: None,
                         tool_calls,
                         tool_call_id: None,
@@ -158,9 +185,9 @@ impl Protocol for OpenAIProtocol {
             prompt_tokens_details: None,
         });
 
-        // 提取第一个选择的内容作为便利字段
+        // 提取第一个选择的内容作为便利字段（纯文本）
         let content = choices.first()
-            .map(|choice| choice.message.content.clone())
+            .map(|choice| choice.message.content_as_text())
             .unwrap_or_default();
 
         // 提取第一个choice的reasoning_content
@@ -241,7 +268,7 @@ pub struct OpenAIRequest {
 #[derive(Serialize, Debug)]
 pub struct OpenAIMessage {
     pub role: String,
-    pub content: String,
+    pub content: serde_json::Value,  // 支持 String 或 Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -271,7 +298,7 @@ pub struct OpenAIChoice {
 
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponseMessage {
-    pub content: Option<String>,
+    pub content: Option<serde_json::Value>,  // 支持 String 或 Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]

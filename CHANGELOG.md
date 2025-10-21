@@ -2,6 +2,95 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2025-01-XX
+
+### 🎉 Major Features - Multi-modal Content Support
+
+**⚠️ BREAKING CHANGE**: `Message.content` changed from `String` to `Vec<MessageBlock>`
+
+This is a major architectural improvement that enables native multi-modal content support (text + images).
+
+#### New Types
+
+- **`MessageBlock`** - Enum for different content types
+  - `Text { text: String }` - Text content
+  - `Image { source: ImageSource }` - Image (Anthropic format)
+  - `ImageUrl { image_url: ImageUrl }` - Image URL (OpenAI format)
+- **`ImageSource`** - Image source (Base64 or URL)
+- **`ImageUrl`** - Image URL with optional detail level
+
+#### Migration Guide
+
+```rust
+// Old (0.4.x)
+let message = Message {
+    role: Role::User,
+    content: "Hello".to_string(),
+    ..Default::default()
+};
+
+// New (0.5.0) - Option 1: Use text() constructor (recommended)
+let message = Message::text(Role::User, "Hello");
+
+// New (0.5.0) - Option 2: Use new() with MessageBlock
+let message = Message::new(
+    Role::User,
+    vec![MessageBlock::text("Hello")],
+);
+
+// New (0.5.0) - Multi-modal example
+let message = Message::new(
+    Role::User,
+    vec![
+        MessageBlock::text("What's in this image?"),
+        MessageBlock::image_url("https://example.com/image.jpg"),
+    ],
+);
+```
+
+#### New Methods
+
+**Message**:
+- `Message::text(role, text)` - Create text-only message
+- `Message::new(role, blocks)` - Create multi-modal message
+- `Message::content_as_text()` - Extract all text content
+- `Message::is_text_only()` - Check if message contains only text
+- `Message::has_images()` - Check if message contains images
+
+**MessageBlock**:
+- `MessageBlock::text(text)` - Create text block
+- `MessageBlock::image_base64(media_type, data)` - Create Base64 image
+- `MessageBlock::image_url(url)` - Create image URL block
+- `MessageBlock::image_url_with_detail(url, detail)` - Create image URL with detail
+- `MessageBlock::as_text()` - Get text content if it's a text block
+- `MessageBlock::is_text()` - Check if it's a text block
+- `MessageBlock::is_image()` - Check if it's an image block
+
+#### Updated Protocols
+
+- ✅ **OpenAI** - Supports both string and array formats
+- ✅ **Anthropic** - Always uses array format
+- ✅ **Aliyun** - Converts to text format
+- ✅ **Zhipu** - Converts to text format
+- ✅ **Ollama** - Converts to text format
+
+#### Examples
+
+- `examples/multimodal_basic.rs` - Comprehensive multi-modal examples
+
+#### Tests
+
+- Added 8 new unit tests for `MessageBlock`
+- All 64 tests passing
+
+#### Documentation
+
+- `docs/MULTIMODAL_CONTENT_DESIGN.md` - Design comparison
+- `docs/MULTIMODAL_NATIVE_DESIGN.md` - Native design approach
+- `docs/MULTIMODAL_MIGRATION_PLAN.md` - Migration plan
+
+---
+
 ## [Unreleased]
 
 ### Added

@@ -45,36 +45,42 @@ impl Protocol for AnthropicProtocol {
         // Anthropic API 需要分离 system 消息
         let mut system_message = None;
         let mut messages = Vec::new();
-        
+
         for msg in &request.messages {
             match msg.role {
                 Role::System => {
                     // Anthropic 只支持一个 system 消息，放在单独的字段中
+                    let text = msg.content_as_text();
                     if system_message.is_none() {
-                        system_message = Some(msg.content.clone());
+                        system_message = Some(text);
                     } else {
                         // 如果有多个 system 消息，合并它们
                         let existing = system_message.take().unwrap_or_default();
-                        system_message = Some(format!("{}\n\n{}", existing, msg.content));
+                        system_message = Some(format!("{}\n\n{}", existing, text));
                     }
                 }
                 Role::User => {
+                    // Anthropic 总是使用数组格式
+                    let content = serde_json::to_value(&msg.content).unwrap();
                     messages.push(AnthropicMessage {
                         role: "user".to_string(),
-                        content: msg.content.clone(),
+                        content,
                     });
                 }
                 Role::Assistant => {
+                    // Anthropic 总是使用数组格式
+                    let content = serde_json::to_value(&msg.content).unwrap();
                     messages.push(AnthropicMessage {
                         role: "assistant".to_string(),
-                        content: msg.content.clone(),
+                        content,
                     });
                 }
                 Role::Tool => {
                     // Anthropic 暂不支持 tool 角色，转换为 user
+                    let text = format!("Tool result: {}", msg.content_as_text());
                     messages.push(AnthropicMessage {
                         role: "user".to_string(),
-                        content: format!("Tool result: {}", msg.content),
+                        content: serde_json::json!([{"type": "text", "text": text}]),
                     });
                 }
             }
@@ -96,6 +102,11 @@ impl Protocol for AnthropicProtocol {
             .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse Anthropic response: {}", e)))?;
 
         // Anthropic 返回单个内容块
+        // 转换 Anthropic content 到 MessageBlock
+        let message_blocks: Vec<crate::types::MessageBlock> = anthropic_response.content.iter()
+            .map(|c| crate::types::MessageBlock::text(&c.text))
+            .collect();
+
         let content = anthropic_response.content.first()
             .map(|c| c.text.clone())
             .unwrap_or_default();
@@ -104,7 +115,7 @@ impl Protocol for AnthropicProtocol {
             index: 0,
             message: Message {
                 role: Role::Assistant,
-                content: content.clone(),
+                content: message_blocks,
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,
@@ -354,7 +365,7 @@ pub struct AnthropicRequest {
 #[derive(Serialize, Debug)]
 pub struct AnthropicMessage {
     pub role: String,
-    pub content: String,
+    pub content: serde_json::Value,  // 支持 String 或 Array
 }
 
 // Anthropic响应类型

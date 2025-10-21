@@ -203,8 +203,10 @@ pub struct Message {
     /// Role of the message sender
     pub role: Role,
 
-    /// Content of the message
-    pub content: String,
+    /// Content of the message (supports multi-modal content)
+    ///
+    /// Can contain text, images, and other content blocks
+    pub content: Vec<super::message_block::MessageBlock>,
 
     /// Name of the message sender (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -239,7 +241,7 @@ impl Default for Message {
     fn default() -> Self {
         Self {
             role: Role::User,
-            content: String::new(),
+            content: Vec::new(),
             name: None,
             tool_calls: None,
             tool_call_id: None,
@@ -252,11 +254,48 @@ impl Default for Message {
 }
 
 impl Message {
-    /// Create a new message with the given role and content
-    pub fn new(role: Role, content: impl Into<String>) -> Self {
+    /// Create a new message with text content
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use llm_connector::types::{Message, Role};
+    ///
+    /// let message = Message::text(Role::User, "Hello, world!");
+    /// ```
+    pub fn text(role: Role, text: impl Into<String>) -> Self {
         Self {
             role,
-            content: content.into(),
+            content: vec![super::message_block::MessageBlock::text(text)],
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+            reasoning_content: None,
+            reasoning: None,
+            thought: None,
+            thinking: None,
+        }
+    }
+
+    /// Create a new message with multi-modal content
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use llm_connector::types::{Message, Role, MessageBlock};
+    ///
+    /// let message = Message::new(
+    ///     Role::User,
+    ///     vec![
+    ///         MessageBlock::text("What's in this image?"),
+    ///         MessageBlock::image_url("https://example.com/image.jpg"),
+    ///     ],
+    /// );
+    /// ```
+    pub fn new(role: Role, content: Vec<super::message_block::MessageBlock>) -> Self {
+        Self {
+            role,
+            content,
             name: None,
             tool_calls: None,
             tool_call_id: None,
@@ -268,18 +307,18 @@ impl Message {
     }
 
     /// Create a system message
-    pub fn system(content: impl Into<String>) -> Self {
-        Self::new(Role::System, content)
+    pub fn system(text: impl Into<String>) -> Self {
+        Self::text(Role::System, text)
     }
 
     /// Create a user message
-    pub fn user(content: impl Into<String>) -> Self {
-        Self::new(Role::User, content)
+    pub fn user(text: impl Into<String>) -> Self {
+        Self::text(Role::User, text)
     }
 
     /// Create an assistant message
-    pub fn assistant(content: impl Into<String>) -> Self {
-        Self::new(Role::Assistant, content)
+    pub fn assistant(text: impl Into<String>) -> Self {
+        Self::text(Role::Assistant, text)
     }
 
     /// Convenience: get the first available reasoning-like content
@@ -289,6 +328,26 @@ impl Message {
             .or(self.reasoning.as_deref())
             .or(self.thought.as_deref())
             .or(self.thinking.as_deref())
+    }
+
+    /// Extract all text content from message blocks
+    ///
+    /// Joins multiple text blocks with newlines
+    pub fn content_as_text(&self) -> String {
+        self.content.iter()
+            .filter_map(|block| block.as_text())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Check if message contains only text (no images or other media)
+    pub fn is_text_only(&self) -> bool {
+        self.content.iter().all(|block| block.is_text())
+    }
+
+    /// Check if message contains any images
+    pub fn has_images(&self) -> bool {
+        self.content.iter().any(|block| block.is_image())
     }
 
     /// Provider-agnostic post-processor: populate reasoning synonyms from raw JSON
@@ -338,7 +397,7 @@ impl Message {
     pub fn tool(content: impl Into<String>, tool_call_id: impl Into<String>) -> Self {
         Self {
             role: Role::Tool,
-            content: content.into(),
+            content: vec![super::message_block::MessageBlock::text(content)],
             tool_call_id: Some(tool_call_id.into()),
             name: None,
             tool_calls: None,

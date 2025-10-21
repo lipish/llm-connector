@@ -2,6 +2,7 @@
 
 mod request;
 mod response;
+mod message_block;
 
 #[cfg(feature = "streaming")]
 mod streaming;
@@ -9,6 +10,7 @@ mod streaming;
 // Re-exports
 pub use request::*;
 pub use response::*;
+pub use message_block::*;
 
 #[cfg(feature = "streaming")]
 pub use streaming::*;
