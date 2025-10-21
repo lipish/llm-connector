@@ -7,7 +7,11 @@
 
 pub mod traits;
 pub mod client;
+pub mod builder;
+pub mod configurable;
 
 // 重新导出核心类型
 pub use traits::{Protocol, Provider, GenericProvider};
 pub use client::HttpClient;
+pub use builder::ProviderBuilder;
+pub use configurable::{ConfigurableProtocol, ProtocolConfig, EndpointConfig, AuthConfig};
