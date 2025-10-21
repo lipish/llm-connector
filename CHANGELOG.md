@@ -2,7 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.0] - 2025-01-XX
+## [0.5.1] - 2025-01-21
+
+### 🔧 Improvements
+
+#### Code Quality
+- Fixed all compilation errors and warnings discovered by rust-analyzer
+- Fixed unused variable warnings by using underscore prefix
+- Cleaned up 69% of example files (39 → 12)
+- Cleaned up 56% of test files (18 → 8)
+- Removed 36 duplicate, debug, and outdated files
+
+#### Documentation
+- Added `docs/RUST_CODING_RULES.md` - Rust coding standards
+- Added `docs/MIGRATION_GUIDE_v0.5.0.md` - Complete migration guide
+- Added `docs/RELEASE_v0.5.0.md` - Release notes
+- Updated `examples/README.md` with cleaner structure
+- Updated all examples to use new API
+
+#### Examples Cleanup
+- Removed duplicate examples (test_aliyun_basic.rs, test_deepseek.rs, etc.)
+- Removed debug files (debug_aliyun_response.rs, debug_longcat_stream.rs, etc.)
+- Removed verification files (verify_aliyun_choices.rs, verify_reasoning_content.rs, etc.)
+- Removed shell test scripts (9 files)
+- Renamed test_aliyun_enable_thinking.rs → aliyun_thinking.rs
+
+#### Bug Fixes
+- Fixed Message construction in all examples
+- Fixed content access using content_as_text()
+- Fixed streaming examples with proper feature gates
+- Fixed tencent_basic.rs API usage
+- Fixed all integration tests
+
+### 📊 Statistics
+
+- **Tests**: 221 passed; 0 failed (100% pass rate)
+- **Compilation**: 0 errors, 0 warnings
+- **Code reduction**: 74% fewer lines in examples/tests
+
+## [0.5.0] - 2025-01-21
 
 ### 🎉 Major Features - Multi-modal Content Support
 
