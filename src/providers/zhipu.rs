@@ -9,6 +9,39 @@ use crate::types::{ChatRequest, ChatResponse, Role, Tool, ToolChoice, Choice, Me
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// 从 Zhipu 响应中提取推理内容
+///
+/// Zhipu GLM-Z1 等推理模型将推理过程嵌入在 content 中，使用标记分隔：
+/// - `###Thinking` 标记推理过程开始
+/// - `###Response` 标记最终答案开始
+///
+/// # 参数
+/// - `content`: 原始 content 字符串
+///
+/// # 返回
+/// - `(reasoning_content, final_content)`: 推理内容和最终答案
+fn extract_zhipu_reasoning_content(content: &str) -> (Option<String>, String) {
+    // 检查是否包含推理标记
+    if content.contains("###Thinking") && content.contains("###Response") {
+        // 分离推理内容和答案
+        let parts: Vec<&str> = content.split("###Response").collect();
+        if parts.len() >= 2 {
+            let thinking = parts[0]
+                .replace("###Thinking", "")
+                .trim()
+                .to_string();
+            let response = parts[1..].join("###Response").trim().to_string();
+
+            if !thinking.is_empty() {
+                return (Some(thinking), response);
+            }
+        }
+    }
+
+    // 如果没有推理标记，返回原始内容
+    (None, content.to_string())
+}
+
 // ============================================================================
 // Zhipu Protocol Definition (Private)
 // ============================================================================
@@ -116,6 +149,10 @@ impl Protocol for ZhipuProtocol {
         if let Some(choices) = parsed.choices {
             if let Some(first_choice) = choices.first() {
                 // 转换 ZhipuMessage 到 TypeMessage
+                // 提取推理内容（如果存在）
+                let (reasoning_content, final_content) =
+                    extract_zhipu_reasoning_content(&first_choice.message.content);
+
                 let type_message = TypeMessage {
                     role: match first_choice.message.role.as_str() {
                         "system" => Role::System,
@@ -124,7 +161,7 @@ impl Protocol for ZhipuProtocol {
                         "tool" => Role::Tool,
                         _ => Role::Assistant,
                     },
-                    content: first_choice.message.content.clone(),
+                    content: final_content.clone(),
                     tool_calls: first_choice.message.tool_calls.as_ref().map(|calls| {
                         calls.iter().filter_map(|v| {
                             serde_json::from_value(v.clone()).ok()
@@ -132,21 +169,21 @@ impl Protocol for ZhipuProtocol {
                     }),
                     ..Default::default()
                 };
-                
+
                 let choice = Choice {
                     index: first_choice.index.unwrap_or(0),
                     message: type_message,
                     finish_reason: first_choice.finish_reason.clone(),
                     logprobs: None,
                 };
-                
+
                 return Ok(ChatResponse {
                     id: parsed.id.unwrap_or_else(|| "unknown".to_string()),
                     object: "chat.completion".to_string(),
                     created: parsed.created.unwrap_or(0),
                     model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
-                    content: first_choice.message.content.clone(),
-                    reasoning_content: None,
+                    content: final_content,
+                    reasoning_content,
                     choices: vec![choice],
                     usage: parsed.usage.and_then(|v| serde_json::from_value(v).ok()),
                     system_fingerprint: None,
@@ -516,5 +553,33 @@ mod tests {
         assert!(validate_zhipu_key("another-valid-key-12345"));
         assert!(!validate_zhipu_key("short"));
         assert!(!validate_zhipu_key(""));
+    }
+
+    #[test]
+    fn test_extract_zhipu_reasoning_content() {
+        // 测试包含推理内容的情况
+        let content_with_thinking = "###Thinking\n这是推理过程\n分析步骤1\n分析步骤2\n###Response\n这是最终答案";
+        let (reasoning, answer) = extract_zhipu_reasoning_content(content_with_thinking);
+        assert!(reasoning.is_some());
+        assert_eq!(reasoning.unwrap(), "这是推理过程\n分析步骤1\n分析步骤2");
+        assert_eq!(answer, "这是最终答案");
+
+        // 测试不包含推理内容的情况
+        let content_without_thinking = "这只是一个普通的回答";
+        let (reasoning, answer) = extract_zhipu_reasoning_content(content_without_thinking);
+        assert!(reasoning.is_none());
+        assert_eq!(answer, "这只是一个普通的回答");
+
+        // 测试只有 Thinking 没有 Response 的情况
+        let content_only_thinking = "###Thinking\n这是推理过程";
+        let (reasoning, answer) = extract_zhipu_reasoning_content(content_only_thinking);
+        assert!(reasoning.is_none());
+        assert_eq!(answer, "###Thinking\n这是推理过程");
+
+        // 测试空推理内容的情况
+        let content_empty_thinking = "###Thinking\n\n###Response\n答案";
+        let (reasoning, answer) = extract_zhipu_reasoning_content(content_empty_thinking);
+        assert!(reasoning.is_none());
+        assert_eq!(answer, "###Thinking\n\n###Response\n答案");
     }
 }
