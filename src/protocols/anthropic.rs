@@ -169,6 +169,169 @@ impl Protocol for AnthropicProtocol {
             ("anthropic-version".to_string(), "2023-06-01".to_string()),
         ]
     }
+
+    /// 解析 Anthropic 流式响应
+    ///
+    /// Anthropic 使用不同的流式格式：
+    /// - message_start: 包含 message 对象（有 id）
+    /// - content_block_start: 开始内容块
+    /// - content_block_delta: 内容增量（包含 text）
+    /// - content_block_stop: 结束内容块
+    /// - message_delta: 消息增量（包含 usage）
+    /// - message_stop: 消息结束
+    #[cfg(feature = "streaming")]
+    async fn parse_stream_response(&self, response: reqwest::Response) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        use crate::types::{StreamingResponse, StreamingChoice, Delta, Usage};
+        use futures_util::StreamExt;
+        use std::sync::{Arc, Mutex};
+
+        // 使用标准 SSE 解析器
+        let events_stream = crate::sse::sse_events(response);
+
+        // 共享状态：保存 message_id
+        let message_id = Arc::new(Mutex::new(String::new()));
+
+        // 转换事件流
+        let response_stream = events_stream.filter_map(move |result| {
+            let message_id = message_id.clone();
+            async move {
+                match result {
+                    Ok(json_str) => {
+                        // 解析 Anthropic 流式事件
+                        match serde_json::from_str::<serde_json::Value>(&json_str) {
+                            Ok(event) => {
+                                let event_type = event.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                                match event_type {
+                                    "message_start" => {
+                                        // 提取并保存 message id
+                                        if let Some(msg_id) = event.get("message")
+                                            .and_then(|m| m.get("id"))
+                                            .and_then(|id| id.as_str()) {
+                                            if let Ok(mut id) = message_id.lock() {
+                                                *id = msg_id.to_string();
+                                            }
+                                        }
+                                        // message_start 不返回内容
+                                        None
+                                    }
+                                    "content_block_delta" => {
+                                        // 提取文本增量
+                                        if let Some(text) = event.get("delta")
+                                            .and_then(|d| d.get("text"))
+                                            .and_then(|t| t.as_str()) {
+
+                                            let id = message_id.lock().ok()
+                                                .map(|id| id.clone())
+                                                .unwrap_or_default();
+
+                                            // 构造 StreamingResponse
+                                            Some(Ok(StreamingResponse {
+                                                id,
+                                                object: "chat.completion.chunk".to_string(),
+                                                created: std::time::SystemTime::now()
+                                                    .duration_since(std::time::UNIX_EPOCH)
+                                                    .unwrap_or_default()
+                                                    .as_secs(),
+                                                model: "anthropic".to_string(),
+                                                choices: vec![StreamingChoice {
+                                                    index: 0,
+                                                    delta: Delta {
+                                                        role: Some(crate::types::Role::Assistant),
+                                                        content: Some(text.to_string()),
+                                                        tool_calls: None,
+                                                        reasoning_content: None,
+                                                        reasoning: None,
+                                                        thought: None,
+                                                        thinking: None,
+                                                    },
+                                                    finish_reason: None,
+                                                    logprobs: None,
+                                                }],
+                                                content: text.to_string(),
+                                                reasoning_content: None,
+                                                usage: None,
+                                                system_fingerprint: None,
+                                            }))
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    "message_delta" => {
+                                        // 提取 usage 和 stop_reason
+                                        let stop_reason = event.get("delta")
+                                            .and_then(|d| d.get("stop_reason"))
+                                            .and_then(|s| s.as_str())
+                                            .map(|s| s.to_string());
+
+                                        let usage = event.get("usage").and_then(|u| {
+                                            let input_tokens = u.get("input_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
+                                            let output_tokens = u.get("output_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
+                                            Some(Usage {
+                                                prompt_tokens: input_tokens,
+                                                completion_tokens: output_tokens,
+                                                total_tokens: input_tokens + output_tokens,
+                                                completion_tokens_details: None,
+                                                prompt_cache_hit_tokens: None,
+                                                prompt_cache_miss_tokens: None,
+                                                prompt_tokens_details: None,
+                                            })
+                                        });
+
+                                        let id = message_id.lock().ok()
+                                            .map(|id| id.clone())
+                                            .unwrap_or_default();
+
+                                        // 返回最终的响应（包含 finish_reason 和 usage）
+                                        Some(Ok(StreamingResponse {
+                                            id,
+                                            object: "chat.completion.chunk".to_string(),
+                                            created: std::time::SystemTime::now()
+                                                .duration_since(std::time::UNIX_EPOCH)
+                                                .unwrap_or_default()
+                                                .as_secs(),
+                                            model: "anthropic".to_string(),
+                                            choices: vec![StreamingChoice {
+                                                index: 0,
+                                                delta: Delta {
+                                                    role: None,
+                                                    content: None,
+                                                    tool_calls: None,
+                                                    reasoning_content: None,
+                                                    reasoning: None,
+                                                    thought: None,
+                                                    thinking: None,
+                                                },
+                                                finish_reason: stop_reason,
+                                                logprobs: None,
+                                            }],
+                                            content: String::new(),
+                                            reasoning_content: None,
+                                            usage,
+                                            system_fingerprint: None,
+                                        }))
+                                    }
+                                    _ => {
+                                        // 忽略其他事件类型
+                                        None
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                Some(Err(LlmConnectorError::ParseError(format!(
+                                    "Failed to parse Anthropic streaming event: {}. JSON: {}",
+                                    e, json_str
+                                ))))
+                            }
+                        }
+                    }
+                    Err(e) => Some(Err(e)),
+                }
+            }
+        });
+
+        Ok(Box::pin(response_stream))
+    }
 }
 
 // Anthropic请求类型
