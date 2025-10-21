@@ -384,10 +384,10 @@ impl From<ChatResponse> for StreamingResponse {
                     index: choice.index,
                     delta: Delta {
                         role: Some(choice.message.role),
-                        content: if choice.message.content.is_empty() { 
-                            None 
-                        } else { 
-                            Some(choice.message.content.clone()) 
+                        content: if choice.message.content.is_empty() {
+                            None
+                        } else {
+                            Some(choice.message.content_as_text())
                         },
                         tool_calls: choice.message.tool_calls.clone(),
                         reasoning_content: None,

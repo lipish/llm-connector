@@ -297,7 +297,7 @@ impl Provider for OllamaProvider {
                         Role::System => "system".to_string(),
                         Role::Tool => "user".to_string(),
                     },
-                    content: msg.content.clone(),
+                    content: msg.content_as_text(),
                 })
                 .collect(),
             stream: Some(true),
