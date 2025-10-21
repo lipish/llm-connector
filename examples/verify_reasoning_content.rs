@@ -109,12 +109,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 测试 Aliyun Qwen
-    if let Ok(api_key) = std::env::var("ALIYUN_API_KEY") {
+    if let Ok(_api_key) = std::env::var("ALIYUN_API_KEY") {
         println!("\n📝 测试 Aliyun Qwen Plus (需要 enable_thinking)");
         println!("{}", "-".repeat(80));
         println!("⚠️  注意: Aliyun 需要在请求中设置 enable_thinking=true");
         println!("   当前实现可能不支持此参数，需要手动测试");
-        
+
         // 注意：当前 llm-connector 可能不支持 enable_thinking 参数
         // 这需要在 Aliyun provider 中添加支持
     } else {

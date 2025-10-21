@@ -10,10 +10,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔍 调试 LongCat Anthropic 流式响应格式\n");
 
     // 创建客户端
-    let client = LlmClient::longcat_anthropic(&api_key)?;
+    let _client = LlmClient::longcat_anthropic(&api_key)?;
 
     // 创建请求
-    let request = ChatRequest {
+    let _request = ChatRequest {
         model: "LongCat-Flash-Chat".to_string(),
         messages: vec![Message::text(Role::User, "你好")],
         stream: Some(true),
