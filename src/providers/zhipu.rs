@@ -146,6 +146,7 @@ impl Protocol for ZhipuProtocol {
                     created: parsed.created.unwrap_or(0),
                     model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
                     content: first_choice.message.content.clone(),
+                    reasoning_content: None,
                     choices: vec![choice],
                     usage: parsed.usage.and_then(|v| serde_json::from_value(v).ok()),
                     system_fingerprint: None,

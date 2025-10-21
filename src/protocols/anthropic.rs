@@ -137,6 +137,7 @@ impl Protocol for AnthropicProtocol {
             model: anthropic_response.model,
             choices,
             content,
+            reasoning_content: None,
             usage,
             system_fingerprint: None,
         })

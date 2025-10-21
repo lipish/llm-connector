@@ -246,6 +246,7 @@ impl Protocol for AliyunProtocol {
                     model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
                     choices,
                     content,
+                    reasoning_content: None,
                     usage,
                     system_fingerprint: None,
                 });

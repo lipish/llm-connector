@@ -137,7 +137,7 @@ impl Protocol for OpenAIProtocol {
                         name: None,
                         tool_calls,
                         tool_call_id: None,
-                        reasoning_content: None,
+                        reasoning_content: choice.message.reasoning_content.clone(),
                         reasoning: None,
                         thought: None,
                         thinking: None,
@@ -163,6 +163,10 @@ impl Protocol for OpenAIProtocol {
             .map(|choice| choice.message.content.clone())
             .unwrap_or_default();
 
+        // 提取第一个choice的reasoning_content
+        let reasoning_content = choices.first()
+            .and_then(|c| c.message.reasoning_content.clone());
+
         Ok(ChatResponse {
             id: openai_response.id,
             object: openai_response.object,
@@ -170,6 +174,7 @@ impl Protocol for OpenAIProtocol {
             model: openai_response.model,
             choices,
             content,
+            reasoning_content,
             usage,
             system_fingerprint: openai_response.system_fingerprint,
         })
@@ -269,6 +274,8 @@ pub struct OpenAIResponseMessage {
     pub content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

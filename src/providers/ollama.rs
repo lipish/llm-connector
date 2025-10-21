@@ -276,6 +276,7 @@ impl Provider for OllamaProvider {
             model: ollama_response.model,
             choices,
             content,
+            reasoning_content: None,
             usage: None, // Ollama不返回token使用信息
             system_fingerprint: None,
         })

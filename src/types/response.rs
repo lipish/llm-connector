@@ -26,6 +26,11 @@ pub struct ChatResponse {
     #[serde(default)]
     pub content: String,
 
+    /// Reasoning content (for reasoning models like DeepSeek Reasoner)
+    /// Extracted from `choices[0].message.reasoning_content` if present
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
+
     /// Usage statistics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
