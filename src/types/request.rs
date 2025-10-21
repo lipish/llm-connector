@@ -77,6 +77,13 @@ pub struct ChatRequest {
     /// Response format specification
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
+
+    /// Enable thinking/reasoning mode (provider-specific)
+    ///
+    /// For Aliyun: Enables reasoning content for hybrid models like qwen-plus
+    /// For other providers: May be ignored
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_thinking: Option<bool>,
 }
 
 impl ChatRequest {
@@ -178,6 +185,14 @@ impl ChatRequest {
     /// Set the response format
     pub fn with_response_format(mut self, format: ResponseFormat) -> Self {
         self.response_format = Some(format);
+        self
+    }
+
+    /// Enable thinking/reasoning mode
+    ///
+    /// For Aliyun: Enables reasoning content for hybrid models
+    pub fn with_enable_thinking(mut self, enable: bool) -> Self {
+        self.enable_thinking = Some(enable);
         self
     }
 }

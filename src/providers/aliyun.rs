@@ -10,6 +10,36 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use async_trait::async_trait;
 
+/// 检测是否为混合推理模型
+///
+/// 混合推理模型需要设置 enable_thinking=true 才能返回推理内容
+///
+/// # 参数
+/// - `model`: 模型名称
+///
+/// # 返回
+/// - `true`: 是混合推理模型
+/// - `false`: 不是混合推理模型或是纯推理模型（纯推理模型默认启用）
+fn is_hybrid_reasoning_model(model: &str) -> bool {
+    matches!(model,
+        // Qwen Plus 系列
+        "qwen-plus" | "qwen-plus-latest" |
+
+        // Qwen Flash
+        "qwen-flash" |
+
+        // Qwen Turbo 系列
+        "qwen-turbo" | "qwen-turbo-latest" |
+
+        // Qwen3 系列
+        "qwen3-235b-a22b" | "qwen3-32b" | "qwen3-30b-a3b" |
+        "qwen3-14b" | "qwen3-8b" | "qwen3-4b" | "qwen3-1.7b" | "qwen3-0.6b" |
+
+        // DeepSeek 系列
+        "deepseek-v3.2-exp" | "deepseek-v3.1"
+    )
+}
+
 // ============================================================================
 // Aliyun Protocol Definition (Private)
 // ============================================================================
@@ -80,6 +110,17 @@ impl Protocol for AliyunProtocol {
             }
         }).collect();
 
+        // 智能处理 enable_thinking
+        // 优先使用用户指定的值，如果未指定则自动检测混合推理模型
+        let enable_thinking = request.enable_thinking
+            .or_else(|| {
+                if is_hybrid_reasoning_model(&request.model) {
+                    Some(true)
+                } else {
+                    None
+                }
+            });
+
         Ok(AliyunRequest {
             model: request.model.clone(),
             input: AliyunInput {
@@ -96,6 +137,7 @@ impl Protocol for AliyunProtocol {
                 } else {
                     None
                 },
+                enable_thinking,
             },
         })
     }
@@ -291,6 +333,12 @@ pub struct AliyunParameters {
     pub result_format: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub incremental_output: Option<bool>,
+
+    /// Enable thinking/reasoning mode for hybrid models
+    ///
+    /// When enabled, hybrid models like qwen-plus will return reasoning content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_thinking: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -596,5 +644,97 @@ mod tests {
     fn test_aliyun_with_timeout() {
         let provider = aliyun_with_timeout("test-key", 120);
         assert!(provider.is_ok());
+    }
+
+    #[test]
+    fn test_is_hybrid_reasoning_model() {
+        // 混合推理模型
+        assert!(is_hybrid_reasoning_model("qwen-plus"));
+        assert!(is_hybrid_reasoning_model("qwen-plus-latest"));
+        assert!(is_hybrid_reasoning_model("qwen-flash"));
+        assert!(is_hybrid_reasoning_model("qwen-turbo"));
+        assert!(is_hybrid_reasoning_model("qwen3-235b-a22b"));
+        assert!(is_hybrid_reasoning_model("deepseek-v3.1"));
+
+        // 纯推理模型（不需要 enable_thinking）
+        assert!(!is_hybrid_reasoning_model("qwq-plus"));
+        assert!(!is_hybrid_reasoning_model("qwen3-235b-a22b-thinking-2507"));
+        assert!(!is_hybrid_reasoning_model("deepseek-r1"));
+
+        // 非推理模型
+        assert!(!is_hybrid_reasoning_model("qwen-max"));
+        assert!(!is_hybrid_reasoning_model("qwen-long"));
+    }
+
+    #[test]
+    fn test_enable_thinking_auto_detection() {
+        use crate::types::{ChatRequest, Message, Role};
+
+        let protocol = AliyunProtocol::new("test-key");
+
+        // 测试混合推理模型 - 自动启用
+        let request = ChatRequest {
+            model: "qwen-plus".to_string(),
+            messages: vec![Message {
+                role: Role::User,
+                content: "test".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        let aliyun_request = protocol.build_request(&request).unwrap();
+        assert_eq!(aliyun_request.parameters.enable_thinking, Some(true));
+
+        // 测试非推理模型 - 不启用
+        let request = ChatRequest {
+            model: "qwen-max".to_string(),
+            messages: vec![Message {
+                role: Role::User,
+                content: "test".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        let aliyun_request = protocol.build_request(&request).unwrap();
+        assert_eq!(aliyun_request.parameters.enable_thinking, None);
+    }
+
+    #[test]
+    fn test_enable_thinking_manual_override() {
+        use crate::types::{ChatRequest, Message, Role};
+
+        let protocol = AliyunProtocol::new("test-key");
+
+        // 测试手动启用
+        let request = ChatRequest {
+            model: "qwen-max".to_string(),  // 非推理模型
+            messages: vec![Message {
+                role: Role::User,
+                content: "test".to_string(),
+                ..Default::default()
+            }],
+            enable_thinking: Some(true),  // 手动启用
+            ..Default::default()
+        };
+
+        let aliyun_request = protocol.build_request(&request).unwrap();
+        assert_eq!(aliyun_request.parameters.enable_thinking, Some(true));
+
+        // 测试手动禁用
+        let request = ChatRequest {
+            model: "qwen-plus".to_string(),  // 混合推理模型
+            messages: vec![Message {
+                role: Role::User,
+                content: "test".to_string(),
+                ..Default::default()
+            }],
+            enable_thinking: Some(false),  // 手动禁用
+            ..Default::default()
+        };
+
+        let aliyun_request = protocol.build_request(&request).unwrap();
+        assert_eq!(aliyun_request.parameters.enable_thinking, Some(false));
     }
 }
