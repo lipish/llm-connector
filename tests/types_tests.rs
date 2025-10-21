@@ -1,6 +1,6 @@
 //! Tests for type definitions and serialization
 
-use llm_connector::types::{ChatRequest, ChatResponse, Message, Role, Choice, Usage};
+use llm_connector::types::{ChatRequest, ChatResponse, Message, MessageBlock, Role, Choice, Usage};
 use serde_json;
 
 #[test]
@@ -21,7 +21,7 @@ fn test_role_deserialization() {
 fn test_message_serialization() {
     let message = Message {
         role: Role::User,
-        content: "Hello".to_string(),
+        content: vec![MessageBlock::text("Hello")],
         name: None,
         tool_calls: None,
         tool_call_id: None,
@@ -30,16 +30,20 @@ fn test_message_serialization() {
 
     let json = serde_json::to_value(&message).unwrap();
     assert_eq!(json["role"], "user");
-    assert_eq!(json["content"], "Hello");
+    // content 现在是数组格式
+    assert!(json["content"].is_array());
+    assert_eq!(json["content"][0]["type"], "text");
+    assert_eq!(json["content"][0]["text"], "Hello");
 }
 
 #[test]
 fn test_message_deserialization() {
-    let json = r#"{"role":"user","content":"Hello"}"#;
+    // 测试数组格式的反序列化
+    let json = r#"{"role":"user","content":[{"type":"text","text":"Hello"}]}"#;
     let message: Message = serde_json::from_str(json).unwrap();
-    
+
     assert_eq!(message.role, Role::User);
-    assert_eq!(message.content, "Hello");
+    assert_eq!(message.content_as_text(), "Hello");
     assert_eq!(message.name, None);
 }
 
@@ -47,7 +51,7 @@ fn test_message_deserialization() {
 fn test_message_with_name() {
     let message = Message {
         role: Role::User,
-        content: "Hello".to_string(),
+        content: vec![MessageBlock::text("Hello")],
         name: Some("John".to_string()),
         tool_calls: None,
         tool_call_id: None,
@@ -124,15 +128,15 @@ fn test_choice_deserialization() {
         "index": 0,
         "message": {
             "role": "assistant",
-            "content": "Hello!"
+            "content": [{"type": "text", "text": "Hello!"}]
         },
         "finish_reason": "stop"
     }"#;
-    
+
     let choice: Choice = serde_json::from_str(json).unwrap();
     assert_eq!(choice.index, 0);
     assert_eq!(choice.message.role, Role::Assistant);
-    assert_eq!(choice.message.content, "Hello!");
+    assert_eq!(choice.message.content_as_text(), "Hello!");
     assert_eq!(choice.finish_reason, Some("stop".to_string()));
 }
 
@@ -147,7 +151,7 @@ fn test_chat_response_deserialization() {
             "index": 0,
             "message": {
                 "role": "assistant",
-                "content": "Hello!"
+                "content": [{"type": "text", "text": "Hello!"}]
             },
             "finish_reason": "stop"
         }],
@@ -162,7 +166,7 @@ fn test_chat_response_deserialization() {
     assert_eq!(response.id, "chatcmpl-123");
     assert_eq!(response.model, "gpt-4");
     assert_eq!(response.choices.len(), 1);
-    assert_eq!(response.choices[0].message.content, "Hello!");
+    assert_eq!(response.choices[0].message.content_as_text(), "Hello!");
     assert!(response.usage.is_some());
     assert_eq!(response.usage.unwrap().total_tokens, 30);
 }
@@ -171,15 +175,15 @@ fn test_chat_response_deserialization() {
 fn test_message_helper_functions() {
     let user_msg = Message::user("Hello");
     assert_eq!(user_msg.role, Role::User);
-    assert_eq!(user_msg.content, "Hello");
+    assert_eq!(user_msg.content_as_text(), "Hello");
 
     let assistant_msg = Message::assistant("Hi");
     assert_eq!(assistant_msg.role, Role::Assistant);
-    assert_eq!(assistant_msg.content, "Hi");
+    assert_eq!(assistant_msg.content_as_text(), "Hi");
 
     let system_msg = Message::system("You are helpful");
     assert_eq!(system_msg.role, Role::System);
-    assert_eq!(system_msg.content, "You are helpful");
+    assert_eq!(system_msg.content_as_text(), "You are helpful");
 }
 
 #[test]

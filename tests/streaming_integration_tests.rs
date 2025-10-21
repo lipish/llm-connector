@@ -215,7 +215,7 @@ mod tests {
             model: "gpt-3.5-turbo".to_string(),
             messages: vec![Message {
                 role: Role::User,
-                content: "test".to_string(),
+                content: vec![MessageBlock::text("test")],
                 ..Default::default()
             }],
             max_tokens: Some(10),

@@ -4,7 +4,7 @@
 
 use llm_connector::{
     Protocol, OpenAIProtocol, AnthropicProtocol, ZhipuProtocol,
-    types::{ChatRequest, Message, Role},
+    types::{ChatRequest, Message, MessageBlock, Role},
 };
 
 #[test]
@@ -42,7 +42,7 @@ fn test_basic_request_building() {
         model: "test-model".to_string(),
         messages: vec![Message {
             role: Role::User,
-            content: "Hello, world!".to_string(),
+            content: vec![MessageBlock::text("Hello, world!")],
             ..Default::default()
         }],
         max_tokens: Some(100),

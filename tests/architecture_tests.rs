@@ -3,7 +3,7 @@
 //! 这个文件包含主架构的全面单元测试。
 
 use llm_connector::*;
-use llm_connector::types::{ChatRequest, Message, Role};
+use llm_connector::types::{MessageBlock, ChatRequest, Message, Role};
 use llm_connector::error::LlmConnectorError;
 use llm_connector::providers::{validate_anthropic_key, validate_zhipu_key};
 
@@ -152,7 +152,7 @@ use llm_connector::providers::{validate_anthropic_key, validate_zhipu_key};
             messages: vec![
                 Message {
                     role: Role::System,
-                    content: "You are a helpful assistant.".to_string(),
+                    content: vec![MessageBlock::text("You are a helpful assistant.")],
                     name: None,
                     tool_calls: None,
                     tool_call_id: None,
@@ -163,7 +163,7 @@ use llm_connector::providers::{validate_anthropic_key, validate_zhipu_key};
                 },
                 Message {
                     role: Role::User,
-                    content: "Hello!".to_string(),
+                    content: vec![MessageBlock::text("Hello!")],
                     name: None,
                     tool_calls: None,
                     tool_call_id: None,

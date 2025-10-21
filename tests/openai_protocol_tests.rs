@@ -1,7 +1,7 @@
 //! Integration tests for OpenAI protocol
 
 use llm_connector::{LlmClient, ChatRequest, Message};
-use llm_connector::types::Role;
+use llm_connector::types::{Role, MessageBlock};
 
 #[test]
 fn test_openai_client_creation() {
@@ -22,7 +22,7 @@ fn test_chat_request_creation() {
         messages: vec![
             Message {
                 role: Role::User,
-                content: "Hello".to_string(),
+                content: vec![MessageBlock::text("Hello")],
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,
@@ -44,21 +44,21 @@ fn test_chat_request_creation() {
 fn test_message_helper_user() {
     let message = Message::user("Hello");
     assert_eq!(message.role, Role::User);
-    assert_eq!(message.content, "Hello");
+    assert_eq!(message.content_as_text(), "Hello");
 }
 
 #[test]
 fn test_message_helper_assistant() {
     let message = Message::assistant("Hi there");
     assert_eq!(message.role, Role::Assistant);
-    assert_eq!(message.content, "Hi there");
+    assert_eq!(message.content_as_text(), "Hi there");
 }
 
 #[test]
 fn test_message_helper_system() {
     let message = Message::system("You are a helpful assistant");
     assert_eq!(message.role, Role::System);
-    assert_eq!(message.content, "You are a helpful assistant");
+    assert_eq!(message.content_as_text(), "You are a helpful assistant");
 }
 
 #[test]
