@@ -123,7 +123,7 @@ async fn test_with_tool_result(
             Message::text(Role::User, "上海的天气怎么样？"),
             Message {
                 role: Role::Assistant,
-                content: String::new(),
+                content: vec![],
                 tool_calls: Some(vec![llm_connector::types::ToolCall {
                     id: "call_123".to_string(),
                     call_type: "function".to_string(),

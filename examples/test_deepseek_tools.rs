@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Message::text(Role::User, "Call the get_weather function for San Francisco"),
                         Message {
                             role: Role::Assistant,
-                            content: String::new(),
+                            content: vec![],
                             tool_calls: Some(vec![first_call.clone()]),
                             ..Default::default()
                         },

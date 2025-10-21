@@ -123,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Message::text(Role::User, "上海的天气怎么样？"),
                         Message {
                             role: Role::Assistant,
-                            content: String::new(),
+                            content: vec![],
                             tool_calls: Some(vec![llm_connector::types::ToolCall {
                                 id: tool_call_id.clone(),
                                 call_type: "function".to_string(),

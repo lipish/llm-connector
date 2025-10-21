@@ -202,13 +202,13 @@ async fn test_provider(
             Message::text(Role::User, "What's the current weather in San Francisco? Use the get_weather function."),
             Message {
                 role: Role::Assistant,
-                content: String::new(),
+                content: vec![],
                 tool_calls: Some(vec![first_call.clone()]),
                 ..Default::default()
             },
             Message {
                 role: Role::Tool,
-                content: r#"{"location":"San Francisco","temperature":18,"unit":"celsius","condition":"sunny","humidity":65}"#.to_string(),
+                content: vec![MessageBlock::text(r#"{"location":"San Francisco","temperature":18,"unit":"celsius","condition":"sunny","humidity":65}"#)],
                 tool_call_id: Some(first_call.id.clone()),
                 name: Some(first_call.function.name.clone()),
                 ..Default::default()

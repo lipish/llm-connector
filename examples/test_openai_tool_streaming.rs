@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Message::text(Role::User, "What's the weather in Shanghai?"),
                     Message {
                         role: Role::Assistant,
-                        content: String::new(),
+                        content: vec![],
                         tool_calls: Some(vec![first_call.clone()]),
                         ..Default::default()
                     },
