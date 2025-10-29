@@ -549,6 +549,21 @@ impl LlmClient {
         self.provider.name()
     }
 
+    pub fn supported_providers() -> Vec<&'static str> {
+        vec![
+            "openai",
+            "aliyun",
+            "anthropic",
+            "zhipu",
+            "ollama",
+            "tencent",
+            "volcengine",
+            "longcat_anthropic",
+            "azure_openai",
+            "openai_compatible",
+        ]
+    }
+
     /// 发送聊天完成请求
     ///
     /// # 参数

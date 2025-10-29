@@ -89,14 +89,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.5.0"
+llm-connector = "0.5.2"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.5.0", features = ["streaming"] }
+llm-connector = { version = "0.5.2", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -192,6 +192,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - ⚠️ Other providers - Text only (images converted to text description)
 
 See `examples/multimodal_basic.rs` for more examples.
+
+### List Supported Providers
+
+Get a list of all supported provider names:
+
+```rust
+use llm_connector::LlmClient;
+
+fn main() {
+    let providers = LlmClient::supported_providers();
+    for provider in providers {
+        println!("{}", provider);
+    }
+}
+```
+
+Output:
+```
+openai
+aliyun
+anthropic
+zhipu
+ollama
+tencent
+volcengine
+longcat_anthropic
+azure_openai
+openai_compatible
+```
+
+See `examples/list_providers.rs` for a complete example.
 
 ## Supported Protocols
 
