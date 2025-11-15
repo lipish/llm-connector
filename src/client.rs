@@ -289,7 +289,7 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::volcengine("26f962bd-450e-4876-bc32-a732e6da9cd2").unwrap();
+    /// let client = LlmClient::volcengine("your-volcengine-api-key").unwrap();
     /// ```
     pub fn volcengine(api_key: &str) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::volcengine(api_key)?;

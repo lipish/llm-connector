@@ -25,7 +25,7 @@ pub type VolcengineProvider = crate::core::GenericProvider<VolcengineProtocol>;
 /// ```rust,no_run
 /// use llm_connector::providers::volcengine;
 ///
-/// let provider = volcengine("26f962bd-450e-4876-bc32-a732e6da9cd2").unwrap();
+/// let provider = volcengine("your-volcengine-api-key").unwrap();
 /// ```
 pub fn volcengine(api_key: &str) -> Result<VolcengineProvider, LlmConnectorError> {
     volcengine_with_config(api_key, None, None, None)
@@ -44,7 +44,7 @@ pub fn volcengine(api_key: &str) -> Result<VolcengineProvider, LlmConnectorError
 /// use llm_connector::providers::volcengine_with_config;
 ///
 /// let provider = volcengine_with_config(
-///     "26f962bd-450e-4876-bc32-a732e6da9cd2",
+///     "your-volcengine-api-key",
 ///     None, // 使用默认 URL
 ///     Some(60), // 60秒超时
 ///     None

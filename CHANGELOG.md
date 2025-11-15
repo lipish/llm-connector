@@ -2,6 +2,78 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2025-01-15
+
+### 🎉 New Features
+
+#### Universal Reasoning Models Support 🧠
+- **Added**: Universal support for reasoning models across all providers
+- **Supported Models**:
+  - ✅ Volcengine Doubao-Seed-Code (`reasoning_content`)
+  - ✅ DeepSeek R1 (`reasoning_content` / `reasoning`)
+  - ✅ OpenAI o1 series (`thought` / `reasoning_content`)
+  - ✅ Qwen reasoning models (`reasoning`)
+  - ✅ Anthropic Claude extended thinking (`thinking`)
+- **Key Benefits**:
+  - Zero configuration - automatic field detection
+  - Unified interface - same code for all reasoning models
+  - Backward compatible - standard models work as before
+  - Priority-based extraction - standard `content` field takes precedence
+- **Documentation**: Added `docs/REASONING_MODELS_SUPPORT.md`
+
+### 📚 Documentation
+
+#### Documentation Structure Cleanup
+- **Reorganized**: Cleaned up docs directory from 52 to 30 files (-42%)
+- **New Structure**:
+  - Core documents (6): Architecture, migration guides, reasoning models support
+  - Provider guides (7): Dedicated guide for each provider in `docs/guides/`
+  - Archive (17): Historical releases and reports in `docs/archive/`
+- **New Provider Guides**:
+  - `docs/guides/ALIYUN_GUIDE.md` - Aliyun DashScope usage guide
+  - `docs/guides/ANTHROPIC_GUIDE.md` - Anthropic Claude usage guide
+  - `docs/guides/ZHIPU_GUIDE.md` - Zhipu GLM usage guide
+  - Updated existing guides for DeepSeek, Moonshot, Tencent, Volcengine
+- **Improvements**:
+  - Clear documentation index in `docs/README.md`
+  - Removed duplicate and outdated content
+  - Better organization and discoverability
+
+#### Security
+- **Obfuscated**: All sensitive information in documentation and examples
+  - API keys replaced with placeholders
+  - Endpoint IDs replaced with example values
+  - Created `keys.yaml.example` for configuration reference
+- **Documentation**: Added `docs/SENSITIVE_INFO_OBFUSCATION.md`
+
+### 🐛 Bug Fixes
+
+#### Volcengine Streaming Support
+- **Fixed**: Volcengine streaming now correctly extracts content from reasoning models (Doubao-Seed-Code)
+- **Issue**: `StreamingResponse.get_content()` returned `None` for Doubao-Seed-Code model responses
+- **Root Cause**: Reasoning models output content in `delta.reasoning_content` field instead of `delta.content`
+- **Solution**: Enhanced SSE parser to check multiple content fields in priority order:
+  1. `delta.content` (standard OpenAI format, non-empty)
+  2. `delta.reasoning_content` (Volcengine Doubao-Seed-Code, DeepSeek R1)
+  3. `delta.reasoning` (Qwen, DeepSeek)
+  4. `delta.thought` (OpenAI o1)
+  5. `delta.thinking` (Anthropic)
+- **Impact**: Benefits all reasoning models across different providers
+- **Files Changed**: `src/sse.rs`
+- **Tests Added**:
+  - Unit test: `test_streaming_response_content_population`
+  - Integration test: `examples/volcengine_streaming.rs`
+  - Automation script: `scripts/test_volcengine_streaming.sh`
+- **Documentation**:
+  - `docs/VOLCENGINE_STREAMING_FIX.md` - Detailed fix documentation
+  - `docs/VOLCENGINE_STREAMING_SUMMARY.md` - Fix summary
+  - `docs/VOLCENGINE_STREAMING_FINAL_REPORT.md` - Final report
+  - `docs/REASONING_MODELS_SUPPORT.md` - Universal reasoning models guide
+- **Test Results**:
+  - ✅ 221 tests passed
+  - ✅ Volcengine streaming: 101 chunks, 477 chars extracted
+  - ✅ All existing functionality preserved
+
 ## [0.5.1] - 2025-01-21
 
 ### 🔧 Improvements
@@ -325,11 +397,11 @@ let client = LlmClient::tencent("sk-...")?;
 
 ```rust
 // 创建客户端
-let client = LlmClient::volcengine("26f962bd-450e-4876-bc32-a732e6da9cd2")?;
+let client = LlmClient::volcengine("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")?;
 
 // 创建请求（使用端点 ID）
 let request = ChatRequest {
-    model: "ep-20251006132256-vrq2p".to_string(),  // 端点 ID
+    model: "ep-20250118155555-xxxxx".to_string(),  // 端点 ID
     messages: vec![Message {
         role: Role::User,
         content: "你好".to_string(),

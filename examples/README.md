@@ -4,7 +4,7 @@
 
 ## 📚 示例列表
 
-### 基础示例 (6 个)
+### 基础示例 (7 个)
 
 | 示例文件 | 描述 | 运行命令 |
 |---------|------|----------|
@@ -14,6 +14,7 @@
 | `tencent_basic.rs` | 腾讯混元基础示例 | `cargo run --example tencent_basic` |
 | `ollama_basic.rs` | Ollama 本地模型基础示例 | `cargo run --example ollama_basic` |
 | `anthropic_streaming.rs` | Anthropic 流式响应示例 | `cargo run --example anthropic_streaming --features streaming` |
+| `volcengine_streaming.rs` | Volcengine 流式响应示例（支持推理模型） | `cargo run --example volcengine_streaming --features streaming -- <api-key> <endpoint>` |
 
 ### 特殊功能 (4 个)
 
@@ -65,6 +66,12 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 export OLLAMA_MODEL="llama2"
 ```
 
+### Volcengine (火山引擎)
+```bash
+export VOLCENGINE_API_KEY="your-volcengine-api-key"
+export VOLCENGINE_ENDPOINT="ep-20250118155555-xxxxx"  # 推理接入点 ID
+```
+
 ## 📋 功能特性
 
 ### 支持的 Provider
@@ -75,6 +82,7 @@ export OLLAMA_MODEL="llama2"
 - **腾讯混元** - 混元系列模型
 - **Anthropic** - Claude 系列模型
 - **Ollama** - 本地开源模型
+- **Volcengine (火山引擎)** - 豆包系列模型（包括推理模型 Doubao-Seed-Code）
 
 ### 核心功能
 

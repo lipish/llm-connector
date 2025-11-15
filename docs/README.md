@@ -1,102 +1,85 @@
-# llm-connector 文档目录
+# llm-connector 文档索引
 
-欢迎查阅  项目文档！
+## 📚 核心文档
 
-## 📚 文档索引
+### 架构和设计
+- [ARCHITECTURE.md](ARCHITECTURE.md) - 项目架构文档
+- [MULTIMODAL_NATIVE_DESIGN.md](MULTIMODAL_NATIVE_DESIGN.md) - 多模态内容设计
 
-### 核心文档
+### 使用指南
+- [MIGRATION_GUIDE_v0.5.0.md](MIGRATION_GUIDE_v0.5.0.md) - v0.5.0 迁移指南
+- [REASONING_MODELS_SUPPORT.md](REASONING_MODELS_SUPPORT.md) - 推理模型通用支持指南
 
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - V2 架构设计文档
-  - Protocol/Provider 双层架构说明
-  - 设计哲学与核心组件
-  - 适用于理解项目整体设计
+### 开发规范
+- [RUST_PROJECT_GUIDELINES.md](RUST_PROJECT_GUIDELINES.md) - Rust 项目开发规范
 
-- **[DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)** - 开发者指南
-  - 如何贡献代码
-  - 开发环境设置
-  - 测试和 CI/CD 流程
+## 🔌 Provider 使用指南
 
-- **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - 版本迁移指南
-  - V1 到 V2 迁移步骤
-  - Breaking Changes 说明
-  - 向后兼容性信息
+所有 Provider 的详细使用文档都在 `guides/` 目录下：
 
-### 命名规范
+- [guides/ALIYUN_GUIDE.md](guides/ALIYUN_GUIDE.md) - 阿里云 DashScope 使用指南
+- [guides/ANTHROPIC_GUIDE.md](guides/ANTHROPIC_GUIDE.md) - Anthropic Claude 使用指南
+- [guides/DEEPSEEK_GUIDE.md](guides/DEEPSEEK_GUIDE.md) - DeepSeek 使用指南
+- [guides/MOONSHOT_GUIDE.md](guides/MOONSHOT_GUIDE.md) - Moonshot 使用指南
+- [guides/TENCENT_GUIDE.md](guides/TENCENT_GUIDE.md) - 腾讯混元使用指南
+- [guides/VOLCENGINE_GUIDE.md](guides/VOLCENGINE_GUIDE.md) - 火山引擎使用指南
+- [guides/ZHIPU_GUIDE.md](guides/ZHIPU_GUIDE.md) - 智谱 GLM 使用指南
 
-- **[NAMING_CONVENTIONS.md](./NAMING_CONVENTIONS.md)** - llm-connector 项目命名规范 ⭐
-  - 构造函数命名模式
-  - 参数命名标准
-  - Provider 类型转换规范
-  - **推荐**: 所有贡献者必读
+## 📦 归档文档
 
-- **[UNIVERSAL_NAMING_GUIDE.md](./UNIVERSAL_NAMING_GUIDE.md)** - 通用 API 命名指南 ⭐⭐
-  - 适用于任何 Rust 项目的命名最佳实践
-  - 构造函数、方法、类型、模块命名模式
-  - 12 章完整指南 + 速查表
-  - **推荐**: 架构师和技术负责人必读
+历史版本发布说明和测试报告已移至 `archive/` 目录：
 
-### Rust 编码规范
+- `archive/releases/` - 历史版本发布说明
+- `archive/reports/` - 历史测试报告和重构总结
 
-- **[RUST_PROJECT_CORE_RULES.md](./RUST_PROJECT_CORE_RULES.md)** - Rust 核心规则
-  - 项目级 Rust 编码标准
-  - 最佳实践和反模式
+## 🚀 快速开始
 
-- **[RUST_PROJECT_GUIDELINES.md](./RUST_PROJECT_GUIDELINES.md)** - Rust 项目指南 (中文)
-  - 详细的 Rust 编码规范
-  - 错误处理、性能优化等主题
+1. **新用户**: 从主 [README.md](../README.md) 开始
+2. **迁移用户**: 查看 [MIGRATION_GUIDE_v0.5.0.md](MIGRATION_GUIDE_v0.5.0.md)
+3. **使用推理模型**: 查看 [REASONING_MODELS_SUPPORT.md](REASONING_MODELS_SUPPORT.md)
+4. **特定 Provider**: 查看 `guides/` 目录下对应的指南
 
-- **[RUST_PROJECT_GUIDELINES_EN.md](./RUST_PROJECT_GUIDELINES_EN.md)** - Rust Project Guidelines (English)
-  - 英文版 Rust 编码规范
+## 📝 文档维护
 
-### 其他文档
+### 文档结构
 
-- **[README_ZH.md](./README_ZH.md)** - 中文 README
-  - 项目介绍和快速开始指南
+```
+docs/
+├── README.md                           # 本文档
+├── ARCHITECTURE.md                     # 架构文档
+├── MULTIMODAL_NATIVE_DESIGN.md        # 多模态设计
+├── MIGRATION_GUIDE_v0.5.0.md          # 迁移指南
+├── REASONING_MODELS_SUPPORT.md        # 推理模型支持
+├── RUST_PROJECT_GUIDELINES.md         # Rust 规范
+├── guides/                             # Provider 使用指南
+│   ├── ALIYUN_GUIDE.md
+│   ├── ANTHROPIC_GUIDE.md
+│   ├── DEEPSEEK_GUIDE.md
+│   ├── MOONSHOT_GUIDE.md
+│   ├── TENCENT_GUIDE.md
+│   ├── VOLCENGINE_GUIDE.md
+│   └── ZHIPU_GUIDE.md
+└── archive/                            # 归档文档
+    ├── releases/                       # 历史版本发布说明
+    └── reports/                        # 历史测试报告
+```
 
----
+### 文档更新原则
 
-## 🎯 快速导航
+1. **核心文档**: 保持最新，反映当前版本的功能和设计
+2. **Provider 指南**: 每个 Provider 一个独立文档，包含基础用法、特殊功能、常见问题
+3. **归档文档**: 历史文档移至 archive，保留但不再更新
 
-### 我想...
+## 🔗 相关链接
 
-- **了解项目架构** → [ARCHITECTURE.md](./ARCHITECTURE.md)
-- **开始贡献代码** → [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) + [NAMING_CONVENTIONS.md](./NAMING_CONVENTIONS.md)
-- **从 V1 迁移到 V2** → [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)
-- **学习 API 命名最佳实践** → [UNIVERSAL_NAMING_GUIDE.md](./UNIVERSAL_NAMING_GUIDE.md)
-- **查看 Rust 编码规范** → [RUST_PROJECT_GUIDELINES.md](./RUST_PROJECT_GUIDELINES.md)
+- [项目主页](https://github.com/lipish/llm-connector)
+- [API 文档](https://docs.rs/llm-connector)
+- [Crates.io](https://crates.io/crates/llm-connector)
+- [更新日志](../CHANGELOG.md)
 
----
+## 📧 反馈
 
-## 📖 阅读顺序建议
+如果发现文档问题或有改进建议，请：
+1. 提交 Issue: https://github.com/lipish/llm-connector/issues
+2. 提交 PR: https://github.com/lipish/llm-connector/pulls
 
-### 新贡献者
-1. [ARCHITECTURE.md](./ARCHITECTURE.md) - 理解设计
-2. [NAMING_CONVENTIONS.md](./NAMING_CONVENTIONS.md) - 学习命名规范
-3. [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) - 开始贡献
-
-### 项目维护者
-1. [UNIVERSAL_NAMING_GUIDE.md](./UNIVERSAL_NAMING_GUIDE.md) - 通用命名原则
-2. [ARCHITECTURE.md](./ARCHITECTURE.md) - 架构决策
-3. [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) - 版本演进策略
-
-### Rust 学习者
-1. [RUST_PROJECT_CORE_RULES.md](./RUST_PROJECT_CORE_RULES.md) - 快速上手
-2. [RUST_PROJECT_GUIDELINES.md](./RUST_PROJECT_GUIDELINES.md) - 深入学习
-3. [UNIVERSAL_NAMING_GUIDE.md](./UNIVERSAL_NAMING_GUIDE.md) - 最佳实践
-
----
-
-## 🔄 文档更新
-
-所有文档遵循以下版本控制：
-
-- **主版本号变更** - 架构重大变更时更新
-- **次版本号变更** - 新增章节或大幅修订时更新
-- **修订号变更** - 错误修正或小幅调整
-
-当前文档版本: **v2.0** (对应 llm-connector v0.5.x)
-
----
-
-**最后更新**: 2025-01-18  
-**维护者**: llm-connector 核心团队

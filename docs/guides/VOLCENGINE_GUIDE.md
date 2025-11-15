@@ -59,7 +59,7 @@ use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 创建客户端
     let client = LlmClient::openai_compatible(
-        "26f962bd-450e-4876-bc32-a732e6da9cd2",  // API Key
+        "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",  // API Key
         "https://ark.cn-beijing.volces.com/api/v3",  // 端点
         "volcengine"  // 服务名称
     )?;
@@ -90,10 +90,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(feature = "streaming")]
 {
     use futures_util::StreamExt;
-    
+
     let mut streaming_request = request.clone();
     streaming_request.stream = Some(true);
-    
+
     let mut stream = client.chat_stream(&streaming_request).await?;
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
@@ -103,6 +103,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 ```
+
+### 推理模型支持 (Doubao-Seed-Code)
+
+Volcengine 的 Doubao-Seed-Code 是推理模型，它将推理过程输出到 `reasoning_content` 字段。llm-connector 会自动处理这种情况。
+
+**使用示例**:
+```rust
+use llm_connector::providers::volcengine_with_config;
+use llm_connector::types::{ChatRequest, Message};
+use futures_util::StreamExt;
+
+let provider = volcengine_with_config("api-key", None, Some(60), None)?;
+
+let request = ChatRequest {
+    model: "ep-20250118155555-xxxxx".to_string(),  // Doubao-Seed-Code 端点
+    messages: vec![Message::user("介绍一下你自己")],
+    stream: Some(true),
+    ..Default::default()
+};
+
+let mut stream = provider.chat_stream(&request).await?;
+while let Some(chunk) = stream.next().await {
+    if let Some(content) = chunk?.get_content() {
+        print!("{}", content);  // ✅ 自动提取 reasoning_content
+    }
+}
+```
+
+**关键点**:
+- ✅ 自动识别推理内容字段 (`reasoning_content`)
+- ✅ 无需额外配置
+- ✅ 与标准模型使用相同的代码
+- ✅ 详见 [推理模型支持文档](../REASONING_MODELS_SUPPORT.md)
 
 ## 🧪 测试
 
@@ -146,7 +179,7 @@ model: "ep-20250118155555-xxxxx".to_string(),  // ✅ 正确：使用端点 ID
 
 火山引擎的 API Key 是 UUID 格式：
 ```
-26f962bd-450e-4876-bc32-a732e6da9cd2
+xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 不是 OpenAI 的 `sk-` 格式。

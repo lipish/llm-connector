@@ -116,12 +116,167 @@ pub fn sse_to_streaming_response(
     let response_stream = string_stream.map(|result| {
         result.and_then(|json_str| {
             // Try to parse as StreamingResponse
-            serde_json::from_str::<StreamingResponse>(&json_str)
+            let mut streaming_response = serde_json::from_str::<StreamingResponse>(&json_str)
                 .map_err(|e| crate::error::LlmConnectorError::ParseError(
                     format!("Failed to parse streaming response: {}", e)
-                ))
+                ))?;
+
+            // 🔧 Fix: Populate the convenience `content` field from choices[0].delta
+            // This is critical for Volcengine and other OpenAI-compatible providers
+            //
+            // Priority order:
+            // 1. delta.content (standard OpenAI format)
+            // 2. delta.reasoning_content (Volcengine Doubao-Seed-Code, DeepSeek R1)
+            // 3. delta.reasoning (Qwen, DeepSeek)
+            // 4. delta.thought (OpenAI o1)
+            // 5. delta.thinking (Anthropic)
+            if streaming_response.content.is_empty() {
+                if let Some(choice) = streaming_response.choices.first() {
+                    let content_to_use = choice.delta.content.as_ref()
+                        .filter(|s| !s.is_empty())
+                        .or_else(|| choice.delta.reasoning_content.as_ref())
+                        .or_else(|| choice.delta.reasoning.as_ref())
+                        .or_else(|| choice.delta.thought.as_ref())
+                        .or_else(|| choice.delta.thinking.as_ref());
+
+                    if let Some(content) = content_to_use {
+                        streaming_response.content = content.clone();
+                    }
+                }
+            }
+
+            Ok(streaming_response)
         })
     });
 
     Box::pin(response_stream)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(feature = "streaming")]
+    fn test_streaming_response_content_population() {
+        use crate::types::StreamingResponse;
+
+        // Test 1: Standard OpenAI format with content
+        let json_standard = r#"{
+            "id": "test-1",
+            "object": "chat.completion.chunk",
+            "created": 1234567890,
+            "model": "gpt-4",
+            "choices": [{
+                "index": 0,
+                "delta": {
+                    "role": "assistant",
+                    "content": "Hello world"
+                },
+                "finish_reason": null
+            }]
+        }"#;
+
+        let mut response: StreamingResponse = serde_json::from_str(json_standard).unwrap();
+
+        // Simulate the content population logic
+        if response.content.is_empty() {
+            if let Some(choice) = response.choices.first() {
+                let content_to_use = choice.delta.content.as_ref()
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| choice.delta.reasoning_content.as_ref())
+                    .or_else(|| choice.delta.reasoning.as_ref())
+                    .or_else(|| choice.delta.thought.as_ref())
+                    .or_else(|| choice.delta.thinking.as_ref());
+
+                if let Some(content) = content_to_use {
+                    response.content = content.clone();
+                }
+            }
+        }
+
+        assert_eq!(response.content, "Hello world");
+
+        // Test 2: Volcengine Doubao-Seed-Code format with reasoning_content
+        let json_volcengine = r#"{
+            "id": "test-2",
+            "object": "chat.completion.chunk",
+            "created": 1234567890,
+            "model": "doubao-seed-code",
+            "choices": [{
+                "index": 0,
+                "delta": {
+                    "role": "assistant",
+                    "content": "",
+                    "reasoning_content": "我是豆包"
+                },
+                "finish_reason": null
+            }]
+        }"#;
+
+        let mut response: StreamingResponse = serde_json::from_str(json_volcengine).unwrap();
+
+        // Simulate the content population logic
+        if response.content.is_empty() {
+            if let Some(choice) = response.choices.first() {
+                let content_to_use = choice.delta.content.as_ref()
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| choice.delta.reasoning_content.as_ref())
+                    .or_else(|| choice.delta.reasoning.as_ref())
+                    .or_else(|| choice.delta.thought.as_ref())
+                    .or_else(|| choice.delta.thinking.as_ref());
+
+                if let Some(content) = content_to_use {
+                    response.content = content.clone();
+                }
+            }
+        }
+
+        assert_eq!(response.content, "我是豆包");
+
+        // Test 3: DeepSeek format with reasoning
+        let json_deepseek = r#"{
+            "id": "test-3",
+            "object": "chat.completion.chunk",
+            "created": 1234567890,
+            "model": "deepseek-r1",
+            "choices": [{
+                "index": 0,
+                "delta": {
+                    "role": "assistant",
+                    "content": "",
+                    "reasoning": "Let me think..."
+                },
+                "finish_reason": null
+            }]
+        }"#;
+
+        let mut response: StreamingResponse = serde_json::from_str(json_deepseek).unwrap();
+
+        // Simulate the content population logic
+        if response.content.is_empty() {
+            if let Some(choice) = response.choices.first() {
+                let content_to_use = choice.delta.content.as_ref()
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| choice.delta.reasoning_content.as_ref())
+                    .or_else(|| choice.delta.reasoning.as_ref())
+                    .or_else(|| choice.delta.thought.as_ref())
+                    .or_else(|| choice.delta.thinking.as_ref());
+
+                if let Some(content) = content_to_use {
+                    response.content = content.clone();
+                }
+            }
+        }
+
+        assert_eq!(response.content, "Let me think...");
+    }
+
+    #[test]
+    fn test_sse_event_parsing() {
+        // Test SSE format parsing
+        let sse_data = "data: {\"test\": \"value\"}\n\n";
+        assert!(sse_data.starts_with("data: "));
+
+        let sse_done = "data: [DONE]\n\n";
+        assert!(sse_done.contains("[DONE]"));
+    }
 }

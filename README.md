@@ -17,6 +17,7 @@ This will tell you exactly what's wrong with your API keys! See [Debugging & Tro
 ## ✨ Key Features
 
 - **🎨 Multi-modal Content Support**: Native support for text + images in a single message (v0.5.0+)
+- **🧠 Reasoning Models Support**: Universal support for reasoning models (Volcengine Doubao-Seed-Code, DeepSeek R1, OpenAI o1, etc.)
 - **11+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, and more
 - **Configuration-Driven Architecture**: Clean Protocol/Provider separation with flexible configuration
 - **Extreme Performance**: 7,000x+ faster client creation (7µs vs 53ms)
@@ -346,7 +347,7 @@ let client = LlmClient::tencent_with_config(
 **Models**: hunyuan-lite, hunyuan-standard, hunyuan-pro, hunyuan-turbo
 
 ### 7. Volcengine (火山引擎)
-OpenAI-compatible API with custom endpoint paths.
+OpenAI-compatible API with custom endpoint paths. Supports both standard chat models and reasoning models (Doubao-Seed-Code).
 
 ```rust
 // Default
@@ -355,13 +356,39 @@ let client = LlmClient::volcengine("api-key")?;
 // With custom configuration
 let client = LlmClient::volcengine_with_config(
     "api-key",
-    None,      // base_url (uses default)
+    None,      // base_url (uses default: https://ark.cn-beijing.volces.com)
     Some(120), // timeout in seconds
     None       // proxy
 )?;
+
+// Streaming example (works with both standard and reasoning models)
+#[cfg(feature = "streaming")]
+{
+    use futures_util::StreamExt;
+
+    let request = ChatRequest {
+        model: "ep-20250118155555-xxxxx".to_string(), // Use endpoint ID as model
+        messages: vec![Message::user("介绍一下你自己")],
+        stream: Some(true),
+        ..Default::default()
+    };
+
+    let mut stream = client.chat_stream(&request).await?;
+    while let Some(chunk) = stream.next().await {
+        if let Some(content) = chunk?.get_content() {
+            print!("{}", content);
+        }
+    }
+}
 ```
 
 **Endpoint**: Uses `/api/v3/chat/completions` instead of `/v1/chat/completions`
+
+**Models**:
+- Standard models: Use endpoint ID (e.g., `ep-...`)
+- Reasoning models: Doubao-Seed-Code (outputs via `reasoning_content` field, automatically handled)
+
+**Streaming Support**: ✅ Full support for both standard and reasoning models. The library automatically extracts content from the appropriate field (`content` or `reasoning_content`).
 
 ### 8. LongCat API
 Supports both OpenAI and Anthropic formats.
@@ -784,6 +811,59 @@ while let Some(chunk) = stream.next().await {
     }
 }
 ```
+
+## Reasoning Models Support 🧠
+
+llm-connector provides **universal support for reasoning models** across different providers. No matter which field the reasoning content is in (`reasoning_content`, `reasoning`, `thought`, `thinking`), it's automatically extracted and available via `get_content()`.
+
+### Supported Reasoning Models
+
+| Provider | Model | Reasoning Field | Status |
+|----------|-------|----------------|--------|
+| **Volcengine** | Doubao-Seed-Code | `reasoning_content` | ✅ Verified |
+| **DeepSeek** | DeepSeek R1 | `reasoning_content` / `reasoning` | ✅ Supported |
+| **OpenAI** | o1-preview, o1-mini | `thought` / `reasoning_content` | ✅ Supported |
+| **Qwen** | Qwen-Plus | `reasoning` | ✅ Supported |
+| **Anthropic** | Claude 3.5 Sonnet | `thinking` | ✅ Supported |
+
+### Usage Example
+
+**The same code works for all reasoning models:**
+
+```rust
+use futures_util::StreamExt;
+
+// Works with Volcengine Doubao-Seed-Code
+let provider = volcengine_with_config("api-key", None, Some(60), None)?;
+
+// Works with DeepSeek R1
+// let provider = openai_with_config("deepseek-key", Some("https://api.deepseek.com"), None, None)?;
+
+// Works with OpenAI o1
+// let provider = openai("openai-key")?;
+
+let request = ChatRequest {
+    model: "ep-20250118155555-xxxxx".to_string(), // or "deepseek-reasoner", "o1-preview", etc.
+    messages: vec![Message::user("Solve this problem")],
+    stream: Some(true),
+    ..Default::default()
+};
+
+let mut stream = provider.chat_stream(&request).await?;
+while let Some(chunk) = stream.next().await {
+    if let Some(content) = chunk?.get_content() {
+        print!("{}", content);  // ✅ Automatically extracts reasoning content
+    }
+}
+```
+
+**Key Benefits:**
+- ✅ **Zero Configuration**: Automatic field detection
+- ✅ **Unified Interface**: Same code for all reasoning models
+- ✅ **Backward Compatible**: Standard models (GPT-4, Claude) work as before
+- ✅ **Priority-Based**: Standard `content` field takes precedence when available
+
+See [Reasoning Models Support Guide](docs/REASONING_MODELS_SUPPORT.md) for detailed documentation.
 
 ## Error Handling
 
