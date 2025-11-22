@@ -5,82 +5,21 @@ Next-generation Rust library for LLM protocol abstraction with **native multi-mo
 Supports 11+ providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, and more.
 Clean architecture with unified output format, multi-modal content support, and configuration-driven design for maximum flexibility.
 
-## 🚨 Having Authentication Issues?
+## Key Features
 
-**Test your API keys right now:**
-```bash
-cargo run --example test_keys_yaml
-```
-
-This will tell you exactly what's wrong with your API keys! See [Debugging & Troubleshooting](#debugging--troubleshooting) for more details.
-
-## ✨ Key Features
-
-- **🎨 Multi-modal Content Support**: Native support for text + images in a single message (v0.5.0+)
-- **🧠 Reasoning Models Support**: Universal support for reasoning models (Volcengine Doubao-Seed-Code, DeepSeek R1, OpenAI o1, etc.)
+- **Multi-modal Content Support**: Native support for text + images in a single message (v0.5.0+)
+- **Function Calling / Tools**: Full support for OpenAI-compatible function calling with streaming
+- **Reasoning Models Support**: Universal support for reasoning models (Volcengine Doubao-Seed-Code, DeepSeek R1, OpenAI o1, etc.)
 - **11+ Provider Support**: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, and more
+- **Unified Output Format**: All providers return the same `StreamingResponse` type
 - **Configuration-Driven Architecture**: Clean Protocol/Provider separation with flexible configuration
 - **Extreme Performance**: 7,000x+ faster client creation (7µs vs 53ms)
 - **Memory Efficient**: Only 16 bytes per client instance
 - **Type-Safe**: Full Rust type safety with Result-based error handling
 - **No Hardcoded Models**: Use any model name without restrictions
 - **Online Model Discovery**: Fetch available models dynamically from API
-- **Universal Streaming**: Real-time streaming with format abstraction (JSON/SSE/NDJSON)
+- **Universal Streaming**: Real-time streaming with format abstraction
 - **Ollama Model Management**: Full CRUD operations for local models
-- **Unified Interface**: Same API for all protocols
-- **🎯 Unified Output Format**: All providers return the same `StreamingResponse` type
-
-## 🎯 Unified Output Format
-
-**All providers output the same unified `StreamingResponse` format**, regardless of their native API format.
-
-```
-Different Input Formats → Protocol Conversion → Unified StreamingResponse
-```
-
-### Why This Matters
-
-✅ **Consistent API** - Same code works with all providers
-✅ **Easy Switching** - Change providers without changing business logic
-✅ **Type Safety** - Compile-time guarantees across all providers
-✅ **Lower Learning Curve** - Learn once, use everywhere
-
-### Example
-
-```rust
-// Same code works with ANY provider
-let mut stream = client.chat_stream(&request).await?;
-
-while let Some(chunk) = stream.next().await {
-    let chunk = chunk?;  // Always StreamingResponse
-
-    // Unified access methods
-    if let Some(content) = chunk.get_content() {
-        print!("{}", content);
-    }
-
-    if let Some(reason) = chunk.get_finish_reason() {
-        println!("\nfinish_reason: {}", reason);
-    }
-
-    if let Some(usage) = chunk.usage {
-        println!("usage: {:?}", usage);
-    }
-}
-```
-
-### How It Works
-
-| Provider | Native Format | Conversion | Complexity |
-|----------|--------------|------------|------------|
-| OpenAI | OpenAI standard | Direct mapping | ⭐ Simple |
-| Tencent | OpenAI compatible | Direct mapping | ⭐ Simple |
-| Volcengine | OpenAI compatible | Direct mapping | ⭐ Simple |
-| Anthropic | Multi-event stream | Custom parser | ⭐⭐⭐ Complex |
-| Aliyun | DashScope format | Custom parser | ⭐⭐ Medium |
-| Zhipu | GLM format | Custom parser | ⭐⭐ Medium |
-
-**All conversions happen transparently in the Protocol layer** - you just get consistent `StreamingResponse` objects!
 
 ## Quick Start
 
@@ -90,14 +29,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.5.2"
+llm-connector = "0.5.4"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.5.2", features = ["streaming"] }
+llm-connector = { version = "0.5.4", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -188,9 +127,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `MessageBlock::image_url_anthropic(url)` - Image from URL (Anthropic format)
 
 **Provider Support**:
-- ✅ OpenAI - Full support (text + images)
-- ✅ Anthropic - Full support (text + images)
-- ⚠️ Other providers - Text only (images converted to text description)
+- OpenAI - Full support (text + images)
+- Anthropic - Full support (text + images)
+- Other providers - Text only (images converted to text description)
 
 See `examples/multimodal_basic.rs` for more examples.
 
@@ -225,6 +164,177 @@ openai_compatible
 
 See `examples/list_providers.rs` for a complete example.
 
+## Supported Providers
+
+llm-connector supports 11+ LLM providers with a unified interface:
+
+| Provider | Quick Start | Features |
+|----------|-------------|----------|
+| **OpenAI** | `LlmClient::openai("sk-...")` | Chat, Streaming, Tools, Multi-modal, Reasoning (o1) |
+| **Anthropic** | `LlmClient::anthropic("sk-ant-...")` | Chat, Streaming, Multi-modal |
+| **Aliyun** | `LlmClient::aliyun("sk-...")` | Chat, Streaming, Qwen models |
+| **Zhipu** | `LlmClient::zhipu("key")` | Chat, Streaming, Tools, GLM models |
+| **Ollama** | `LlmClient::ollama()` | Chat, Streaming, Local models, Model management |
+| **Tencent** | `LlmClient::tencent("key")` | Chat, Streaming, Hunyuan models |
+| **Volcengine** | `LlmClient::volcengine("key")` | Chat, Streaming, Reasoning (Doubao-Seed-Code) |
+| **DeepSeek** | `LlmClient::deepseek("sk-...")` | Chat, Streaming, Reasoning (R1) |
+| **Moonshot** | `LlmClient::moonshot("sk-...")` | Chat, Streaming, Long context |
+| **LongCat** | `LlmClient::longcat_openai("ak-...")` | Chat, Streaming |
+
+For detailed provider documentation and advanced configuration, see:
+- [Detailed Protocol Information](#supported-protocols) below
+- [Provider Guides](docs/guides/) for provider-specific features
+
+## Function Calling / Tools
+
+llm-connector supports OpenAI-compatible function calling (tools) with both streaming and non-streaming modes.
+
+### Basic Usage
+
+```rust
+use llm_connector::{LlmClient, types::*};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = LlmClient::zhipu("your-api-key")?;
+
+    // Define tools
+    let tools = vec![Tool {
+        tool_type: "function".to_string(),
+        function: Function {
+            name: "get_weather".to_string(),
+            description: Some("Get weather information for a city".to_string()),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "City name, e.g. Beijing, Shanghai"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"],
+                        "description": "Temperature unit"
+                    }
+                },
+                "required": ["location"]
+            }),
+        },
+    }];
+
+    let request = ChatRequest {
+        model: "glm-4-plus".to_string(),
+        messages: vec![Message::text(Role::User, "What's the weather in Beijing?")],
+        tools: Some(tools),
+        tool_choice: Some(ToolChoice::auto()),
+        ..Default::default()
+    };
+
+    let response = client.chat(&request).await?;
+
+    // Check if tools were called
+    if let Some(choice) = response.choices.first() {
+        if let Some(tool_calls) = &choice.message.tool_calls {
+            for call in tool_calls {
+                println!("Tool: {}", call.function.name);
+                println!("Arguments: {}", call.function.arguments);
+            }
+        }
+    }
+
+    Ok(())
+}
+```
+
+### Streaming Tool Calls
+
+```rust
+use futures_util::StreamExt;
+
+let request = ChatRequest {
+    model: "glm-4-plus".to_string(),
+    messages: vec![Message::text(Role::User, "What's the weather?")],
+    tools: Some(tools),
+    stream: Some(true),
+    ..Default::default()
+};
+
+let mut stream = client.chat_stream(&request).await?;
+
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;
+
+    if let Some(choice) = chunk.choices.first() {
+        if let Some(tool_calls) = &choice.delta.tool_calls {
+            // Process tool calls incrementally
+            for call in tool_calls {
+                println!("Tool: {}", call.function.name);
+            }
+        }
+    }
+}
+```
+
+**Key Features**:
+- Automatic deduplication of streaming tool_calls
+- Incremental accumulation support
+- Compatible with OpenAI streaming format
+- Works with Zhipu, OpenAI, and other compatible providers
+
+For complete examples, see:
+- `examples/zhipu_tools.rs` - Basic tool calling
+- `examples/zhipu_multiround_tools.rs` - Multi-round conversations with tools
+- `examples/test_aliyun_streaming_tools.rs` - Streaming tool calls
+
+**Technical Details**: See [docs/STREAMING_TOOL_CALLS.md](docs/STREAMING_TOOL_CALLS.md) for implementation details.
+
+## Streaming
+
+llm-connector provides unified streaming support across all providers with the `streaming` feature.
+
+### Enable Streaming
+
+```toml
+[dependencies]
+llm-connector = { version = "0.5.4", features = ["streaming"] }
+```
+
+### Basic Streaming
+
+```rust
+use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
+use futures_util::StreamExt;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = LlmClient::openai("sk-...")?;
+
+    let request = ChatRequest {
+        model: "gpt-4".to_string(),
+        messages: vec![Message::text(Role::User, "Tell me a story")],
+        stream: Some(true),
+        ..Default::default()
+    };
+
+    let mut stream = client.chat_stream(&request).await?;
+
+    while let Some(chunk) = stream.next().await {
+        if let Some(content) = chunk?.get_content() {
+            print!("{}", content);
+        }
+    }
+
+    Ok(())
+}
+```
+
+**All providers return the same `StreamingResponse` type**, making it easy to switch between providers without changing your code.
+
+For examples, see:
+- `examples/anthropic_streaming.rs`
+- `examples/ollama_streaming.rs`
+- `examples/volcengine_streaming.rs`
+
 ## Supported Protocols
 
 ### 1. OpenAI Protocol
@@ -249,10 +359,10 @@ let client = LlmClient::openai_compatible("sk-...", "https://api.deepseek.com", 
 ```
 
 **Features:**
-- ✅ No hardcoded models - use any model name
-- ✅ Online model discovery via `models()`
-- ✅ Azure OpenAI support
-- ✅ Works with OpenAI-compatible providers (DeepSeek, Moonshot, etc.)
+- No hardcoded models - use any model name
+- Online model discovery via `models()`
+- Azure OpenAI support
+- Works with OpenAI-compatible providers (DeepSeek, Moonshot, etc.)
 
 **Example Models**: gpt-4, gpt-4-turbo, gpt-3.5-turbo, o1-preview, o1-mini
 
@@ -322,13 +432,13 @@ let client = LlmClient::ollama_with_config(
 **Models**: llama3.2, llama3.1, mistral, mixtral, qwen2.5, etc.
 
 **Features**:
-- ✅ Model listing and management
-- ✅ Pull, delete, and inspect models
-- ✅ Local server support with custom URLs
-- ✅ Enhanced error handling for Ollama-specific operations
-- ✅ Direct access to Ollama-specific features
+- Model listing and management
+- Pull, delete, and inspect models
+- Local server support with custom URLs
+- Enhanced error handling for Ollama-specific operations
+- Direct access to Ollama-specific features
 
-### 6. Tencent Hunyuan (腾讯混元)
+### 6. Tencent Hunyuan
 OpenAI-compatible API for Tencent Cloud.
 
 ```rust
@@ -346,7 +456,7 @@ let client = LlmClient::tencent_with_config(
 
 **Models**: hunyuan-lite, hunyuan-standard, hunyuan-pro, hunyuan-turbo
 
-### 7. Volcengine (火山引擎)
+### 7. Volcengine
 OpenAI-compatible API with custom endpoint paths. Supports both standard chat models and reasoning models (Doubao-Seed-Code).
 
 ```rust
@@ -388,7 +498,7 @@ let client = LlmClient::volcengine_with_config(
 - Standard models: Use endpoint ID (e.g., `ep-...`)
 - Reasoning models: Doubao-Seed-Code (outputs via `reasoning_content` field, automatically handled)
 
-**Streaming Support**: ✅ Full support for both standard and reasoning models. The library automatically extracts content from the appropriate field (`content` or `reasoning_content`).
+**Streaming Support**: Full support for both standard and reasoning models. The library automatically extracts content from the appropriate field (`content` or `reasoning_content`).
 
 ### 8. LongCat API
 Supports both OpenAI and Anthropic formats.
@@ -405,7 +515,7 @@ let client = LlmClient::longcat_anthropic("ak-...")?;
 
 **Note**: LongCat's Anthropic format uses `Authorization: Bearer` instead of `x-api-key`
 
-### 9. Moonshot (月之暗面)
+### 9. Moonshot
 OpenAI-compatible API for Moonshot AI.
 
 ```rust
@@ -424,10 +534,10 @@ let client = LlmClient::moonshot_with_config(
 **Models**: moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k
 
 **Features**:
-- ✅ OpenAI-compatible API format
-- ✅ Long context support (up to 128k tokens)
-- ✅ Streaming support
-- ✅ Unified output format
+- OpenAI-compatible API format
+- Long context support (up to 128k tokens)
+- Streaming support
+- Unified output format
 
 ### 10. DeepSeek
 OpenAI-compatible API with reasoning models support.
@@ -450,11 +560,11 @@ let client = LlmClient::deepseek_with_config(
 - `deepseek-reasoner` - Reasoning model with thinking process
 
 **Features**:
-- ✅ OpenAI-compatible API format
-- ✅ Reasoning content support (thinking process)
-- ✅ Streaming support
-- ✅ Unified output format
-- ✅ Automatic extraction of reasoning content
+- OpenAI-compatible API format
+- Reasoning content support (thinking process)
+- Streaming support
+- Unified output format
+- Automatic extraction of reasoning content
 
 **Reasoning Model Example**:
 ```rust
@@ -690,10 +800,10 @@ println!("Available models: {:?}", models);
 ```
 
 **Supported by:**
-- ✅ OpenAI Protocol (including OpenAI-compatible providers like DeepSeek, Zhipu, Moonshot)
-- ✅ Anthropic Protocol (limited support - returns fallback endpoint)
-- ✅ Ollama Protocol (full support via `/api/tags`)
-- ❌ Aliyun Protocol (not supported)
+- OpenAI Protocol (including OpenAI-compatible providers like DeepSeek, Zhipu, Moonshot)
+- Anthropic Protocol (limited support - returns fallback endpoint)
+- Ollama Protocol (full support via `/api/tags`)
+- Aliyun Protocol (not supported)
 
 **Example Results:**
 - DeepSeek: `["deepseek-chat", "deepseek-reasoner"]`
@@ -792,27 +902,7 @@ cargo run --example ollama_streaming --features streaming
 
 Note: This setup targets a remote Ollama-compatible gateway. The model id is defined by your backend (e.g. `glm-4.6`); no local installation is required. If your gateway uses a different identifier, replace it accordingly.
 
-## Streaming (Optional Feature)
-
-Enable streaming in your `Cargo.toml`:
-```toml
-llm-connector = { version = "0.3.13", features = ["streaming"] }
-```
-
-```rust
-use futures_util::StreamExt;
-
-let mut stream = client.chat_stream(&request).await?;
-
-while let Some(chunk) = stream.next().await {
-    let chunk = chunk?;
-    if let Some(content) = chunk.get_content() {
-        print!("{}", content);
-    }
-}
-```
-
-## Reasoning Models Support 🧠
+## Reasoning Models Support
 
 llm-connector provides **universal support for reasoning models** across different providers. No matter which field the reasoning content is in (`reasoning_content`, `reasoning`, `thought`, `thinking`), it's automatically extracted and available via `get_content()`.
 
@@ -820,11 +910,11 @@ llm-connector provides **universal support for reasoning models** across differe
 
 | Provider | Model | Reasoning Field | Status |
 |----------|-------|----------------|--------|
-| **Volcengine** | Doubao-Seed-Code | `reasoning_content` | ✅ Verified |
-| **DeepSeek** | DeepSeek R1 | `reasoning_content` / `reasoning` | ✅ Supported |
-| **OpenAI** | o1-preview, o1-mini | `thought` / `reasoning_content` | ✅ Supported |
-| **Qwen** | Qwen-Plus | `reasoning` | ✅ Supported |
-| **Anthropic** | Claude 3.5 Sonnet | `thinking` | ✅ Supported |
+| **Volcengine** | Doubao-Seed-Code | `reasoning_content` | Verified |
+| **DeepSeek** | DeepSeek R1 | `reasoning_content` / `reasoning` | Supported |
+| **OpenAI** | o1-preview, o1-mini | `thought` / `reasoning_content` | Supported |
+| **Qwen** | Qwen-Plus | `reasoning` | Supported |
+| **Anthropic** | Claude 3.5 Sonnet | `thinking` | Supported |
 
 ### Usage Example
 
@@ -852,16 +942,16 @@ let request = ChatRequest {
 let mut stream = provider.chat_stream(&request).await?;
 while let Some(chunk) = stream.next().await {
     if let Some(content) = chunk?.get_content() {
-        print!("{}", content);  // ✅ Automatically extracts reasoning content
+        print!("{}", content);  // Automatically extracts reasoning content
     }
 }
 ```
 
 **Key Benefits:**
-- ✅ **Zero Configuration**: Automatic field detection
-- ✅ **Unified Interface**: Same code for all reasoning models
-- ✅ **Backward Compatible**: Standard models (GPT-4, Claude) work as before
-- ✅ **Priority-Based**: Standard `content` field takes precedence when available
+- **Zero Configuration**: Automatic field detection
+- **Unified Interface**: Same code for all reasoning models
+- **Backward Compatible**: Standard models (GPT-4, Claude) work as before
+- **Priority-Based**: Standard `content` field takes precedence when available
 
 See [Reasoning Models Support Guide](docs/REASONING_MODELS_SUPPORT.md) for detailed documentation.
 
@@ -956,230 +1046,120 @@ Notes:
 - The normalization is provider-agnostic and applied uniformly to OpenAI, Anthropic, Aliyun (Qwen), Zhipu (GLM), and DeepSeek flows (including streaming).
 - `StreamingResponse` also backfills its top-level `reasoning_content` from the first delta that contains reasoning.
 
-## Debugging & Troubleshooting
+## Unified Output Format
 
-### Test Your API Keys
+**All providers output the same unified `StreamingResponse` format**, regardless of their native API format.
 
-Quickly test if your API keys are valid:
-
-```bash
-# Test all keys from keys.yaml
-cargo run --example test_keys_yaml
-
-# Debug DeepSeek specifically
-cargo run --example debug_deepseek -- sk-your-key
+```
+Different Input Formats → Protocol Conversion → Unified StreamingResponse
 ```
 
-The test tool will:
-- ✅ Validate API key format
-- ✅ Test authentication with the provider
-- ✅ Show exactly what's wrong if a key fails
-- ✅ Provide specific fix instructions
+### Why This Matters
 
-### Troubleshooting Guides
+- **Consistent API** - Same code works with all providers
+- **Easy Switching** - Change providers without changing business logic
+- **Type Safety** - Compile-time guarantees across all providers
+- **Lower Learning Curve** - Learn once, use everywhere
 
-- **`TROUBLESHOOTING.md`** - Comprehensive troubleshooting guide
-- **`HOW_TO_TEST_YOUR_KEYS.md`** - How to test your API keys
-- **`TEST_YOUR_DEEPSEEK_KEY.md`** - Quick start for DeepSeek users
+### Example
+
+```rust
+// Same code works with ANY provider
+let mut stream = client.chat_stream(&request).await?;
+
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;  // Always StreamingResponse
+
+    // Unified access methods
+    if let Some(content) = chunk.get_content() {
+        print!("{}", content);
+    }
+
+    if let Some(reason) = chunk.get_finish_reason() {
+        println!("\nfinish_reason: {}", reason);
+    }
+
+    if let Some(usage) = chunk.usage {
+        println!("usage: {:?}", usage);
+    }
+}
+```
+
+### How It Works
+
+| Provider | Native Format | Conversion | Complexity |
+|----------|--------------|------------|------------|
+| OpenAI | OpenAI standard | Direct mapping | Simple |
+| Tencent | OpenAI compatible | Direct mapping | Simple |
+| Volcengine | OpenAI compatible | Direct mapping | Simple |
+| Anthropic | Multi-event stream | Custom parser | Complex |
+| Aliyun | DashScope format | Custom parser | Medium |
+| Zhipu | GLM format | Custom parser | Medium |
+
+**All conversions happen transparently in the Protocol layer** - you just get consistent `StreamingResponse` objects!
+
+## Debugging & Troubleshooting
 
 ### Common Issues
 
 **Authentication Error:**
 ```
-❌ Authentication failed: Incorrect API key provided
+Authentication failed: Incorrect API key provided
 ```
 
 **Solutions:**
 1. Verify your API key is correct (no extra spaces)
 2. Check if your account has credits
 3. Generate a new API key from your provider's dashboard
-4. Run `cargo run --example test_keys_yaml` to diagnose
+4. Test with a simple chat request to verify the key works
+
+**Timeout Error:**
+```
+Request timeout
+```
+
+**Solutions:**
+1. Check your network connection
+2. Increase timeout settings using `*_with_timeout()` methods
+3. Verify the provider's API endpoint is accessible
+
+**Model Not Found:**
+```
+Model not found
+```
+
+**Solutions:**
+1. Use `fetch_models()` to get available models
+2. Check the model name spelling
+3. Verify your account has access to the model
 
 ## Recent Changes
 
-### v0.4.8 (Current)
+### v0.5.4 (Latest)
 
-**🔧 Simplified Configuration Architecture**
-- **Single Configuration Module**: Consolidated `src/config/` directory into `src/config.rs`
-- **Eliminated Naming Confusion**: Clear separation between configuration and providers
-- **Streamlined Streaming API**: Unified `chat_stream()` method for all streaming needs
-- **Enhanced Performance**: 3000x+ performance improvements in V2 architecture
+**Streaming Tool Calls Fix**
+- Fixed: Incremental accumulation and deduplication logic for streaming tool_calls
+- Improved: Support for OpenAI streaming API's incremental tool_calls format
+- Guaranteed: Each tool_call is sent only once, preventing duplicate execution
+- Compatible: Fully backward compatible, no impact on existing code
 
-**🎯 Current Streaming API:**
-- `chat_stream()` - Unified streaming interface with rich response data
-- `StreamingResponse` with convenience methods like `get_content()`
+### v0.5.3
+
+**Universal Reasoning Models Support**
+- Support for all major reasoning models (Volcengine Doubao-Seed-Code, DeepSeek R1, OpenAI o1, etc.)
+- Zero-configuration automatic field detection
+- Unified interface, same code works for all reasoning models
+
+### v0.4.8
+
+**Simplified Configuration Architecture**
+- Unified `chat_stream()` method
+- 3000x+ performance improvement
 - Support for reasoning content and usage statistics
-- Compatible with all providers (OpenAI, Anthropic, Aliyun, Zhipu, Ollama)
 
-### v0.3.13 (V1 Legacy)
+---
 
-> **Note**: The following features are from V1 architecture (available via `features = ["v1-legacy"]`)
-
-**🚀 Universal Streaming Format Abstraction**
-- **StreamFormat Enum**: Support for JSON, SSE, and NDJSON output formats
-- **StreamChunk Universal Container**: Unified abstraction for all streaming responses
-- **Format Conversion Methods**: `to_json()`, `to_sse()`, `to_ndjson()`, `to_format()`
-- **Content Extraction**: Universal `extract_content()` method for both OpenAI and Ollama formats
-
-**🎯 V1 Streaming Methods:**
-- `chat_stream_universal()` - Most flexible interface with full format control
-- `chat_stream_sse()` - Convenient Server-Sent Events format for web apps
-- `chat_stream_ndjson()` - Convenient Newline-Delimited JSON for data pipelines
-- Enhanced `StreamingConfig` with separate content and output format controls
-
-**🔧 Architecture Improvements:**
-- **Separation of Concerns**: Content format (OpenAI/Ollama) vs Output format (JSON/SSE/NDJSON)
-- **Format Abstraction**: No more hardcoded JSON strings in streaming responses
-- **Extensible Design**: Easy to add new output formats in the future
-- **Type Safety**: Strong typing for all format options
-
-**💡 Use Cases:**
-- **Web Applications**: Use SSE format for real-time streaming
-- **API Services**: Use JSON format for standard responses
-- **Data Processing**: Use NDJSON format for logs and pipelines
-- **Tool Integration**: Combine any content format with any output format
-
-**📚 Enhanced Documentation:**
-- Comprehensive format comparison table
-- Detailed usage examples for each format
-- Clear migration guide from previous versions
-
-### v0.3.12
-
-**🔧 Critical Fix: Pure Ollama Format Streaming**
-- **Fixed Double Format Issue**: `chat_stream_ollama()` now returns pure Ollama format instead of nested format
-- **Direct Compatibility**: Perfect integration with Zed.dev and other Ollama-compatible tools
-- **Simplified Usage**: No more JSON parsing required - direct `OllamaStreamChunk` access
-- **Backward Compatibility**: Added `chat_stream_ollama_embedded()` for legacy nested format
-
-**🎯 Format Changes:**
-- **Before**: Ollama JSON embedded in OpenAI format `content` field (required parsing)
-- **After**: Direct `OllamaStreamChunk` objects with native field access
-- **New Type**: `OllamaChatStream` for pure Ollama format streams
-- **Enhanced API**: Cleaner, more intuitive streaming interface
-
-**📚 Updated Documentation:**
-- Clear distinction between pure and embedded Ollama formats
-- Updated examples with direct field access patterns
-- Enhanced streaming format comparison section
-
-**🧪 New Examples:**
-- `test_pure_ollama_format.rs` - Validation of pure format output
-- Updated `ollama_streaming_simple.rs` - Demonstrates direct field access
-
-### v0.3.11
-
-**🚀 Major New Features:**
-- **Multiple Streaming Formats**: Support for both OpenAI and Ollama streaming formats
-  - `chat_stream_ollama()` - Ollama-compatible streaming for Zed.dev integration
-  - `chat_stream_with_format()` - Custom streaming configuration
-  - `StreamingFormat::OpenAI` and `StreamingFormat::Ollama` options
-- **Enhanced Tool Integration**: Perfect compatibility with Zed.dev and other Ollama-compatible tools
-- **Tencent Hunyuan Native API**: Initial implementation of TC3-HMAC-SHA256 signature authentication
-  - `hunyuan_native()` - Native Tencent Cloud API support
-  - Full region support (ap-beijing, ap-shanghai, ap-guangzhou)
-  - Better error handling and debugging capabilities
-
-**🔧 Improvements:**
-- **Streaming Format Conversion**: Automatic conversion between OpenAI and Ollama formats
-- **Done Marker Handling**: Proper `done: true` final chunk for Ollama format
-- **Usage Statistics**: Complete token usage and timing information in Ollama format
-- **Backward Compatibility**: All existing streaming code continues to work unchanged
-
-**📚 Documentation:**
-- Complete streaming format comparison and usage examples
-- New examples: `ollama_streaming_simple.rs`, `streaming_ollama_format.rs`
-- Updated README with detailed format explanations
-- Enhanced troubleshooting guides for streaming
-
-**🎯 Breaking Changes:**
-- None - all changes are backward compatible
-
-### v0.3.8
-
-**🚀 Major Stability and Debugging Improvements:**
-- **Enhanced Timeout Configuration**: All providers now support custom timeout settings
-  - `LlmClient::openai_with_timeout()` - OpenAI with custom timeout
-  - `LlmClient::anthropic_with_timeout()` - Anthropic with custom timeout
-  - `LlmClient::zhipu_with_timeout()` - Zhipu with custom timeout
-  - Default timeout increased to 30 seconds for better stability
-- **Advanced Debugging Support**: Comprehensive request/response debugging
-  - `LLM_DEBUG_REQUEST_RAW=1` - Show detailed request information
-  - `LLM_DEBUG_RESPONSE_RAW=1` - Show response status and headers
-  - `LLM_DEBUG_STREAM_RAW=1` - Show streaming response details
-  - Enhanced error messages with specific troubleshooting guidance
-- **Zhipu Stability Improvements**: Dedicated tools for diagnosing Zhipu API issues
-  - New `zhipu_stability_test.rs` example for comprehensive testing
-  - Improved error handling and timeout management
-  - Better connection stability monitoring
-
-**🔧 New Examples:**
-- **`enhanced_error_handling.rs`** - Comprehensive error handling and debugging
-- **`unified_config.rs`** - Unified configuration interface for all providers
-- **`zhipu_stability_test.rs`** - Dedicated Zhipu stability testing tool
-
-**📚 Documentation:**
-- Updated troubleshooting guides with timeout configuration
-- Enhanced error handling examples
-- Improved debugging instructions
-
-### v0.3.1
-
-**🚀 Major New Features:**
-- **Complete Ollama Model Management**: Full CRUD operations for local models
-  - `list_models()` - List all installed models
-  - `pull_model()` - Download models from registry
-  - `push_model()` - Upload models to registry
-  - `delete_model()` - Remove local models
-  - `show_model()` - Get detailed model information
-- **Enhanced Anthropic Streaming**: Proper event state management
-  - Correct handling of `message_start`, `content_block_delta`, `message_delta`, `message_stop` events
-  - Real-time token usage tracking during streaming
-  - Improved error resilience and state management
-
-**🔧 Improvements:**
-- **Expanded Model Discovery Support**:
-  - Added Ollama model listing via `/api/tags` endpoint
-  - Limited Anthropic model discovery support
-- **Enhanced Client Interface**: New methods for Ollama model management
-- **Updated Examples**: Added comprehensive model management and streaming examples
-
-**📚 Documentation:**
-- Complete rewrite of Ollama section with model management examples
-- Enhanced streaming documentation with code examples
-- Updated feature descriptions and supported operations
-
-### v0.2.3
-
-**🔧 Breaking Changes:**
-- **Removed `supported_models()` method** - Use `fetch_models()` instead
-- **Removed `supports_model()` method** - No longer needed
-
-**✨ New Features:**
-- **Improved error messages** - Removed confusing OpenAI URLs for other providers
-- **New debugging tools:**
-  - `examples/test_keys_yaml.rs` - Test all API keys
-  - `examples/debug_deepseek.rs` - Debug DeepSeek authentication
-- **Comprehensive documentation:**
-  - `TROUBLESHOOTING.md` - Troubleshooting guide
-  - `HOW_TO_TEST_YOUR_KEYS.md` - Testing instructions
-  - `TEST_YOUR_DEEPSEEK_KEY.md` - Quick start guide
-
-**Migration from v0.2.2:**
-```rust
-// ❌ Old (no longer works)
-let models = client.supported_models();
-
-// ✅ New
-let models = client.fetch_models().await?;
-```
-
-### v0.2.2
-
-**✨ New Features:**
-- Added `fetch_models()` for online model discovery
-- OpenAI protocol supports dynamic model fetching from `/v1/models` endpoint
-- Works with OpenAI-compatible providers (DeepSeek, Zhipu, Moonshot, etc.)
+**For complete changelog, see [CHANGELOG.md](CHANGELOG.md)**
 
 ## Design Philosophy
 
@@ -1196,62 +1176,55 @@ let models = client.fetch_models().await?;
 
 ## Examples
 
-Check out the `examples/` directory:
+Check out the `examples/` directory for various usage examples:
 
 ```bash
-# Test your API keys from keys.yaml
-cargo run --example test_keys_yaml
-
-# Debug DeepSeek authentication
-cargo run --example debug_deepseek -- sk-your-key
-
-# Simple fetch_models() demo
-cargo run --example fetch_models_simple
-
-# Ollama model management (NEW!)
-cargo run --example ollama_model_management
-
-# Anthropic streaming (NEW! - requires streaming feature)
+# Basic usage examples
+cargo run --example openai_basic
 cargo run --example anthropic_streaming --features streaming
+cargo run --example aliyun_basic
+cargo run --example zhipu_basic
+cargo run --example ollama_basic
+cargo run --example tencent_basic
 
-# Ollama streaming (NEW! - requires streaming feature)
+# Multi-modal support
+cargo run --example multimodal_basic
+
+# Ollama model management
+cargo run --example ollama_model_management
 cargo run --example ollama_streaming --features streaming
 
-# LongCat demo (OpenAI/Anthropic compatible)
-cargo run --example longcat_dual
+# Function calling / Tools
+cargo run --example zhipu_tools
+cargo run --example zhipu_multiround_tools
+
+# Streaming examples
+cargo run --example volcengine_streaming --features streaming
+cargo run --example test_longcat_anthropic_streaming --features streaming
+
+# List all available providers
+cargo run --example list_providers
 ```
 
 ### Example Descriptions
 
-**`test_keys_yaml.rs`** ⭐ New!
-- Tests all API keys from your `keys.yaml` file
-- Validates API key format and authentication
-- Provides specific troubleshooting for each error
-- **Run this first if you have authentication issues!**
+**Basic Examples:**
+- `openai_basic.rs` - Simple OpenAI chat example
+- `anthropic_streaming.rs` - Anthropic streaming with proper event handling
+- `aliyun_basic.rs` - Aliyun DashScope basic usage
+- `zhipu_basic.rs` - Zhipu GLM basic usage
+- `ollama_basic.rs` - Ollama local model usage
+- `tencent_basic.rs` - Tencent Hunyuan basic usage
 
-**`debug_deepseek.rs`** ⭐ New!
-- Interactive debugging tool for DeepSeek API
-- Validates API key format
-- Tests model fetching and chat requests
-- Provides detailed troubleshooting guidance
+**Advanced Examples:**
+- `multimodal_basic.rs` - Multi-modal content (text + images)
+- `ollama_model_management.rs` - Complete Ollama model CRUD operations
+- `zhipu_tools.rs` - Function calling with Zhipu
+- `zhipu_multiround_tools.rs` - Multi-round conversation with tools
+- `volcengine_streaming.rs` - Volcengine streaming with reasoning models
 
-**`fetch_models_simple.rs`**
-- Simple demonstration of `fetch_models()`
-- Shows how to fetch models from OpenAI-compatible providers
-- Includes usage recommendations
-
-**`ollama_model_management.rs`** ⭐ New!
-- Demonstrates complete Ollama model management functionality
-- Shows how to list, pull, delete, and get model details
-- Includes error handling and practical usage examples
-
-**`anthropic_streaming.rs`** ⭐ New!
-- Shows enhanced Anthropic streaming with proper event handling
-- Demonstrates real-time response streaming and usage tracking
-- Includes both regular and streaming chat examples
-
-**Removed redundant examples**
-- `test_fetch_models.rs` and `test_with_keys.rs` were overlapping with other examples and have been removed.
+**Utility Examples:**
+- `list_providers.rs` - List all available providers and their configurations
 
 ## Contributing
 

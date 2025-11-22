@@ -494,27 +494,85 @@ pub struct FunctionChoice {
 }
 
 /// Tool call made by the model
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// In streaming mode, fields may be incrementally populated across multiple chunks.
+/// Use `Option` fields to support partial data in delta chunks.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolCall {
     /// Unique identifier for the tool call
+    /// Present in the first chunk, may be empty in subsequent delta chunks
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub id: String,
 
     /// Type of tool call (usually "function")
-    #[serde(rename = "type")]
+    /// Present in the first chunk, may be empty in subsequent delta chunks
+    #[serde(rename = "type", default, skip_serializing_if = "String::is_empty")]
     pub call_type: String,
 
     /// Function call details
+    #[serde(default)]
     pub function: FunctionCall,
+
+    /// Index of this tool call in the array (used in streaming to identify which call to update)
+    /// This field is used internally for streaming accumulation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index: Option<usize>,
 }
 
 /// Function call details
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// In streaming mode, `name` appears in the first chunk, and `arguments` are
+/// accumulated across multiple chunks.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FunctionCall {
     /// Name of the function
+    /// Present in the first chunk, may be empty in subsequent delta chunks
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub name: String,
 
     /// Arguments as JSON string
+    /// In streaming mode, this is accumulated across multiple chunks
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub arguments: String,
+}
+
+impl ToolCall {
+    /// Merge delta data from another ToolCall into this one
+    /// Used for accumulating streaming chunks
+    pub fn merge_delta(&mut self, delta: &ToolCall) {
+        // Update id if present in delta
+        if !delta.id.is_empty() {
+            self.id = delta.id.clone();
+        }
+
+        // Update type if present in delta
+        if !delta.call_type.is_empty() {
+            self.call_type = delta.call_type.clone();
+        }
+
+        // Merge function data
+        if !delta.function.name.is_empty() {
+            self.function.name = delta.function.name.clone();
+        }
+
+        // Accumulate arguments
+        if !delta.function.arguments.is_empty() {
+            self.function.arguments.push_str(&delta.function.arguments);
+        }
+
+        // Update index if present
+        if delta.index.is_some() {
+            self.index = delta.index;
+        }
+    }
+
+    /// Check if this tool call is complete (has all required fields)
+    pub fn is_complete(&self) -> bool {
+        !self.id.is_empty()
+            && !self.call_type.is_empty()
+            && !self.function.name.is_empty()
+            // arguments can be empty for functions with no parameters
+    }
 }
 
 /// Response format specification

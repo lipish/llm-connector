@@ -1,57 +1,63 @@
-# llm-connector 文档索引
+# llm-connector Documentation Index
 
-## 📚 核心文档
+## Core Documentation
 
-### 架构和设计
-- [ARCHITECTURE.md](ARCHITECTURE.md) - 项目架构文档
-- [MULTIMODAL_NATIVE_DESIGN.md](MULTIMODAL_NATIVE_DESIGN.md) - 多模态内容设计
+### Architecture and Design
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Project architecture documentation
+- [MULTIMODAL_NATIVE_DESIGN.md](MULTIMODAL_NATIVE_DESIGN.md) - Multi-modal content design
 
-### 使用指南
-- [MIGRATION_GUIDE_v0.5.0.md](MIGRATION_GUIDE_v0.5.0.md) - v0.5.0 迁移指南
-- [REASONING_MODELS_SUPPORT.md](REASONING_MODELS_SUPPORT.md) - 推理模型通用支持指南
+### User Guides
+- [MIGRATION_GUIDE_v0.5.0.md](MIGRATION_GUIDE_v0.5.0.md) - v0.5.0 migration guide
+- [REASONING_MODELS_SUPPORT.md](REASONING_MODELS_SUPPORT.md) - Universal reasoning models support guide
+- [STREAMING_TOOL_CALLS.md](STREAMING_TOOL_CALLS.md) - Streaming tool calls support documentation
 
-### 开发规范
-- [RUST_PROJECT_GUIDELINES.md](RUST_PROJECT_GUIDELINES.md) - Rust 项目开发规范
+### Technical Documentation
+- [STREAMING_TOOL_CALLS_FIX.md](STREAMING_TOOL_CALLS_FIX.md) - Streaming tool calls fix summary
 
-## 🔌 Provider 使用指南
+### Development Guidelines
+- [RUST_PROJECT_GUIDELINES.md](RUST_PROJECT_GUIDELINES.md) - Rust project development guidelines
 
-所有 Provider 的详细使用文档都在 `guides/` 目录下：
+## Provider Usage Guides
 
-- [guides/ALIYUN_GUIDE.md](guides/ALIYUN_GUIDE.md) - 阿里云 DashScope 使用指南
-- [guides/ANTHROPIC_GUIDE.md](guides/ANTHROPIC_GUIDE.md) - Anthropic Claude 使用指南
-- [guides/DEEPSEEK_GUIDE.md](guides/DEEPSEEK_GUIDE.md) - DeepSeek 使用指南
-- [guides/MOONSHOT_GUIDE.md](guides/MOONSHOT_GUIDE.md) - Moonshot 使用指南
-- [guides/TENCENT_GUIDE.md](guides/TENCENT_GUIDE.md) - 腾讯混元使用指南
-- [guides/VOLCENGINE_GUIDE.md](guides/VOLCENGINE_GUIDE.md) - 火山引擎使用指南
-- [guides/ZHIPU_GUIDE.md](guides/ZHIPU_GUIDE.md) - 智谱 GLM 使用指南
+Detailed usage documentation for all providers is in the `guides/` directory:
 
-## 📦 归档文档
+- [guides/ALIYUN_GUIDE.md](guides/ALIYUN_GUIDE.md) - Aliyun DashScope usage guide
+- [guides/ANTHROPIC_GUIDE.md](guides/ANTHROPIC_GUIDE.md) - Anthropic Claude usage guide
+- [guides/DEEPSEEK_GUIDE.md](guides/DEEPSEEK_GUIDE.md) - DeepSeek usage guide
+- [guides/MOONSHOT_GUIDE.md](guides/MOONSHOT_GUIDE.md) - Moonshot usage guide
+- [guides/TENCENT_GUIDE.md](guides/TENCENT_GUIDE.md) - Tencent Hunyuan usage guide
+- [guides/VOLCENGINE_GUIDE.md](guides/VOLCENGINE_GUIDE.md) - Volcengine usage guide
+- [guides/ZHIPU_GUIDE.md](guides/ZHIPU_GUIDE.md) - Zhipu GLM usage guide
 
-历史版本发布说明和测试报告已移至 `archive/` 目录：
+## Archived Documentation
 
-- `archive/releases/` - 历史版本发布说明
-- `archive/reports/` - 历史测试报告和重构总结
+Historical release notes and test reports have been moved to the `archive/` directory:
 
-## 🚀 快速开始
+- `archive/releases/` - Historical release notes
+- `archive/reports/` - Historical test reports and refactoring summaries
 
-1. **新用户**: 从主 [README.md](../README.md) 开始
-2. **迁移用户**: 查看 [MIGRATION_GUIDE_v0.5.0.md](MIGRATION_GUIDE_v0.5.0.md)
-3. **使用推理模型**: 查看 [REASONING_MODELS_SUPPORT.md](REASONING_MODELS_SUPPORT.md)
-4. **特定 Provider**: 查看 `guides/` 目录下对应的指南
+## Quick Start
 
-## 📝 文档维护
+1. **New Users**: Start with the main [README.md](../README.md)
+2. **Migrating Users**: See [MIGRATION_GUIDE_v0.5.0.md](MIGRATION_GUIDE_v0.5.0.md)
+3. **Using Reasoning Models**: See [REASONING_MODELS_SUPPORT.md](REASONING_MODELS_SUPPORT.md)
+4. **Specific Provider**: See the corresponding guide in the `guides/` directory
 
-### 文档结构
+## Documentation Maintenance
+
+### Documentation Structure
 
 ```
 docs/
-├── README.md                           # 本文档
-├── ARCHITECTURE.md                     # 架构文档
-├── MULTIMODAL_NATIVE_DESIGN.md        # 多模态设计
-├── MIGRATION_GUIDE_v0.5.0.md          # 迁移指南
-├── REASONING_MODELS_SUPPORT.md        # 推理模型支持
-├── RUST_PROJECT_GUIDELINES.md         # Rust 规范
-├── guides/                             # Provider 使用指南
+├── README.md                           # This document
+├── ARCHITECTURE.md                     # Architecture documentation
+├── MULTIMODAL_NATIVE_DESIGN.md        # Multi-modal design
+├── MIGRATION_GUIDE_v0.5.0.md          # Migration guide
+├── REASONING_MODELS_SUPPORT.md        # Reasoning models support
+├── STREAMING_TOOL_CALLS.md            # Streaming tool calls support
+├── STREAMING_TOOL_CALLS_FIX.md        # Streaming tool calls fix summary
+├── RUST_PROJECT_GUIDELINES.md         # Rust guidelines
+├── guides/                             # Provider usage guides
 │   ├── ALIYUN_GUIDE.md
 │   ├── ANTHROPIC_GUIDE.md
 │   ├── DEEPSEEK_GUIDE.md
@@ -59,27 +65,27 @@ docs/
 │   ├── TENCENT_GUIDE.md
 │   ├── VOLCENGINE_GUIDE.md
 │   └── ZHIPU_GUIDE.md
-└── archive/                            # 归档文档
-    ├── releases/                       # 历史版本发布说明
-    └── reports/                        # 历史测试报告
+└── archive/                            # Archived documentation
+    ├── releases/                       # Historical release notes
+    └── reports/                        # Historical test reports
 ```
 
-### 文档更新原则
+### Documentation Update Principles
 
-1. **核心文档**: 保持最新，反映当前版本的功能和设计
-2. **Provider 指南**: 每个 Provider 一个独立文档，包含基础用法、特殊功能、常见问题
-3. **归档文档**: 历史文档移至 archive，保留但不再更新
+1. **Core Documentation**: Keep up-to-date, reflecting current version features and design
+2. **Provider Guides**: One document per provider, including basic usage, special features, and common issues
+3. **Archived Documentation**: Historical documents moved to archive, preserved but no longer updated
 
-## 🔗 相关链接
+## Related Links
 
-- [项目主页](https://github.com/lipish/llm-connector)
-- [API 文档](https://docs.rs/llm-connector)
+- [Project Homepage](https://github.com/lipish/llm-connector)
+- [API Documentation](https://docs.rs/llm-connector)
 - [Crates.io](https://crates.io/crates/llm-connector)
-- [更新日志](../CHANGELOG.md)
+- [Changelog](../CHANGELOG.md)
 
-## 📧 反馈
+## Feedback
 
-如果发现文档问题或有改进建议，请：
-1. 提交 Issue: https://github.com/lipish/llm-connector/issues
-2. 提交 PR: https://github.com/lipish/llm-connector/pulls
+If you find documentation issues or have improvement suggestions:
+1. Submit an Issue: https://github.com/lipish/llm-connector/issues
+2. Submit a PR: https://github.com/lipish/llm-connector/pulls
 

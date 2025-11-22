@@ -136,6 +136,7 @@ impl Protocol for OpenAIProtocol {
                                 name: call.get("function")?.get("name")?.as_str()?.to_string(),
                                 arguments: call.get("function")?.get("arguments")?.as_str()?.to_string(),
                             },
+                            index: None, // Non-streaming responses don't have index
                         })
                     }).collect()
                 });

@@ -105,49 +105,91 @@ pub fn json_lines_events(
     }
 
 /// Convert SSE string stream to StreamingResponse stream
+///
+/// This function handles tool_calls accumulation for streaming responses.
+/// In OpenAI's streaming API, tool_calls are sent incrementally across multiple chunks,
+/// and need to be accumulated by index.
 #[cfg(feature = "streaming")]
 pub fn sse_to_streaming_response(
     response: reqwest::Response,
 ) -> crate::types::ChatStream {
-    use crate::types::StreamingResponse;
+    use crate::types::{StreamingResponse, ToolCall};
     use futures_util::StreamExt;
+    use std::collections::HashMap;
 
     let string_stream = sse_events(response);
-    let response_stream = string_stream.map(|result| {
-        result.and_then(|json_str| {
-            // Try to parse as StreamingResponse
-            let mut streaming_response = serde_json::from_str::<StreamingResponse>(&json_str)
-                .map_err(|e| crate::error::LlmConnectorError::ParseError(
-                    format!("Failed to parse streaming response: {}", e)
-                ))?;
 
-            // 🔧 Fix: Populate the convenience `content` field from choices[0].delta
-            // This is critical for Volcengine and other OpenAI-compatible providers
-            //
-            // Priority order:
-            // 1. delta.content (standard OpenAI format)
-            // 2. delta.reasoning_content (Volcengine Doubao-Seed-Code, DeepSeek R1)
-            // 3. delta.reasoning (Qwen, DeepSeek)
-            // 4. delta.thought (OpenAI o1)
-            // 5. delta.thinking (Anthropic)
-            if streaming_response.content.is_empty() {
-                if let Some(choice) = streaming_response.choices.first() {
-                    let content_to_use = choice.delta.content.as_ref()
-                        .filter(|s| !s.is_empty())
-                        .or_else(|| choice.delta.reasoning_content.as_ref())
-                        .or_else(|| choice.delta.reasoning.as_ref())
-                        .or_else(|| choice.delta.thought.as_ref())
-                        .or_else(|| choice.delta.thinking.as_ref());
+    // State for accumulating tool_calls across chunks
+    let response_stream = string_stream.scan(
+        HashMap::<usize, ToolCall>::new(),
+        |accumulated_tool_calls, result| {
+            let processed = result.and_then(|json_str| {
+                // Try to parse as StreamingResponse
+                let mut streaming_response = serde_json::from_str::<StreamingResponse>(&json_str)
+                    .map_err(|e| crate::error::LlmConnectorError::ParseError(
+                        format!("Failed to parse streaming response: {}", e)
+                    ))?;
 
-                    if let Some(content) = content_to_use {
-                        streaming_response.content = content.clone();
+                // 🔧 Fix: Populate the convenience `content` field from choices[0].delta
+                // This is critical for Volcengine and other OpenAI-compatible providers
+                //
+                // Priority order:
+                // 1. delta.content (standard OpenAI format)
+                // 2. delta.reasoning_content (Volcengine Doubao-Seed-Code, DeepSeek R1)
+                // 3. delta.reasoning (Qwen, DeepSeek)
+                // 4. delta.thought (OpenAI o1)
+                // 5. delta.thinking (Anthropic)
+                if streaming_response.content.is_empty() {
+                    if let Some(choice) = streaming_response.choices.first() {
+                        let content_to_use = choice.delta.content.as_ref()
+                            .filter(|s| !s.is_empty())
+                            .or_else(|| choice.delta.reasoning_content.as_ref())
+                            .or_else(|| choice.delta.reasoning.as_ref())
+                            .or_else(|| choice.delta.thought.as_ref())
+                            .or_else(|| choice.delta.thinking.as_ref());
+
+                        if let Some(content) = content_to_use {
+                            streaming_response.content = content.clone();
+                        }
                     }
                 }
-            }
 
-            Ok(streaming_response)
-        })
-    });
+                // 🔧 Fix: Accumulate tool_calls across chunks
+                // OpenAI streaming API sends tool_calls incrementally with an index field
+                if let Some(choice) = streaming_response.choices.first_mut() {
+                    if let Some(delta_tool_calls) = &choice.delta.tool_calls {
+                        for delta_call in delta_tool_calls {
+                            let index = delta_call.index.unwrap_or(0);
+
+                            accumulated_tool_calls
+                                .entry(index)
+                                .and_modify(|existing| existing.merge_delta(delta_call))
+                                .or_insert_with(|| delta_call.clone());
+                        }
+
+                        // Replace delta.tool_calls with accumulated complete tool_calls
+                        // Only include complete tool_calls (have id, type, and name)
+                        let complete_calls: Vec<ToolCall> = accumulated_tool_calls
+                            .values()
+                            .filter(|call| call.is_complete())
+                            .cloned()
+                            .collect();
+
+                        if !complete_calls.is_empty() {
+                            choice.delta.tool_calls = Some(complete_calls);
+                        } else {
+                            // Don't send incomplete tool_calls to avoid duplicate execution
+                            choice.delta.tool_calls = None;
+                        }
+                    }
+                }
+
+                Ok(streaming_response)
+            });
+
+            std::future::ready(Some(processed))
+        }
+    );
 
     Box::pin(response_stream)
 }

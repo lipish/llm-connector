@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2025-01-22
+
+### 🔧 Bug Fixes
+
+#### Streaming Tool Calls Fix
+- **Fixed**: Incremental accumulation and deduplication logic for streaming tool_calls
+  - Modified `ToolCall` and `FunctionCall` data structures to support incremental parsing
+  - Implemented `merge_delta()` method for merging incremental data
+  - Added accumulation state management in `sse_to_streaming_response`
+  - Only send complete tool_calls to prevent duplicate execution
+- **Improved**: Support for OpenAI streaming API's incremental tool_calls format
+  - Added `index` field to identify tool_calls
+  - Implemented `is_complete()` method to check completeness
+  - Accumulate each tool_call's incremental data by `index`
+- **Guaranteed**: Each tool_call is sent only once, preventing duplicate execution
+- **Compatible**: Fully backward compatible, no impact on existing code
+- **Tests**: Added comprehensive test suite to verify accumulation logic
+  - `test_streaming_tool_calls_accumulation` - Verify accumulation logic
+  - `test_streaming_tool_calls_parsing` - Verify incremental parsing
+- **Documentation**:
+  - Added `docs/STREAMING_TOOL_CALLS.md` - Technical documentation
+  - Added `docs/STREAMING_TOOL_CALLS_FIX.md` - Fix summary
+  - Updated `README.md` with Function Calling section
+
+### 📚 Documentation
+
+#### Documentation Cleanup
+- **Cleanup**: Moved outdated temporary documents to archive
+  - `DOCS_CLEANUP_SUMMARY.md` → `docs/archive/reports/`
+  - `RELEASE_v0.5.3_SUMMARY.md` → `docs/archive/releases/`
+  - `SENSITIVE_INFO_OBFUSCATION.md` → `docs/archive/reports/`
+- **Updated**: `docs/README.md` with new documentation index
+- **Simplified**: README.md changelog section, pointing to CHANGELOG.md
+- **Removed**: Outdated references to non-existent examples (`test_keys_yaml`, `debug_deepseek`, `fetch_models_simple`)
+- **Updated**: Examples section to reflect actual available examples
+- **Improved**: Troubleshooting section with practical solutions
+- **Reorganized**: README.md structure for better user experience
+  - Moved "Supported Providers" overview right after Quick Start
+  - Moved "Function Calling / Tools" and "Streaming" sections earlier
+  - Moved architecture details ("Unified Output Format") to later sections
+  - Removed duplicate sections
+  - New flow: Introduction → Features → Quick Start → Providers → Key Features → Architecture → Advanced Topics
+
+#### Language Standardization
+- **Converted**: All Chinese text to English for international accessibility
+  - README.md Function Calling section
+  - CHANGELOG.md v0.5.4 section
+  - Test files and example files
+  - All comments and user-facing messages
+  - Removed Chinese characters from provider names (Tencent Hunyuan, Volcengine, Moonshot)
+  - `docs/README.md` - Converted entire documentation index to English
+  - `docs/REASONING_MODELS_SUPPORT.md` - Completely rewritten in English
+- **Simplified**: Removed excessive emoji usage from README.md
+  - Kept minimal, professional formatting
+  - Replaced emoji bullets with standard markdown bullets
+  - Removed decorative emojis from section headers
+- **Archived**: Moved original Chinese version of REASONING_MODELS_SUPPORT.md to `docs/archive/reports/`
+- **Documentation**:
+  - Added `docs/CHINESE_TO_ENGLISH_CONVERSION.md` for conversion summary
+  - Added `docs/EMOJI_AND_CHINESE_CLEANUP.md` for cleanup summary
+
 ## [0.5.3] - 2025-01-15
 
 ### 🎉 New Features
