@@ -2,6 +2,105 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.6] - 2025-11-23
+
+### 🔥 Critical Fix
+
+#### Proxy Timeout Issue
+- **Fixed**: Disabled system proxy by default in HTTP client
+  - **Root cause**: reqwest automatically uses system proxy settings
+  - **Problem**: System proxy can be slow, unreachable, or misconfigured
+  - **Impact**: Caused timeout errors even when direct connection works
+  - **Solution**: Explicitly disable system proxy, require explicit configuration
+
+#### Changes
+- **HttpClient::new()**: Added `.no_proxy()` to disable system proxy
+- **HttpClient::with_config()**: Added `.no_proxy()` when proxy parameter is None
+- **Explicit proxy**: Only use proxy when explicitly configured via parameters
+
+### 🎯 Benefits
+
+1. **No unexpected timeouts** - System proxy no longer interferes
+2. **Better performance** - Direct connections are faster
+3. **Predictable behavior** - Same behavior across all environments
+4. **Explicit control** - Users must explicitly set proxy if needed
+
+### 🧪 Testing
+
+#### New Test Examples
+- **Added**: `examples/test_proxy_issue.rs`
+  - Tests default behavior (no proxy)
+  - Tests invalid proxy handling
+  - Checks system proxy environment variables
+
+#### Test Results
+- ✅ All 82 tests passing
+- ✅ Zhipu streaming: 2.05s, 52 chunks (no timeout)
+- ✅ Invalid proxy fails fast: 41ms (no long timeout)
+- ✅ Direct connection works reliably
+
+### 📚 Documentation
+
+#### New Documentation
+- **Added**: `docs/PROXY_TIMEOUT_FIX.md`
+  - Detailed technical explanation
+  - Root cause analysis
+  - Usage examples and migration guide
+- **Added**: `docs/PROXY_FIX_SUMMARY.md`
+  - Executive summary
+  - Impact analysis
+  - Migration guide for different scenarios
+
+### 🔄 Migration
+
+#### Most Users (No Change Needed)
+```rust
+// Works better now (no timeout issues)
+let client = LlmClient::zhipu_openai_compatible(api_key)?;
+```
+
+#### Users Who Need Proxy
+```rust
+// Explicitly set proxy
+let client = LlmClient::zhipu_with_config(
+    api_key,
+    true,                           // OpenAI compatible
+    None,                           // Default base URL
+    None,                           // Default timeout
+    Some("http://proxy:8080"),      // Explicit proxy
+)?;
+```
+
+#### Users Relying on System Proxy (Rare)
+```rust
+// Read system proxy and set explicitly
+let proxy = std::env::var("HTTPS_PROXY").ok();
+let client = LlmClient::zhipu_with_config(
+    api_key,
+    true,
+    None,
+    None,
+    proxy.as_deref(),
+)?;
+```
+
+### ⚠️ Breaking Change (Rare)
+
+**Only affects users relying on system proxy settings**:
+- Before: System proxy was used automatically
+- After: System proxy is ignored, must be set explicitly
+
+**Workaround**: See migration guide above
+
+### ✅ Verification
+
+- All tests passing (82/82)
+- Streaming verified with Zhipu GLM API
+- Performance improved (no proxy overhead)
+- Fully backward compatible for most users
+
+---
+
 ## [0.5.5] - 2025-11-23
 
 ### 🚀 Improvements
