@@ -78,6 +78,8 @@ impl Protocol for AliyunProtocol {
                 },
                 // Aliyun uses plain text format
                 content: msg.content_as_text(),
+                // Tool calls support
+                tool_calls: msg.tool_calls.clone(),
             }
         }).collect();
 
@@ -99,6 +101,10 @@ impl Protocol for AliyunProtocol {
                 },
                 // Directly use user-specified values
                 enable_thinking: request.enable_thinking,
+
+                // Tools support
+                tools: request.tools.clone(),
+                tool_choice: request.tool_choice.clone(),
             },
         })
     }
@@ -141,17 +147,14 @@ impl Protocol for AliyunProtocol {
                                                 } else {
                                                     Some(first_choice.message.content.clone())
                                                 },
-                                                tool_calls: None,
+                                                // Extract tool_calls from streaming response
+                                                tool_calls: first_choice.message.tool_calls.clone(),
                                                 reasoning_content: None,
                                                 reasoning: None,
                                                 thought: None,
                                                 thinking: None,
                                             },
-                                            finish_reason: if first_choice.finish_reason.as_deref() == Some("stop") {
-                                                Some("stop".to_string())
-                                            } else {
-                                                None
-                                            },
+                                            finish_reason: first_choice.finish_reason.clone(),
                                             logprobs: None,
                                         };
 
@@ -217,7 +220,8 @@ impl Protocol for AliyunProtocol {
                         role: Role::Assistant,
                         content: vec![crate::types::MessageBlock::text(&first_choice.message.content)],
                         name: None,
-                        tool_calls: None,
+                        // Extract tool_calls from Aliyun response
+                        tool_calls: first_choice.message.tool_calls.clone(),
                         tool_call_id: None,
                         reasoning_content: None,
                         reasoning: None,
@@ -281,6 +285,10 @@ pub struct AliyunInput {
 pub struct AliyunMessage {
     pub role: String,
     pub content: String,
+
+    /// Tool calls in the message (for assistant messages)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<crate::types::ToolCall>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +308,14 @@ pub struct AliyunParameters {
     /// When enabled, hybrid models like qwen-plus will return reasoning content
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enable_thinking: Option<bool>,
+
+    /// Tools available to the model
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<crate::types::Tool>>,
+
+    /// Tool choice strategy
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<crate::types::ToolChoice>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,5 +7,5 @@ keys.yaml
 .qoder
 target
 CLAUDE.md
-.zed
-.augment
+.zed/
+.augment/
