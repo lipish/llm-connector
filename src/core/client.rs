@@ -20,12 +20,14 @@ pub struct HttpClient {
 
 impl HttpClient {
     /// Create new HTTP client
+    ///
+    /// Default timeout: 60 seconds (suitable for most requests including streaming)
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(60))  // Increased from 30 to 60 seconds
             .build()
             .map_err(|e| LlmConnectorError::ConfigError(format!("Failed to create HTTP client: {}", e)))?;
-            
+
         Ok(Self {
             client,
             base_url: base_url.trim_end_matches('/').to_string(),
@@ -34,18 +36,23 @@ impl HttpClient {
     }
     
     /// Create HTTP client with custom configuration
+    ///
+    /// # Parameters
+    /// - `base_url`: Base URL for the API
+    /// - `timeout_secs`: Optional timeout in seconds (default: 60 seconds)
+    /// - `proxy`: Optional proxy URL
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
         let mut builder = Client::builder();
-        
-        // Set timeout
+
+        // Set timeout (default 60 seconds for streaming compatibility)
         if let Some(timeout) = timeout_secs {
             builder = builder.timeout(Duration::from_secs(timeout));
         } else {
-            builder = builder.timeout(Duration::from_secs(30));
+            builder = builder.timeout(Duration::from_secs(60));  // Increased from 30 to 60 seconds
         }
         
         // Set proxy
@@ -129,6 +136,11 @@ impl HttpClient {
     }
     
     /// Send streaming POST request
+    ///
+    /// Note: Streaming requests use the same timeout as configured in the client.
+    /// For long-running streams, consider using `with_config()` to set a longer timeout.
+    ///
+    /// Recommended timeout for streaming: 60-300 seconds depending on expected response length.
     #[cfg(feature = "streaming")]
     pub async fn stream<T: Serialize>(
         &self,
@@ -136,16 +148,21 @@ impl HttpClient {
         body: &T,
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
-        
+
+        // Add streaming-specific headers
+        request = request.header("Accept", "text/event-stream");
+        request = request.header("Cache-Control", "no-cache");
+        request = request.header("Connection", "keep-alive");
+
         // Add all configured request headers
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }
-        
+
         request.send().await
             .map_err(|e| {
                 if e.is_timeout() {
-                    LlmConnectorError::TimeoutError(format!("Stream request timeout: {}", e))
+                    LlmConnectorError::TimeoutError(format!("Stream request timeout: {}. Consider increasing timeout for long-running streams.", e))
                 } else if e.is_connect() {
                     LlmConnectorError::ConnectionError(format!("Stream connection failed: {}", e))
                 } else {
