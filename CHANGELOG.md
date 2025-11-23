@@ -2,6 +2,105 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.7] - 2025-11-23
+
+### 🚀 New Features
+
+#### Aliyun DashScope Tools Support
+- **Added**: Full tool calling support for Aliyun DashScope API
+  - Non-streaming tool calls
+  - Streaming tool calls
+  - Compatible with OpenAI tool format (no conversion needed)
+- **Updated**: `AliyunParameters` - Added `tools` and `tool_choice` fields
+- **Updated**: `AliyunMessage` - Added `tool_calls` field
+- **Updated**: Request/response conversion to handle tools
+- **Updated**: Streaming response to handle tool calls
+
+### 🔧 Improvements
+
+#### Repository Cleanup
+- **Removed**: Personal tool configurations from git tracking
+  - `.augment/rules/rust.md` - Augment AI configuration
+  - `.zed/settings.json` - Zed editor configuration
+  - Files removed from git but preserved locally
+  - Already in `.gitignore` but were tracked before
+
+### 🧪 Testing
+
+#### New Test Examples
+- **Added**: `examples/test_aliyun_tools.rs`
+  - Demonstrates non-streaming tool calls
+  - Demonstrates streaming tool calls
+  - Weather tool example
+  - Calculator tool example
+
+### 📚 Documentation
+
+#### New Documentation
+- **Added**: `docs/ALIYUN_TOOLS_FIX_ANALYSIS.md`
+  - Detailed problem analysis
+  - Solution design
+  - Code change examples
+- **Added**: `docs/ALIYUN_TOOLS_IMPLEMENTATION_SUMMARY.md`
+  - Implementation summary
+  - Testing results
+  - Usage examples
+
+### ✅ Verification
+
+- All 82 tests passing
+- Build successful
+- Fully backward compatible
+- No breaking changes
+
+### 🔄 Migration
+
+No migration needed. All changes are backward compatible.
+
+#### Using Aliyun Tools (New Feature)
+
+```rust
+use llm_connector::{LlmClient, types::*};
+
+let client = LlmClient::aliyun("your-api-key")?;
+
+let tools = vec![
+    Tool {
+        tool_type: "function".to_string(),
+        function: Function {
+            name: "get_weather".to_string(),
+            description: Some("Get weather information".to_string()),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string"}
+                },
+                "required": ["location"]
+            }),
+        },
+    },
+];
+
+let request = ChatRequest {
+    model: "qwen-plus".to_string(),
+    messages: vec![Message::text(Role::User, "What's the weather in Beijing?")],
+    tools: Some(tools),
+    tool_choice: Some(ToolChoice::Auto),
+    ..Default::default()
+};
+
+let response = client.chat(&request).await?;
+
+if let Some(tool_calls) = &response.choices[0].message.tool_calls {
+    for tool_call in tool_calls {
+        println!("Tool: {}", tool_call.function.name);
+        println!("Arguments: {}", tool_call.function.arguments);
+    }
+}
+```
+
+---
+
 ## [0.5.6] - 2025-11-23
 
 ### 🔥 Critical Fix

@@ -76,7 +76,7 @@ async fn test_non_streaming_tools(api_key: &str) -> Result<(), Box<dyn std::erro
             Message::text(Role::User, "What's the weather like in Beijing today?")
         ],
         tools: Some(tools),
-        tool_choice: Some(ToolChoice::Auto),
+        tool_choice: Some(ToolChoice::Mode("auto".to_string())),
         max_tokens: Some(1000),
         ..Default::default()
     };
@@ -150,7 +150,7 @@ async fn test_streaming_tools(api_key: &str) -> Result<(), Box<dyn std::error::E
             Message::text(Role::User, "Calculate 123 * 456")
         ],
         tools: Some(tools),
-        tool_choice: Some(ToolChoice::Auto),
+        tool_choice: Some(ToolChoice::Mode("auto".to_string())),
         stream: Some(true),
         ..Default::default()
     };
