@@ -101,7 +101,7 @@ impl Protocol for AnthropicProtocol {
         let anthropic_response: AnthropicResponse = serde_json::from_str(response)
             .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse Anthropic response: {}", e)))?;
 
-        // Anthropic Returns单个内容块
+        // Anthropic Returns单个content块
         // Convert Anthropic content to MessageBlock
         let message_blocks: Vec<crate::types::MessageBlock> = anthropic_response.content.iter()
             .map(|c| crate::types::MessageBlock::text(&c.text))
@@ -186,9 +186,9 @@ impl Protocol for AnthropicProtocol {
     ///
     /// Anthropic Use不同streaming格式：
     /// - message_start: Contains message 对象（有 id）
-    /// - content_block_start: 开始内容块
-    /// - content_block_delta: 内容增量（Contains text）
-    /// - content_block_stop: 结束内容块
+    /// - content_block_start: 开始content块
+    /// - content_block_delta: content增量（Contains text）
+    /// - content_block_stop: 结束content块
     /// - message_delta: 消息增量（Contains usage）
     /// - message_stop: 消息结束
     #[cfg(feature = "streaming")]
@@ -224,7 +224,7 @@ impl Protocol for AnthropicProtocol {
                                                 *id = msg_id.to_string();
                                             }
                                         }
-                                        // message_start 不Returns内容
+                                        // message_start 不Returnscontent
                                         None
                                     }
                                     "content_block_delta" => {

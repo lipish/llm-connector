@@ -264,15 +264,15 @@ pub struct Delta {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_content: Option<String>,
 
-    /// Reasoning (Qwen/DeepSeek/OpenAI o1 通用键)
+    /// Reasoning (Qwen/DeepSeek/OpenAI o1 common key)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<String>,
 
-    /// Thought (OpenAI o1 键)
+    /// Thought (OpenAI o1 key)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thought: Option<String>,
 
-    /// Thinking (Anthropic 键)
+    /// Thinking (Anthropic key)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<String>,
 }

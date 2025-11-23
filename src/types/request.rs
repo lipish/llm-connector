@@ -220,19 +220,19 @@ pub struct Message {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
 
-    /// Provider-specific reasoning content (GLM 风格)
+    /// Provider-specific reasoning content (GLM style)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_content: Option<String>,
 
-    /// Provider-specific reasoning (Qwen/DeepSeek/OpenAI o1 通用键)
+    /// Provider-specific reasoning (Qwen/DeepSeek/OpenAI o1 common key)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<String>,
 
-    /// Provider-specific thought (OpenAI o1 键)
+    /// Provider-specific thought (OpenAI o1 key)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thought: Option<String>,
 
-    /// Provider-specific thinking (Anthropic 键)
+    /// Provider-specific thinking (Anthropic key)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<String>,
 }

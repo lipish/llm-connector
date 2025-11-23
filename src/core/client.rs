@@ -19,7 +19,7 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
-    /// Create新HTTP Client
+    /// Create new HTTP client
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -33,7 +33,7 @@ impl HttpClient {
         })
     }
     
-    /// Create带有customconfigurationHTTP Client
+    /// Create HTTP client with custom configuration
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
@@ -41,14 +41,14 @@ impl HttpClient {
     ) -> Result<Self, LlmConnectorError> {
         let mut builder = Client::builder();
         
-        // Set超时
+        // Set timeout
         if let Some(timeout) = timeout_secs {
             builder = builder.timeout(Duration::from_secs(timeout));
         } else {
             builder = builder.timeout(Duration::from_secs(30));
         }
         
-        // Set代理
+        // Set proxy
         if let Some(proxy_url) = proxy {
             let proxy = reqwest::Proxy::all(proxy_url)
                 .map_err(|e| LlmConnectorError::ConfigError(format!("Invalid proxy URL: {}", e)))?;
@@ -77,7 +77,7 @@ impl HttpClient {
         self
     }
     
-    /// Get基础URL
+    /// Get base URL
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
@@ -163,7 +163,7 @@ impl HttpClient {
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
         
-        // 先添加custom头
+        // Add custom headers first
         for (key, value) in custom_headers {
             request = request.header(key, value);
         }

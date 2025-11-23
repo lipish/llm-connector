@@ -60,7 +60,7 @@ impl<P: Protocol> ProviderBuilder<P> {
         }
     }
 
-    /// Set超时时间（秒）
+    /// Set timeout时间（秒）
     ///
     /// # Example
     /// ```rust,no_run
@@ -77,7 +77,7 @@ impl<P: Protocol> ProviderBuilder<P> {
         self
     }
 
-    /// Set代理
+    /// Set proxy
     ///
     /// # Example
     /// ```rust,no_run
@@ -94,7 +94,7 @@ impl<P: Protocol> ProviderBuilder<P> {
         self
     }
 
-    /// 添加额外 HTTP headers
+    /// 添加Additional HTTP headers
     ///
     /// Note: These headers will be merged with the protocol's authentication headers.
     ///
@@ -142,7 +142,7 @@ impl<P: Protocol> ProviderBuilder<P> {
             self.proxy.as_deref(),
         )?;
 
-        // 合并authentication头and额外headers
+        // 合并authentication头andAdditionalheaders
         let mut headers: HashMap<String, String> =
             self.protocol.auth_headers().into_iter().collect();
         headers.extend(self.extra_headers);

@@ -248,7 +248,7 @@ mod tests {
                 "delta": {
                     "role": "assistant",
                     "content": "",
-                    "reasoning_content": "我is豆包"
+                    "reasoning_content": "I am Doubao"
                 },
                 "finish_reason": null
             }]
@@ -272,7 +272,7 @@ mod tests {
             }
         }
 
-        assert_eq!(response.content, "我is豆包");
+        assert_eq!(response.content, "I am Doubao");
 
         // Test 3: DeepSeek format with reasoning
         let json_deepseek = r#"{

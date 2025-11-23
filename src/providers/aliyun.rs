@@ -36,7 +36,7 @@ impl AliyunProtocol {
         &self.api_key
     }
 
-    /// Getstreamingrequest额外headers
+    /// GetstreamingrequestAdditionalheaders
     pub fn streaming_headers(&self) -> Vec<(String, String)> {
         vec![
             ("X-DashScope-SSE".to_string(), "enable".to_string()),
@@ -62,7 +62,7 @@ impl Protocol for AliyunProtocol {
         vec![
             ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
             // Note: Content-Type 由 HttpClient::post()  .json() method自动Set
-            // 不要in这里重复Set，否则will导致 "Content-Type application/json,application/json is not supported" Errors
+            // 不要in这里repetitiveSet，if则will导致 "Content-Type application/json,application/json is not supported" Errors
         ]
     }
 
@@ -97,7 +97,7 @@ impl Protocol for AliyunProtocol {
                 } else {
                     None
                 },
-                // 直接Use用户指定值
+                // 直接Use用户指定values
                 enable_thinking: request.enable_thinking,
             },
         })
@@ -264,7 +264,7 @@ impl Protocol for AliyunProtocol {
     }
 }
 
-// 阿里云专用数据结构
+// 阿里云专用data结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AliyunRequest {
     pub model: String,

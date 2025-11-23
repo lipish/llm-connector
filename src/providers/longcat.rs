@@ -59,7 +59,7 @@ pub fn longcat_anthropic_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<LongCatAnthropicProvider, LlmConnectorError> {
-    // Createconfiguration驱动protocol（Use Bearer authentication + 额外headers）
+    // Createconfiguration驱动protocol（Use Bearer authentication + Additionalheaders）
     let protocol = ConfigurableProtocol::new(
         AnthropicProtocol::new(api_key),
         ProtocolConfig {

@@ -169,7 +169,7 @@ pub fn anthropic_with_timeout(
 /// - `api_key`: 要ValidateAPI key
 /// 
 /// # Returns
-/// if格式正确Returnstrue，否则Returnsfalse
+/// if格式正确Returnstrue，if则Returnsfalse
 /// 
 /// # Example
 /// ```rust

@@ -62,7 +62,7 @@ impl OllamaProvider {
     /// 拉取model
     ///
     /// # Parameters
-    /// - `model_name`: 要拉取model名称 (such as "llama2", "codellama")
+    /// - `model_name`: 要拉取modelname (such as "llama2", "codellama")
     ///
     /// # Example
     /// ```rust,no_run
@@ -100,7 +100,7 @@ impl OllamaProvider {
     /// 删除model
     ///
     /// # Parameters
-    /// - `model_name`: 要删除model名称
+    /// - `model_name`: 要删除modelname
     ///
     /// # Example
     /// ```rust,no_run
@@ -137,7 +137,7 @@ impl OllamaProvider {
     /// Getmodel信息
     ///
     /// # Parameters
-    /// - `model_name`: model名称
+    /// - `model_name`: modelname
     ///
     /// # Returns
     /// model详细信息
@@ -166,7 +166,7 @@ impl OllamaProvider {
         })
     }
 
-    /// Checkmodelis否存in
+    /// Checkmodelisif存in
     pub async fn model_exists(&self, model_name: &str) -> Result<bool, LlmConnectorError> {
         match self.show_model(model_name).await {
             Ok(_) => Ok(true),

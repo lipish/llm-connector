@@ -688,7 +688,7 @@ impl LlmClient {
     /// Try to convert client to OllamaProvider
     ///
     /// # Returns
-    /// if底层ProviderisOllamaProvider，ReturnsSome引用，否则ReturnsNone
+    /// if底层ProviderisOllamaProvider，ReturnsSome引用，if则ReturnsNone
     ///
     /// # Example
     /// ```rust,no_run

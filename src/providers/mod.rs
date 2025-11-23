@@ -1,6 +1,6 @@
 //! V2服务Provide商模块
 //!
-//! this模块Containsall服务Provide商实现，每个Provide商代表a具体LLM服务。
+//! this模块Containsall服务Provide商实现，eachProvide商代表a具体LLM服务。
 
 pub mod openai;
 pub mod aliyun;

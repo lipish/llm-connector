@@ -1,6 +1,6 @@
-//! 统一traitDefine - V2架构核心
+//! Unified Trait Definitions - V2 Architecture Core
 //!
-//! this模块DefineV2架构核心trait，Provide清晰、统一抽象层。
+//! This module defines core traits for V2 architecture, providing clear and unified abstraction layer。
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -71,7 +71,7 @@ pub trait Protocol: Send + Sync + Clone + 'static {
 /// 它is用户直接交互接口。
 #[async_trait]
 pub trait Provider: Send + Sync {
-    /// Provide商名称 (such as "openai", "aliyun", "ollama")
+    /// Provide商name (such as "openai", "aliyun", "ollama")
     fn name(&self) -> &str;
     
     /// 聊天完成
@@ -88,7 +88,7 @@ pub trait Provider: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
 
-/// 通用Provide商实现
+/// Generic provider implementation
 /// 
 /// this结构体as大多数标准LLM APIProvide通用实现。
 /// 它UseProtocol traitto处理API特定格式Convert，

@@ -1,10 +1,10 @@
-//! 消息内容块Define
+//! Message Content Block Definition
 //!
 //! Supports multi-modal content including text, images, etc.
 
 use serde::{Deserialize, Serialize};
 
-/// 消息内容块
+/// Message Content Block
 ///
 /// A message can contain multiple content blocks, supporting multi-modal content like text, images, etc.
 ///
@@ -13,36 +13,36 @@ use serde::{Deserialize, Serialize};
 /// ```rust
 /// use llm_connector::types::MessageBlock;
 ///
-/// // 文本块
+/// // Text block
 /// let text = MessageBlock::text("Hello, world!");
 ///
-/// // 图片块（Base64）
+/// // Image block (Base64)
 /// let image = MessageBlock::image_base64("image/jpeg", "base64_data...");
 ///
-/// // 图片块（URL）
+/// // Image block (URL)
 /// let image_url = MessageBlock::image_url("https://example.com/image.jpg");
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MessageBlock {
-    /// 文本块
+    /// Text block
     Text {
         text: String,
     },
 
-    /// 图片块（Anthropic 格式）
+    /// Image block (Anthropic format)
     Image {
         source: ImageSource,
     },
 
-    /// 图片 URL 块（OpenAI 格式）
+    /// Image URL block (OpenAI format)
     ImageUrl {
         image_url: ImageUrl,
     },
 }
 
 impl MessageBlock {
-    /// Create文本块
+    /// Create text block
     ///
     /// # Example
     ///
@@ -55,12 +55,12 @@ impl MessageBlock {
         Self::Text { text: text.into() }
     }
 
-    /// Create Base64 图片块（Anthropic 格式）
+    /// Create Base64 Image block (Anthropic format)
     ///
     /// # Parameters
     ///
-    /// - `media_type`: 媒体类型，such as "image/jpeg", "image/png"
-    /// - `data`: Base64 编码图片数据
+    /// - `media_type`: Media type, such as "image/jpeg", "image/png"
+    /// - `data`: Base64 encoded image data
     ///
     /// # Example
     ///
@@ -81,7 +81,7 @@ impl MessageBlock {
         }
     }
 
-    /// Create图片 URL 块（Anthropic 格式）
+    /// Create image URL block (Anthropic format)
     ///
     /// # Example
     ///
@@ -98,7 +98,7 @@ impl MessageBlock {
         }
     }
 
-    /// Create图片 URL 块（OpenAI 格式）
+    /// Create image URL block (OpenAI format)
     ///
     /// # Example
     ///
@@ -116,12 +116,12 @@ impl MessageBlock {
         }
     }
 
-    /// Create图片 URL 块（OpenAI 格式，带 detail Parameters）
+    /// Create image URL block (OpenAI format, with detail parameter)
     ///
     /// # Parameters
     ///
-    /// - `url`: 图片 URL
-    /// - `detail`: 图片细节级别，optional值: "auto", "low", "high"
+    /// - `url`: Image URL
+    /// - `detail`: Image detail level, optional values: "auto", "low", "high"
     ///
     /// # Example
     ///
@@ -142,7 +142,7 @@ impl MessageBlock {
         }
     }
 
-    /// Get文本内容（ifis文本块）
+    /// Get text content (if is text block)
     ///
     /// # Example
     ///
@@ -162,45 +162,45 @@ impl MessageBlock {
         }
     }
 
-    /// 判断is否as文本块
+    /// CheckisifasText block
     pub fn is_text(&self) -> bool {
         matches!(self, Self::Text { .. })
     }
 
-    /// 判断is否as图片块
+    /// Check if is image block
     pub fn is_image(&self) -> bool {
         matches!(self, Self::Image { .. } | Self::ImageUrl { .. })
     }
 }
 
-/// 图片to源（Anthropic 格式）
+/// Image source (Anthropic format)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImageSource {
-    /// Base64 编码图片
+    /// Base64 encoded image
     Base64 {
-        /// 媒体类型，such as "image/jpeg", "image/png"
+        /// Media type, such as "image/jpeg", "image/png"
         media_type: String,
-        /// Base64 编码图片数据
+        /// Base64 encoded image data
         data: String,
     },
 
-    /// 图片 URL
+    /// Image URL
     Url {
-        /// 图片 URL
+        /// Image URL
         url: String,
     },
 }
 
-/// 图片 URL（OpenAI 格式）
+/// Image URL (OpenAI format)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ImageUrl {
-    /// 图片 URL
+    /// Image URL
     pub url: String,
 
-    /// 图片细节级别
+    /// Image detail level
     ///
-    /// optional值: "auto", "low", "high"
+    /// Optional values: "auto", "low", "high"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 }

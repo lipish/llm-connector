@@ -186,7 +186,7 @@ impl Protocol for OpenAIProtocol {
             prompt_tokens_details: None,
         });
 
-        // 提取第a选择内容作as便利字段（纯文本）
+        // 提取第a选择content作as便利字段（纯文本）
         let content = choices.first()
             .map(|choice| choice.message.content_as_text())
             .unwrap_or_default();
@@ -313,7 +313,7 @@ pub struct OpenAIUsage {
     pub total_tokens: u32,
 }
 
-// model列表response
+// modellistresponse
 #[derive(Deserialize, Debug)]
 pub struct OpenAIModelsResponse {
     pub data: Vec<OpenAIModel>,

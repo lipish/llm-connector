@@ -127,7 +127,7 @@ pub fn azure_openai(
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: 服务基础URL
+/// - `base_url`: Service base URL
 /// - `service_name`: Service name (forErrors消息)
 /// 
 /// # Example
