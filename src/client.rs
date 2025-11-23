@@ -129,7 +129,7 @@ impl LlmClient {
     /// Create Anthropic Claude client
     ///
     /// # Parameters
-    /// - `api_key`: Anthropic API key (格式: sk-ant-...)
+    /// - `api_key`: Anthropic API key (Format: sk-ant-...)
     ///
     /// # Example
     /// ```rust,no_run
@@ -158,7 +158,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create Zhipu GLM client (OpenAI兼容模式)
+    /// Create Zhipu GLM client (OpenAI compatible mode)
     ///
     /// # Parameters
     /// - `api_key`: Zhipu GLM API key
@@ -249,7 +249,7 @@ impl LlmClient {
     /// LongCat's Anthropic endpoint uses Bearer authentication instead of standard x-api-key authentication
     ///
     /// # Parameters
-    /// - `api_key`: LongCat API key (格式: ak_...)
+    /// - `api_key`: LongCat API key (Format: ak_...)
     ///
     /// # Example
     /// ```rust,no_run
@@ -280,10 +280,10 @@ impl LlmClient {
 
     /// Create Volcengine client
     ///
-    /// VolcengineUse OpenAI 兼容 API 格式，但endpoint路径不同
+    /// Volcengine uses OpenAI compatible API format, but with different endpoint paths
     ///
     /// # Parameters
-    /// - `api_key`: Volcengine API 密钥 (UUID 格式)
+    /// - `api_key`: Volcengine API key (UUID format)
     ///
     /// # Example
     /// ```rust,no_run
@@ -314,10 +314,10 @@ impl LlmClient {
 
     /// Create Tencent Hunyuan client
     ///
-    /// Tencent HunyuanUse OpenAI 兼容 API 格式
+    /// Tencent Hunyuan uses OpenAI compatible API format
     ///
     /// # Parameters
-    /// - `api_key`: Tencent Hunyuan API 密钥 (格式: sk-...)
+    /// - `api_key`: Tencent Hunyuan API key (format: sk-...)
     ///
     /// # Example
     /// ```rust,no_run
@@ -330,7 +330,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create带有customconfigurationTencent Hunyuanclient
+    /// Create Tencent Hunyuan client with custom configuration
     pub fn tencent_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -351,7 +351,7 @@ impl LlmClient {
     /// Moonshot uses OpenAI-compatible API format
     ///
     /// # Parameters
-    /// - `api_key`: Moonshot API 密钥 (格式: sk-...)
+    /// - `api_key`: Moonshot API key (format: sk-...)
     ///
     /// # Example
     /// ```rust,no_run
@@ -385,7 +385,7 @@ impl LlmClient {
     /// DeepSeek uses OpenAI-compatible API format, supports reasoning models
     ///
     /// # Parameters
-    /// - `api_key`: DeepSeek API 密钥 (格式: sk-...)
+    /// - `api_key`: DeepSeek API key (format: sk-...)
     ///
     /// # Example
     /// ```rust,no_run
@@ -688,7 +688,7 @@ impl LlmClient {
     /// Try to convert client to OllamaProvider
     ///
     /// # Returns
-    /// if底层ProviderisOllamaProvider，ReturnsSome引用，if则ReturnsNone
+    /// If underlying Provider is OllamaProvider, returns Some reference, otherwise returns None
     ///
     /// # Example
     /// ```rust,no_run
@@ -697,7 +697,7 @@ impl LlmClient {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = LlmClient::ollama()?;
     /// if let Some(_ollama) = client.as_ollama() {
-    ///     // 可以访问 Ollama 特定功能
+    ///     // Can access Ollama-specific features
     /// }
     /// # Ok(())
     /// # }
@@ -708,28 +708,28 @@ impl LlmClient {
             .downcast_ref::<crate::providers::OllamaProvider>()
     }
 
-    /// 尝试将clientConvertasOpenAIProvider
+    /// Try to convert client to OpenAIProvider
     pub fn as_openai(&self) -> Option<&crate::providers::OpenAIProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::OpenAIProvider>()
     }
 
-    /// 尝试将clientConvertasAliyunProvider
+    /// Try to convert client to AliyunProvider
     pub fn as_aliyun(&self) -> Option<&crate::providers::AliyunProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::AliyunProvider>()
     }
 
-    /// 尝试将clientConvertasAnthropicProvider
+    /// Try to convert client to AnthropicProvider
     pub fn as_anthropic(&self) -> Option<&crate::providers::AnthropicProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::AnthropicProvider>()
     }
 
-    /// 尝试将clientConvertasZhipuProvider
+    /// Try to convert client to ZhipuProvider
     pub fn as_zhipu(&self) -> Option<&crate::providers::ZhipuProvider> {
         self.provider
             .as_any()

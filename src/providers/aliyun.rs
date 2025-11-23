@@ -1,6 +1,6 @@
-//! Aliyun DashScope服务Provide商实现 - V2架构
+//! Aliyun DashScope Service Provider Implementation - V2 Architecture
 //!
-//! this模块ProvideAliyun DashScope服务完整实现，Use统一V2架构。
+//! This module provides complete Aliyun DashScope service implementation，using unified V2 architecture。
 
 use crate::core::{HttpClient, Protocol};
 use crate::error::LlmConnectorError;
@@ -14,17 +14,17 @@ use async_trait::async_trait;
 // Aliyun Protocol Definition (Private)
 // ============================================================================
 
-/// Aliyun DashScope私有protocol实现
+/// Aliyun DashScope private protocol implementation
 ///
-/// 这is阿里云专用API格式，withOpenAIandAnthropic都不同。
-/// 由于这is私有protocol，Defineinprovider内部而不is公开protocols模块中。
+/// This is Aliyun-specific API format，different from both OpenAI and Anthropic。
+/// Since this is a private protocol, it is defined inside the provider rather than in the public protocols module.
 #[derive(Debug, Clone)]
 pub struct AliyunProtocol {
     api_key: String,
 }
 
 impl AliyunProtocol {
-    /// Create新阿里云Protocol instance
+    /// Create new Aliyun Protocol instance
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
@@ -61,13 +61,13 @@ impl Protocol for AliyunProtocol {
     fn auth_headers(&self) -> Vec<(String, String)> {
         vec![
             ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
-            // Note: Content-Type 由 HttpClient::post()  .json() method自动Set
-            // 不要in这里repetitiveSet，if则will导致 "Content-Type application/json,application/json is not supported" Errors
+            // Note: Content-Type is automatically set by HttpClient::post() .json() method
+            // Do not set repeatedly here，otherwise will cause "Content-Type application/json,application/json is not supported" error
         ]
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        // Convertas阿里云格式
+        // Convert to Aliyun format
         let aliyun_messages: Vec<AliyunMessage> = request.messages.iter().map(|msg| {
             AliyunMessage {
                 role: match msg.role {
@@ -76,7 +76,7 @@ impl Protocol for AliyunProtocol {
                     Role::Assistant => "assistant".to_string(),
                     Role::Tool => "tool".to_string(),
                 },
-                // Aliyun Use纯文本格式
+                // Aliyun uses plain text format
                 content: msg.content_as_text(),
             }
         }).collect();
@@ -91,13 +91,13 @@ impl Protocol for AliyunProtocol {
                 temperature: request.temperature,
                 top_p: request.top_p,
                 result_format: "message".to_string(),
-                // streaming模式需要 incremental_output
+                // Streaming mode requires incremental_output
                 incremental_output: if request.stream.unwrap_or(false) {
                     Some(true)
                 } else {
                     None
                 },
-                // 直接Use用户指定values
+                // Directly use user-specified values
                 enable_thinking: request.enable_thinking,
             },
         })
@@ -184,7 +184,7 @@ impl Protocol for AliyunProtocol {
                         }
                     }
 
-                    // 清空已处理行
+                    // Clear processed lines
                     if let Some(last_line) = lines.last() {
                         if !last_line.is_empty() && !last_line.starts_with("data:") {
                             lines_buffer = last_line.to_string();
@@ -210,7 +210,7 @@ impl Protocol for AliyunProtocol {
 
         if let Some(aliyun_choices) = parsed.output.choices {
             if let Some(first_choice) = aliyun_choices.first() {
-                // Build choices 数组（符合 OpenAI 标准格式）
+                // Build choices array (conforming to OpenAI standard format)
                 let choices = vec![crate::types::Choice {
                     index: 0,
                     message: crate::types::Message {
@@ -228,10 +228,10 @@ impl Protocol for AliyunProtocol {
                     logprobs: None,
                 }];
 
-                // from choices[0] 提取 content 作as便利字段
+                // Extract content from choices[0] as convenience field
                 let content = first_choice.message.content.clone();
 
-                // 提取 usage 信息
+                // Extract usage information
                 let usage = parsed.usage.map(|u| crate::types::Usage {
                     prompt_tokens: u.input_tokens,
                     completion_tokens: u.output_tokens,
@@ -245,7 +245,7 @@ impl Protocol for AliyunProtocol {
                 return Ok(ChatResponse {
                     id: parsed.request_id.unwrap_or_default(),
                     object: "chat.completion".to_string(),
-                    created: 0,  // Aliyun 不Provide created 时间戳
+                    created: 0,  // Aliyun does not provide created timestamp
                     model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
                     choices,
                     content,
@@ -264,7 +264,7 @@ impl Protocol for AliyunProtocol {
     }
 }
 
-// 阿里云专用data结构
+// Aliyun-specific data structures
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AliyunRequest {
     pub model: String,
@@ -335,21 +335,21 @@ pub struct AliyunUsage {
 // Custom Aliyun Provider Implementation
 // ============================================================================
 
-/// custom Aliyun Provider 实现
+/// custom Aliyun Provider implementation
 ///
-/// 需要特殊处理streamingrequest，因as Aliyun 需要 X-DashScope-SSE headers
+/// Requires special handling for streaming requests，because Aliyun requires X-DashScope-SSE headers
 pub struct AliyunProviderImpl {
     protocol: AliyunProtocol,
     client: HttpClient,
 }
 
 impl AliyunProviderImpl {
-    /// GetProtocol instance引用
+    /// Get Protocol instance reference
     pub fn protocol(&self) -> &AliyunProtocol {
         &self.protocol
     }
 
-    /// Get HTTP client引用
+    /// Get HTTP client reference
     pub fn client(&self) -> &HttpClient {
         &self.client
     }
@@ -366,7 +366,7 @@ impl crate::core::Provider for AliyunProviderImpl {
     }
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
-        // Use标准实现
+        // Usestandardimplementation
         let protocol_request = self.protocol.build_request(request)?;
         let url = self.protocol.chat_endpoint(self.client.base_url());
 
@@ -393,7 +393,7 @@ impl crate::core::Provider for AliyunProviderImpl {
         let protocol_request = self.protocol.build_request(&streaming_request)?;
         let url = self.protocol.chat_endpoint(self.client.base_url());
 
-        // Create临时client，添加streamingheaders
+        // Create temporary client，add streaming headers
         let streaming_headers: HashMap<String, String> = self.protocol.streaming_headers().into_iter().collect();
         let streaming_client = self.client.clone().with_headers(streaming_headers);
 
@@ -420,16 +420,16 @@ impl crate::core::Provider for AliyunProviderImpl {
 // Aliyun Provider Public API
 // ============================================================================
 
-/// Aliyun DashScope服务Provide商类型
+/// Aliyun DashScopeserviceProvidertype
 pub type AliyunProvider = AliyunProviderImpl;
 
-/// CreateAliyun DashScope服务Provide商
+/// CreateAliyun DashScopeserviceProvider
 /// 
 /// # Parameters
 /// - `api_key`: Aliyun DashScope API key
 /// 
 /// # Returns
-/// configuration好阿里云服务Provide商instance
+/// Configured Aliyun service Provider instance
 /// 
 /// # Example
 /// ```rust,no_run
@@ -441,13 +441,13 @@ pub fn aliyun(api_key: &str) -> Result<AliyunProvider, LlmConnectorError> {
     aliyun_with_config(api_key, None, None, None)
 }
 
-/// Create带有customconfiguration阿里云服务Provide商
+/// Create Aliyun service Provider with custom configuration
 ///
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: Custom base URL (optional，默认as官方endpoint)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理URL (optional)
+/// - `base_url`: Custom base URL (optional, defaults to official endpoint)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: Proxy URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -455,8 +455,8 @@ pub fn aliyun(api_key: &str) -> Result<AliyunProvider, LlmConnectorError> {
 ///
 /// let provider = aliyun_with_config(
 ///     "sk-...",
-///     None, // Use默认URL
-///     Some(60), // 60秒超时
+///     None, // Use default URL
+///     Some(60), // 60 seconds timeout
 ///     Some("http://proxy:8080")
 /// ).unwrap();
 /// ```
@@ -469,29 +469,29 @@ pub fn aliyun_with_config(
     // CreateProtocol instance
     let protocol = AliyunProtocol::new(api_key);
 
-    // CreateHTTP Client（不Containsstreamingheaders）
+    // Create HTTP Client (without streaming headers)
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://dashscope.aliyuncs.com"),
         timeout_secs,
         proxy,
     )?;
 
-    // 添加authentication头
+    // Add authentication headers
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
 
-    // Createcustom Aliyun Provider（需要特殊处理streamingrequest）
+    // Createcustom Aliyun Provider（Requires special handling for streaming requests）
     Ok(AliyunProviderImpl {
         protocol,
         client,
     })
 }
 
-/// Createfor阿里云国际版服务Provide商
+/// Create Aliyun international service Provider
 /// 
 /// # Parameters
-/// - `api_key`: 阿里云国际版API key
-/// - `region`: 区域 (such as "us-west-1", "ap-southeast-1")
+/// - `api_key`: Aliyun international API key
+/// - `region`: Region (such as "us-west-1", "ap-southeast-1")
 /// 
 /// # Example
 /// ```rust,no_run
@@ -507,11 +507,11 @@ pub fn aliyun_international(
     aliyun_with_config(api_key, Some(&base_url), None, None)
 }
 
-/// Createfor阿里云专有云服务Provide商
+/// Create Aliyun private cloud service Provider
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `endpoint`: 专有云endpointURL
+/// - `endpoint`: Private cloud endpoint URL
 /// 
 /// # Example
 /// ```rust,no_run
@@ -529,19 +529,19 @@ pub fn aliyun_private(
     aliyun_with_config(api_key, Some(endpoint), None, None)
 }
 
-/// Create带有custom超时阿里云服务Provide商
+/// Create Aliyun service Provider with custom timeout
 /// 
-/// 阿里云某些modelmay需要较长处理时间，thisfunctionProvide便利超时configuration。
+/// Some Aliyun models may require longer processing time，this function provides convenient timeout configuration。
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `timeout_secs`: 超时时间(秒)
+/// - `timeout_secs`: Timeout (seconds)
 /// 
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_with_timeout;
 /// 
-/// // Set120秒超时，适for长文本处理
+/// // Set 120 seconds timeout, suitable for long text processing
 /// let provider = aliyun_with_timeout("sk-...", 120).unwrap();
 /// ```
 pub fn aliyun_with_timeout(
@@ -551,7 +551,7 @@ pub fn aliyun_with_timeout(
     aliyun_with_config(api_key, None, Some(timeout_secs), None)
 }
 
-/// ValidateAliyun API key格式
+/// ValidateAliyun API keyformat
 pub fn validate_aliyun_key(api_key: &str) -> bool {
     api_key.starts_with("sk-") && api_key.len() > 20
 }
@@ -613,33 +613,33 @@ mod tests {
 
         let protocol = AliyunProtocol::new("test-key");
 
-        // 测试显式启用
+        // Test explicit enable
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
             messages: vec![Message::text(Role::User, "test")],
-            enable_thinking: Some(true),  // 显式启用
+            enable_thinking: Some(true),  // Explicitly enable
             ..Default::default()
         };
 
         let aliyun_request = protocol.build_request(&request).unwrap();
         assert_eq!(aliyun_request.parameters.enable_thinking, Some(true));
 
-        // 测试显式禁用
+        // Test explicit disable
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
             messages: vec![Message::text(Role::User, "test")],
-            enable_thinking: Some(false),  // 显式禁用
+            enable_thinking: Some(false),  // Explicitly disable
             ..Default::default()
         };
 
         let aliyun_request = protocol.build_request(&request).unwrap();
         assert_eq!(aliyun_request.parameters.enable_thinking, Some(false));
 
-        // 测试未指定（默认不启用）
+        // Test unspecified (default not enabled)
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
             messages: vec![Message::text(Role::User, "test")],
-            // enable_thinking 未指定
+            // enable_thinking not specified
             ..Default::default()
         };
 

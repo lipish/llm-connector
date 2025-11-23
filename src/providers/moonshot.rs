@@ -1,6 +1,6 @@
-//! Moonshot（Moonshot）服务Provide商实现
+//! Moonshot（Moonshot）serviceProviderimplementation
 //!
-//! Moonshot uses OpenAI-compatible API format，完全兼容标准 OpenAI protocol。
+//! Moonshot uses OpenAI-compatible API format，fully compatible with standard OpenAI protocol。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder};
 use crate::protocols::OpenAIProtocol;
@@ -8,16 +8,16 @@ use crate::error::LlmConnectorError;
 
 /// Moonshot protocoladapter
 /// 
-/// Use ConfigurableProtocol 包装 OpenAI protocol
+/// Use ConfigurableProtocol wrap OpenAI protocol
 pub type MoonshotProtocol = ConfigurableProtocol<OpenAIProtocol>;
 
-/// Moonshot 服务Provide商类型
+/// Moonshot serviceProvidertype
 pub type MoonshotProvider = crate::core::GenericProvider<MoonshotProtocol>;
 
-/// Create Moonshot 服务Provide商
+/// Create Moonshot serviceProvider
 /// 
 /// # Parameters
-/// - `api_key`: Moonshot API 密钥 (格式: sk-...)
+/// - `api_key`: Moonshot API key (format: sk-...)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -29,13 +29,13 @@ pub fn moonshot(api_key: &str) -> Result<MoonshotProvider, LlmConnectorError> {
     moonshot_with_config(api_key, None, None, None)
 }
 
-/// Create带有customconfiguration Moonshot 服务Provide商
+/// Createwithcustomconfiguration Moonshot serviceProvider
 /// 
 /// # Parameters
-/// - `api_key`: API 密钥
-/// - `base_url`: custom基础 URL (optional，默认as Moonshot endpoint)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理 URL (optional)
+/// - `api_key`: API key
+/// - `base_url`: customBase URL (optional，defaultas Moonshot endpoint)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: proxy URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -43,8 +43,8 @@ pub fn moonshot(api_key: &str) -> Result<MoonshotProvider, LlmConnectorError> {
 /// 
 /// let provider = moonshot_with_config(
 ///     "sk-...",
-///     None, // Use默认 URL
-///     Some(60), // 60秒超时
+///     None, // Usedefault URL
+///     Some(60), // 60 seconds timeout
 ///     None
 /// ).unwrap();
 /// ```
@@ -54,7 +54,7 @@ pub fn moonshot_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<MoonshotProvider, LlmConnectorError> {
-    // Createconfiguration驱动protocol
+    // Create configuration-driven protocol
     let protocol = ConfigurableProtocol::openai_compatible(
         OpenAIProtocol::new(api_key),
         "moonshot"

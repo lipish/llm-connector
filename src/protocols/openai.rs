@@ -1,6 +1,6 @@
-//! OpenAIprotocol实现 - V2架构
+//! OpenAI Protocol Implementation - V2 Architecture
 //!
-//! this模块实现标准OpenAI APIprotocol规范。
+//! This module implements the standard OpenAI API protocol specification.
 
 use crate::core::Protocol;
 use crate::types::{ChatRequest, ChatResponse, Message, Role, Choice, Usage};
@@ -8,14 +8,14 @@ use crate::error::LlmConnectorError;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-/// OpenAIprotocol实现
+/// OpenAIprotocolimplementation
 #[derive(Clone, Debug)]
 pub struct OpenAIProtocol {
     api_key: String,
 }
 
 impl OpenAIProtocol {
-    /// Create新OpenAIProtocol instance
+    /// Create new OpenAI Protocol instance
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
@@ -48,12 +48,12 @@ impl Protocol for OpenAIProtocol {
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         let messages = request.messages.iter()
             .map(|msg| {
-                // Convert MessageBlock to OpenAI 格式
+                // Convert MessageBlock to OpenAI format
                 let content = if msg.content.len() == 1 && msg.content[0].is_text() {
-                    // 纯文本：Use字符串格式
+                    // Plain text: use string format
                     serde_json::json!(msg.content[0].as_text().unwrap())
                 } else {
-                    // 多模态：Use数组格式
+                    // Multi-modal: use array format
                     serde_json::to_value(&msg.content).unwrap()
                 };
 
@@ -144,10 +144,10 @@ impl Protocol for OpenAIProtocol {
                 // Convert content to MessageBlock
                 let content = if let Some(content_value) = &choice.message.content {
                     if let Some(text) = content_value.as_str() {
-                        // 纯文本
+                        // Plain text
                         vec![crate::types::MessageBlock::text(text)]
                     } else if let Some(array) = content_value.as_array() {
-                        // 多模态数组
+                        // Multi-modal array
                         serde_json::from_value(serde_json::Value::Array(array.clone()))
                             .unwrap_or_else(|_| vec![])
                     } else {
@@ -186,12 +186,12 @@ impl Protocol for OpenAIProtocol {
             prompt_tokens_details: None,
         });
 
-        // 提取第a选择content作as便利字段（纯文本）
+        // Extract first choice content as convenience field (plain text)
         let content = choices.first()
             .map(|choice| choice.message.content_as_text())
             .unwrap_or_default();
 
-        // 提取第achoicereasoning_content
+        // Extract first choice reasoning_content
         let reasoning_content = choices.first()
             .and_then(|c| c.message.reasoning_content.clone());
 
@@ -243,7 +243,7 @@ impl Protocol for OpenAIProtocol {
     }
 }
 
-// OpenAIrequest类型
+// OpenAIrequesttype
 #[derive(Serialize, Debug)]
 pub struct OpenAIRequest {
     pub model: String,
@@ -278,7 +278,7 @@ pub struct OpenAIMessage {
     pub name: Option<String>,
 }
 
-// OpenAIresponse类型
+// OpenAIresponsetype
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponse {
     pub id: String,

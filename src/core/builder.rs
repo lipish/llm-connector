@@ -1,12 +1,12 @@
-//! Provider Build器 - 统一Build接口
+//! Provider Builder - Unified Build Interface
 //!
-//! this模块Providea优雅 Builder 模式 API，forBuild各种 Provider。
+//! This module provides an elegant Builder pattern API for building various Providers.
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::error::LlmConnectorError;
 use std::collections::HashMap;
 
-/// Provider Build器
+/// Provider Builder
 ///
 /// Provides fluent API to build Provider, handling all configuration items uniformly.
 ///
@@ -34,11 +34,11 @@ pub struct ProviderBuilder<P: Protocol> {
 }
 
 impl<P: Protocol> ProviderBuilder<P> {
-    /// Create新 Provider Build器
+    /// Create new Provider Builder
     ///
     /// # Parameters
     /// - `protocol`: Protocol instance
-    /// - `base_url`: 基础 URL
+    /// - `base_url`: Base URL
     ///
     /// # Example
     /// ```rust,no_run
@@ -60,7 +60,7 @@ impl<P: Protocol> ProviderBuilder<P> {
         }
     }
 
-    /// Set timeout时间（秒）
+    /// Set timeout (seconds)
     ///
     /// # Example
     /// ```rust,no_run
@@ -70,7 +70,7 @@ impl<P: Protocol> ProviderBuilder<P> {
     ///     OpenAIProtocol::new("sk-..."),
     ///     "https://api.openai.com"
     /// )
-    /// .timeout(60);  // 60秒超时
+    /// .timeout(60);  // 60 seconds timeout
     /// ```
     pub fn timeout(mut self, secs: u64) -> Self {
         self.timeout_secs = Some(secs);
@@ -94,7 +94,7 @@ impl<P: Protocol> ProviderBuilder<P> {
         self
     }
 
-    /// 添加Additional HTTP headers
+    /// Add additional HTTP headers
     ///
     /// Note: These headers will be merged with the protocol's authentication headers.
     ///
@@ -142,13 +142,13 @@ impl<P: Protocol> ProviderBuilder<P> {
             self.proxy.as_deref(),
         )?;
 
-        // 合并authentication头andAdditionalheaders
+        // Merge authentication headers and additional headers
         let mut headers: HashMap<String, String> =
             self.protocol.auth_headers().into_iter().collect();
         headers.extend(self.extra_headers);
         let client = client.with_headers(headers);
 
-        // Create通用Provide商
+        // Create generic provider
         Ok(GenericProvider::new(self.protocol, client))
     }
 }

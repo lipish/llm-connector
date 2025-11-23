@@ -1,6 +1,6 @@
-//! Tencent Hunyuan（Tencent Hunyuan）服务Provide商实现
+//! Tencent Hunyuan（Tencent Hunyuan）serviceProviderimplementation
 //!
-//! Tencent HunyuanUse OpenAI 兼容 API 格式，完全兼容标准 OpenAI protocol。
+//! Tencent Hunyuan uses OpenAI compatible API format，fully compatible with standard OpenAI protocol。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder};
 use crate::protocols::OpenAIProtocol;
@@ -8,16 +8,16 @@ use crate::error::LlmConnectorError;
 
 /// Tencent Hunyuanprotocoladapter
 ///
-/// Use ConfigurableProtocol 包装 OpenAI protocol
+/// Use ConfigurableProtocol wrap OpenAI protocol
 pub type TencentProtocol = ConfigurableProtocol<OpenAIProtocol>;
 
-/// Tencent Hunyuan服务Provide商类型
+/// Tencent HunyuanserviceProvidertype
 pub type TencentProvider = crate::core::GenericProvider<TencentProtocol>;
 
-/// CreateTencent Hunyuan服务Provide商
+/// CreateTencent HunyuanserviceProvider
 ///
 /// # Parameters
-/// - `api_key`: Tencent Hunyuan API 密钥 (格式: sk-...)
+/// - `api_key`: Tencent Hunyuan API key (format: sk-...)
 ///
 /// # Example
 /// ```rust,no_run
@@ -29,13 +29,13 @@ pub fn tencent(api_key: &str) -> Result<TencentProvider, LlmConnectorError> {
     tencent_with_config(api_key, None, None, None)
 }
 
-/// Create带有customconfigurationTencent Hunyuan服务Provide商
+/// CreatewithcustomconfigurationTencent HunyuanserviceProvider
 ///
 /// # Parameters
-/// - `api_key`: API 密钥
-/// - `base_url`: custom基础 URL (optional，默认asTencent Hunyuanendpoint)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理 URL (optional)
+/// - `api_key`: API key
+/// - `base_url`: customBase URL (optional，defaultasTencent Hunyuanendpoint)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: proxy URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -43,8 +43,8 @@ pub fn tencent(api_key: &str) -> Result<TencentProvider, LlmConnectorError> {
 ///
 /// let provider = tencent_with_config(
 ///     "sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50",
-///     None, // Use默认 URL
-///     Some(60), // 60秒超时
+///     None, // Usedefault URL
+///     Some(60), // 60 seconds timeout
 ///     None
 /// ).unwrap();
 /// ```
@@ -54,7 +54,7 @@ pub fn tencent_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<TencentProvider, LlmConnectorError> {
-    // Createconfiguration驱动protocol
+    // Create configuration-driven protocol
     let protocol = ConfigurableProtocol::openai_compatible(
         OpenAIProtocol::new(api_key),
         "tencent"

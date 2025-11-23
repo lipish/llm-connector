@@ -1,22 +1,22 @@
-//! Anthropic Claude服务Provide商实现 - V2架构
+//! Anthropic Claude Service Provider Implementation - V2 Architecture
 //!
-//! this模块ProvideAnthropic Claude服务完整实现，Use统一V2架构。
+//! This module provides complete Anthropic Claude service implementation，using unified V2 architecture。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::protocols::AnthropicProtocol;
 use crate::error::LlmConnectorError;
 use std::collections::HashMap;
 
-/// Anthropic Claude服务Provide商类型
+/// Anthropic ClaudeserviceProvidertype
 pub type AnthropicProvider = GenericProvider<AnthropicProtocol>;
 
-/// CreateAnthropic Claude服务Provide商
+/// CreateAnthropic ClaudeserviceProvider
 /// 
 /// # Parameters
-/// - `api_key`: Anthropic API key (格式: sk-ant-...)
+/// - `api_key`: Anthropic API key (Format: sk-ant-...)
 /// 
 /// # Returns
-/// configuration好Anthropic服务Provide商instance
+/// Configured Anthropic service Provider instance
 /// 
 /// # Example
 /// ```rust,no_run
@@ -28,13 +28,13 @@ pub fn anthropic(api_key: &str) -> Result<AnthropicProvider, LlmConnectorError> 
     anthropic_with_config(api_key, None, None, None)
 }
 
-/// Create带有customconfigurationAnthropic服务Provide商
+/// CreatewithcustomconfigurationAnthropicserviceProvider
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: Custom base URL (optional，默认as官方endpoint)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理URL (optional)
+/// - `base_url`: Custom base URL (optional, defaults to official endpoint)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: Proxy URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -42,8 +42,8 @@ pub fn anthropic(api_key: &str) -> Result<AnthropicProvider, LlmConnectorError> 
 /// 
 /// let provider = anthropic_with_config(
 ///     "sk-ant-...",
-///     None, // Use默认URL
-///     Some(60), // 60秒超时
+///     None, // Use default URL
+///     Some(60), // 60 seconds timeout
 ///     Some("http://proxy:8080")
 /// ).unwrap();
 /// ```
@@ -63,20 +63,20 @@ pub fn anthropic_with_config(
         proxy,
     )?;
     
-    // 添加authentication头
+    // Add authentication headers
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
     
-    // Create通用Provide商
+    // Create generic provider
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// CreateforAnthropic Vertex AI服务Provide商
+/// CreateforAnthropic Vertex AIserviceProvider
 /// 
 /// # Parameters
-/// - `project_id`: Google Cloud项目ID
-/// - `location`: 区域 (such as "us-central1")
-/// - `access_token`: Google Cloud访问令牌
+/// - `project_id`: Google Cloud project ID
+/// - `location`: Region (such as "us-central1")
+/// - `access_token`: Google Cloud access token
 /// 
 /// # Example
 /// ```rust,no_run
@@ -93,7 +93,7 @@ pub fn anthropic_vertex(
     location: &str,
     access_token: &str,
 ) -> Result<AnthropicProvider, LlmConnectorError> {
-    let protocol = AnthropicProtocol::new(""); // Vertex AI不需要Anthropic API key
+    let protocol = AnthropicProtocol::new(""); // Vertex AI does not require Anthropic API key
     
     let base_url = format!(
         "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}/publishers/anthropic",
@@ -102,17 +102,17 @@ pub fn anthropic_vertex(
     
     let client = HttpClient::new(&base_url)?
         .with_header("Authorization".to_string(), format!("Bearer {}", access_token));
-        // Note: Content-Type 由 HttpClient::post()  .json() method自动Set
+        // Note: Content-Type is automatically set by HttpClient::post() .json() method
 
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// CreateforAmazon BedrockAnthropic服务Provide商
+/// CreateforAmazon BedrockAnthropicserviceProvider
 /// 
 /// # Parameters
-/// - `region`: AWS区域 (such as "us-east-1")
-/// - `access_key_id`: AWS访问密钥ID
-/// - `secret_access_key`: AWS秘密访问密钥
+/// - `region`: AWS region (such as "us-east-1")
+/// - `access_key_id`: AWS access key ID
+/// - `secret_access_key`: AWS secret access key
 /// 
 /// # Example
 /// ```rust,no_run
@@ -129,31 +129,31 @@ pub fn anthropic_bedrock(
     _access_key_id: &str,
     _secret_access_key: &str,
 ) -> Result<AnthropicProvider, LlmConnectorError> {
-    let protocol = AnthropicProtocol::new(""); // Bedrock不需要Anthropic API key
+    let protocol = AnthropicProtocol::new(""); // Bedrock does not require Anthropic API key
     
     let base_url = format!("https://bedrock-runtime.{}.amazonaws.com", region);
     
-    // Note: 这里简化AWS签名过程，实际Use中需要实现AWS SigV4签名
-    // Content-Type 由 HttpClient::post()  .json() method自动Set
+    // Note: This simplifies AWS signature process，actual use requires AWS SigV4 signature implementation
+    // Content-Type is automatically set by HttpClient::post() .json() method
     let client = HttpClient::new(&base_url)?
         .with_header("X-Amz-Target".to_string(), "BedrockRuntime_20231002.InvokeModel".to_string());
 
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// Create带有custom超时Anthropic服务Provide商
+/// CreatewithcustomtimeoutAnthropicserviceProvider
 /// 
-/// Anthropic某些modelmay需要较长处理时间，thisfunctionProvide便利超时configuration。
+/// Some Anthropic models may require longer processing time，this function provides convenient timeout configuration。
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `timeout_secs`: 超时时间(秒)
+/// - `timeout_secs`: Timeout (seconds)
 /// 
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::anthropic_with_timeout;
 /// 
-/// // Set120秒超时，适for长文本处理
+/// // Set 120 seconds timeout, suitable for long text processing
 /// let provider = anthropic_with_timeout("sk-ant-...", 120).unwrap();
 /// ```
 pub fn anthropic_with_timeout(
@@ -163,13 +163,13 @@ pub fn anthropic_with_timeout(
     anthropic_with_config(api_key, None, Some(timeout_secs), None)
 }
 
-/// ValidateAnthropic API key格式
+/// ValidateAnthropic API keyformat
 /// 
 /// # Parameters
-/// - `api_key`: 要ValidateAPI key
+/// - `api_key`: API key to validate
 /// 
 /// # Returns
-/// if格式正确Returnstrue，if则Returnsfalse
+/// Returns true if format is correct, otherwise returns false
 /// 
 /// # Example
 /// ```rust

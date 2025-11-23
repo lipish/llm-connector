@@ -1,7 +1,7 @@
-//! DeepSeek 服务Provide商实现
+//! DeepSeek serviceProviderimplementation
 //!
-//! DeepSeek Use OpenAI 兼容 API 格式，完全兼容标准 OpenAI protocol。
-//! Support推理model（reasoning content）and标准对话model。
+//! DeepSeek uses OpenAI compatible API format，fully compatible with standard OpenAI protocol。
+//! Supports reasoning models (reasoning content) and standard chat models。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder};
 use crate::protocols::OpenAIProtocol;
@@ -9,16 +9,16 @@ use crate::error::LlmConnectorError;
 
 /// DeepSeek protocoladapter
 /// 
-/// Use ConfigurableProtocol 包装 OpenAI protocol
+/// Use ConfigurableProtocol wrap OpenAI protocol
 pub type DeepSeekProtocol = ConfigurableProtocol<OpenAIProtocol>;
 
-/// DeepSeek 服务Provide商类型
+/// DeepSeek serviceProvidertype
 pub type DeepSeekProvider = crate::core::GenericProvider<DeepSeekProtocol>;
 
-/// Create DeepSeek 服务Provide商
+/// Create DeepSeek serviceProvider
 /// 
 /// # Parameters
-/// - `api_key`: DeepSeek API 密钥 (格式: sk-...)
+/// - `api_key`: DeepSeek API key (format: sk-...)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -30,13 +30,13 @@ pub fn deepseek(api_key: &str) -> Result<DeepSeekProvider, LlmConnectorError> {
     deepseek_with_config(api_key, None, None, None)
 }
 
-/// Create带有customconfiguration DeepSeek 服务Provide商
+/// Createwithcustomconfiguration DeepSeek serviceProvider
 /// 
 /// # Parameters
-/// - `api_key`: API 密钥
-/// - `base_url`: custom基础 URL (optional，默认as DeepSeek endpoint)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理 URL (optional)
+/// - `api_key`: API key
+/// - `base_url`: customBase URL (optional，defaultas DeepSeek endpoint)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: proxy URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -44,8 +44,8 @@ pub fn deepseek(api_key: &str) -> Result<DeepSeekProvider, LlmConnectorError> {
 /// 
 /// let provider = deepseek_with_config(
 ///     "sk-...",
-///     None, // Use默认 URL
-///     Some(60), // 60秒超时
+///     None, // Usedefault URL
+///     Some(60), // 60 seconds timeout
 ///     None
 /// ).unwrap();
 /// ```
@@ -55,7 +55,7 @@ pub fn deepseek_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<DeepSeekProvider, LlmConnectorError> {
-    // Createconfiguration驱动protocol
+    // Create configuration-driven protocol
     let protocol = ConfigurableProtocol::openai_compatible(
         OpenAIProtocol::new(api_key),
         "deepseek"

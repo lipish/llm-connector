@@ -1,6 +1,6 @@
-//! Volcengine（Volcengine）服务Provide商实现
+//! Volcengine（Volcengine）serviceProviderimplementation
 //!
-//! VolcengineUse OpenAI 兼容 API 格式，但endpoint路径不同：
+//! Volcengine uses OpenAI compatible API format, but with different endpoint paths：
 //! - OpenAI: `/v1/chat/completions`
 //! - Volcengine: `/api/v3/chat/completions`
 
@@ -10,16 +10,16 @@ use crate::error::LlmConnectorError;
 
 /// Volcengineprotocoladapter
 ///
-/// Use ConfigurableProtocol 包装 OpenAI protocol，customendpoint路径
+/// Use ConfigurableProtocol to wrap OpenAI protocol, custom endpoint paths
 pub type VolcengineProtocol = ConfigurableProtocol<OpenAIProtocol>;
 
-/// Volcengine服务Provide商类型
+/// VolcengineserviceProvidertype
 pub type VolcengineProvider = crate::core::GenericProvider<VolcengineProtocol>;
 
-/// CreateVolcengine服务Provide商
+/// CreateVolcengineserviceProvider
 ///
 /// # Parameters
-/// - `api_key`: Volcengine API 密钥 (UUID 格式)
+/// - `api_key`: Volcengine API key (UUID format)
 ///
 /// # Example
 /// ```rust,no_run
@@ -31,13 +31,13 @@ pub fn volcengine(api_key: &str) -> Result<VolcengineProvider, LlmConnectorError
     volcengine_with_config(api_key, None, None, None)
 }
 
-/// Create带有customconfigurationVolcengine服务Provide商
+/// CreatewithcustomconfigurationVolcengineserviceProvider
 ///
 /// # Parameters
-/// - `api_key`: API 密钥
-/// - `base_url`: custom基础 URL (optional，默认asVolcengineendpoint)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理 URL (optional)
+/// - `api_key`: API key
+/// - `base_url`: customBase URL (optional，defaultasVolcengineendpoint)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: proxy URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -45,8 +45,8 @@ pub fn volcengine(api_key: &str) -> Result<VolcengineProvider, LlmConnectorError
 ///
 /// let provider = volcengine_with_config(
 ///     "your-volcengine-api-key",
-///     None, // Use默认 URL
-///     Some(60), // 60秒超时
+///     None, // Usedefault URL
+///     Some(60), // 60 seconds timeout
 ///     None
 /// ).unwrap();
 /// ```
@@ -56,7 +56,7 @@ pub fn volcengine_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<VolcengineProvider, LlmConnectorError> {
-    // Createconfiguration驱动protocol（customendpoint路径）
+    // Create configuration-driven protocol（custom endpoint paths）
     let protocol = ConfigurableProtocol::new(
         OpenAIProtocol::new(api_key),
         ProtocolConfig {

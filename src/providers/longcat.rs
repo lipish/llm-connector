@@ -1,28 +1,28 @@
-//! LongCat API 服务Provide商实现
+//! LongCat API Service Provider Implementation
 //!
-//! LongCat Support两种 API 格式：
-//! 1. OpenAI 格式 - Use OpenAI 兼容接口
-//! 2. Anthropic 格式 - Use Anthropic 兼容接口，但authentication方式as Bearer token
+//! LongCat supports two API formats:
+//! 1. OpenAI format - Uses OpenAI compatible interface
+//! 2. Anthropic format - Uses Anthropic compatible interface, but with Bearer token authentication
 //!
-//! Note：LongCat  Anthropic 格式Use `Authorization: Bearer` authentication，
-//! 而不is标准 Anthropic  `x-api-key` authentication。
+//! Note: LongCat Anthropic format uses `Authorization: Bearer` authentication,
+//! instead of standard Anthropic `x-api-key` authentication.
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder, ProtocolConfig, EndpointConfig, AuthConfig};
 use crate::protocols::AnthropicProtocol;
 use crate::error::LlmConnectorError;
 
-/// LongCat Anthropic 格式protocoladapter
+/// LongCat Anthropic format protocol adapter
 ///
-/// Use ConfigurableProtocol 包装 Anthropic protocol，Use Bearer authentication
+/// Uses ConfigurableProtocol to wrap Anthropic protocol, using Bearer authentication
 pub type LongCatAnthropicProtocol = ConfigurableProtocol<AnthropicProtocol>;
 
-/// LongCat Anthropic 格式服务Provide商类型
+/// LongCat Anthropic format service provider type
 pub type LongCatAnthropicProvider = crate::core::GenericProvider<LongCatAnthropicProtocol>;
 
-/// Create LongCat Anthropic 格式服务Provide商
+/// Create LongCat Anthropic format service provider
 ///
 /// # Parameters
-/// - `api_key`: LongCat API 密钥 (格式: ak_...)
+/// - `api_key`: LongCat API key (Format: ak_...)
 ///
 /// # Example
 /// ```rust,no_run
@@ -34,13 +34,13 @@ pub fn longcat_anthropic(api_key: &str) -> Result<LongCatAnthropicProvider, LlmC
     longcat_anthropic_with_config(api_key, None, None, None)
 }
 
-/// Create带有customconfiguration LongCat Anthropic 服务Provide商
+/// Create LongCat Anthropic service provider with custom configuration
 ///
 /// # Parameters
-/// - `api_key`: API 密钥
-/// - `base_url`: custom基础 URL (optional，默认as LongCat Anthropic endpoint)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理 URL (optional)
+/// - `api_key`: API key
+/// - `base_url`: Custom base URL (optional, defaults to LongCat Anthropic endpoint)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: proxy URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -48,8 +48,8 @@ pub fn longcat_anthropic(api_key: &str) -> Result<LongCatAnthropicProvider, LlmC
 ///
 /// let provider = longcat_anthropic_with_config(
 ///     "ak_...",
-///     None, // Use默认 URL
-///     Some(60), // 60秒超时
+///     None, // Usedefault URL
+///     Some(60), // 60 seconds timeout
 ///     None
 /// ).unwrap();
 /// ```
@@ -59,7 +59,7 @@ pub fn longcat_anthropic_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<LongCatAnthropicProvider, LlmConnectorError> {
-    // Createconfiguration驱动protocol（Use Bearer authentication + Additionalheaders）
+    // Create configuration-driven protocol（Use Bearer authentication + Additional headers）
     let protocol = ConfigurableProtocol::new(
         AnthropicProtocol::new(api_key),
         ProtocolConfig {
@@ -68,7 +68,7 @@ pub fn longcat_anthropic_with_config(
                 chat_template: "{base_url}/v1/messages".to_string(),
                 models_template: None,
             },
-            auth: AuthConfig::Bearer,  // Use Bearer 而不is x-api-key
+            auth: AuthConfig::Bearer,  // Use Bearer instead of x-api-key
             extra_headers: vec![
                 ("anthropic-version".to_string(), "2023-06-01".to_string()),
             ],
@@ -132,13 +132,13 @@ mod tests {
         );
         let headers = protocol.auth_headers();
 
-        // 应该Use Bearer authentication
+        // Should use Bearer authentication
         assert!(headers.iter().any(|(k, v)| k == "Authorization" && v == "Bearer ak_test123"));
 
-        // 应该Contains anthropic-version
+        // Should contain anthropic-version
         assert!(headers.iter().any(|(k, v)| k == "anthropic-version" && v == "2023-06-01"));
 
-        // 不应该Contains x-api-key
+        // Should not contain x-api-key
         assert!(!headers.iter().any(|(k, _)| k == "x-api-key"));
     }
 }

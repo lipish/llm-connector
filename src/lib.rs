@@ -134,10 +134,10 @@ pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage, Role};
 pub use core::{Protocol, Provider, GenericProvider, HttpClient};
 
 // Re-export protocols
-// 导出标准protocol
+// Export standard protocols
 pub use protocols::{OpenAIProtocol, AnthropicProtocol};
 
-// 导出私有protocol（from providers 中）
+// Export private protocols (from providers)
 pub use providers::{AliyunProtocol, ZhipuProtocol};
 
 // Re-export providers

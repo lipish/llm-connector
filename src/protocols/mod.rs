@@ -1,21 +1,21 @@
-//! protocol模块 - 公开标准protocol
+//! Protocol Module - Public Standard Protocols
 //!
-//! this模块只Contains业界公认标准LLM APIprotocol：
+//! This module only contains industry-recognized standard LLM API protocols:
 //!
-//! ## 标准protocol
-//! - **OpenAI Protocol**: 标准OpenAI API规范 - 被多个服务Provide商Support
-//! - **Anthropic Protocol**: 标准Anthropic Claude API规范 - 官方protocol
+//! ## standardprotocol
+//! - **OpenAI Protocol**: Standard OpenAI API specification - supported by multiple service providers
+//! - **Anthropic Protocol**: Standard Anthropic Claude API specification - official protocol
 //!
-//! ## 设计原则
-//! - 只Contains公开、标准化protocol
-//! - 其他服务Provide商maywill实现theseprotocol
-//! - 私有protocolDefinein各自 `providers` 模块中
+//! ## Design Principles
+//! - Only contains public, standardized protocols
+//! - Other service providers may implement these protocols
+//! - Private protocols are defined in respective `providers` modules
 //!
-//! Note：具体服务Provide商实现in `providers` 模块中。
+//! Note: Specific service provider implementations are in the `providers` module.
 
 pub mod openai;
 pub mod anthropic;
 
-// 重新导出标准protocol类型
+// Re-export standard protocol types
 pub use openai::OpenAIProtocol;
 pub use anthropic::AnthropicProtocol;

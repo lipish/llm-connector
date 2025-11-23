@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 
-// 重用现有类型，保持兼容性
+// Reuse existing types, maintain compatibility
 use crate::types::{ChatRequest, ChatResponse};
 use crate::error::LlmConnectorError;
 
@@ -16,7 +16,7 @@ use crate::types::ChatStream;
 /// Protocol trait - Defines pure API specification
 /// 
 /// This trait represents an LLM API protocol specification, such as OpenAI API, Anthropic API, etc.
-/// 它只关注API格式Convert，不涉及具体网络通信。
+/// It only focuses on API format conversion, not specific network communication.
 #[async_trait]
 pub trait Protocol: Send + Sync + Clone + 'static {
     /// Protocol-specific request type
@@ -28,7 +28,7 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     /// Protocol name (such as "openai", "anthropic")
     fn name(&self) -> &str;
     
-    /// Get聊天完成endpointURL
+    /// Get chat completion endpoint URL
     fn chat_endpoint(&self, base_url: &str) -> String;
     
     /// Get model list endpoint URL (optional)
@@ -49,10 +49,10 @@ pub trait Protocol: Send + Sync + Clone + 'static {
         ))
     }
     
-    /// 映射HTTPErrorsto统一Errors类型
+    /// Map HTTP errors to unified error type
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError;
     
-    /// Getauthentication头 (optional)
+    /// Get authentication headers (optional)
     fn auth_headers(&self) -> Vec<(String, String)> {
         Vec::new()
     }
@@ -60,21 +60,21 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     /// Parse streaming response (optional)
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(&self, response: reqwest::Response) -> Result<ChatStream, LlmConnectorError> {
-        // 默认Use通用SSE流Parse
+        // Default to use generic SSE stream parser
         Ok(crate::sse::sse_to_streaming_response(response))
     }
 }
 
-/// 服务Provide商trait - Define统一服务接口
+/// Service Provider trait - Define unified service interface
 /// 
-/// thistrait代表a具体LLM服务Provide商，Provide完整服务功能。
-/// 它is用户直接交互接口。
+/// This trait represents a specific LLM service provider, providing complete service functionality.
+/// It is the direct user interaction interface.
 #[async_trait]
 pub trait Provider: Send + Sync {
-    /// Provide商name (such as "openai", "aliyun", "ollama")
+    /// Provider name (such as "openai", "aliyun", "ollama")
     fn name(&self) -> &str;
     
-    /// 聊天完成
+    /// Chat completion
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError>;
     
     /// Streaming chat completion
@@ -84,22 +84,22 @@ pub trait Provider: Send + Sync {
     /// Get available models list
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError>;
     
-    /// 类型ConvertSupport (for特殊功能访问)
+    /// Type conversion support (for special feature access)
     fn as_any(&self) -> &dyn Any;
 }
 
 /// Generic provider implementation
 /// 
-/// this结构体as大多数标准LLM APIProvide通用实现。
-/// 它UseProtocol traitto处理API特定格式Convert，
-/// UseHttpClientto处理网络通信。
+/// This struct provides generic implementation for most standard LLM APIs.
+/// It uses Protocol trait to handle API-specific format conversion,
+/// uses HttpClient to handle network communication.
 pub struct GenericProvider<P: Protocol> {
     protocol: P,
     client: super::HttpClient,
 }
 
 impl<P: Protocol> GenericProvider<P> {
-    /// Create新通用Provide商
+    /// Create new generic provider
     pub fn new(protocol: P, client: super::HttpClient) -> Self {
         Self { protocol, client }
     }
@@ -143,7 +143,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         let text = response.text().await
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
             
-        // CheckHTTP状态
+        // Check HTTP status
         if !status.is_success() {
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }

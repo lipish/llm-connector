@@ -1,6 +1,6 @@
-//! Ollama服务Provide商实现
+//! OllamaserviceProviderimplementation
 //!
-//! Ollamaisa本地LLM服务，具有特殊model管理功能，因此需要customProvider实现。
+//! Ollama is a local LLM service，with special model management features，therefore requires custom Provider implementation。
 
 use crate::core::{HttpClient, Provider};
 use crate::error::LlmConnectorError;
@@ -12,10 +12,10 @@ use std::any::Any;
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
-/// Ollama服务Provide商
+/// OllamaserviceProvider
 ///
-/// 由于Ollama具有特殊model管理功能，我们UsecustomProvider实现
-/// 而不isGenericProvider模式。
+/// Since Ollama has special model management features, we use custom Provider implementation
+/// instead of GenericProvider pattern。
 #[derive(Clone, Debug)]
 pub struct OllamaProvider {
     client: HttpClient,
@@ -23,10 +23,10 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
-    /// Create新OllamaProvide商
+    /// Create new OllamaProvider
     ///
     /// # Parameters
-    /// - `base_url`: Ollama service URL (默认: http://localhost:11434)
+    /// - `base_url`: Ollama service URL (default: http://localhost:11434)
     ///
     /// # Example
     /// ```rust,no_run
@@ -35,7 +35,7 @@ impl OllamaProvider {
     /// let provider = OllamaProvider::new("http://localhost:11434").unwrap();
     /// ```
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
-        // Content-Type 由 HttpClient::post()  .json() method自动Set
+        // Content-Type is automatically set by HttpClient::post() .json() method
         let client = HttpClient::new(base_url)?;
 
         Ok(Self {
@@ -44,13 +44,13 @@ impl OllamaProvider {
         })
     }
 
-    /// Create带有customconfigurationOllamaProvide商
+    /// CreatewithcustomconfigurationOllamaProvider
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        // Content-Type 由 HttpClient::post()  .json() method自动Set
+        // Content-Type is automatically set by HttpClient::post() .json() method
         let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
 
         Ok(Self {
@@ -59,10 +59,10 @@ impl OllamaProvider {
         })
     }
 
-    /// 拉取model
+    /// Pull model
     ///
     /// # Parameters
-    /// - `model_name`: 要拉取modelname (such as "llama2", "codellama")
+    /// - `model_name`: Model name to pull (such as "llama2", "codellama")
     ///
     /// # Example
     /// ```rust,no_run
@@ -97,10 +97,10 @@ impl OllamaProvider {
         Ok(())
     }
 
-    /// 删除model
+    /// Delete model
     ///
     /// # Parameters
-    /// - `model_name`: 要删除modelname
+    /// - `model_name`: Model name to delete
     ///
     /// # Example
     /// ```rust,no_run
@@ -134,13 +134,13 @@ impl OllamaProvider {
         Ok(())
     }
 
-    /// Getmodel信息
+    /// Get model information
     ///
     /// # Parameters
     /// - `model_name`: modelname
     ///
     /// # Returns
-    /// model详细信息
+    /// Model details
     pub async fn show_model(&self, model_name: &str) -> Result<OllamaModelInfo, LlmConnectorError> {
         let request = OllamaShowRequest {
             name: model_name.to_string(),
@@ -166,7 +166,7 @@ impl OllamaProvider {
         })
     }
 
-    /// Checkmodelisif存in
+    /// Check if model exists
     pub async fn model_exists(&self, model_name: &str) -> Result<bool, LlmConnectorError> {
         match self.show_model(model_name).await {
             Ok(_) => Ok(true),
@@ -215,9 +215,9 @@ impl Provider for OllamaProvider {
                         Role::User => "user".to_string(),
                         Role::Assistant => "assistant".to_string(),
                         Role::System => "system".to_string(),
-                        Role::Tool => "user".to_string(), // Ollama不Supporttool角色
+                        Role::Tool => "user".to_string(), // Ollama does not support tool role
                     },
-                    // Ollama Use纯文本格式
+                    // Ollama uses plain text format
                     content: msg.content_as_text(),
                 })
                 .collect(),
@@ -278,7 +278,7 @@ impl Provider for OllamaProvider {
             choices,
             content,
             reasoning_content: None,
-            usage: None, // Ollama不ReturnstokenUse信息
+            usage: None, // Ollama does not return token usage information
             system_fingerprint: None,
         })
     }
@@ -323,7 +323,7 @@ impl Provider for OllamaProvider {
             )));
         }
 
-        // OllamaUseJSONL格式而不isSSE
+        // Ollama uses JSONL format instead of SSE
         Ok(crate::sse::sse_to_streaming_response(response))
     }
 
@@ -332,7 +332,7 @@ impl Provider for OllamaProvider {
     }
 }
 
-// Ollamarequest/response类型
+// Ollamarequest/responsetype
 #[derive(Serialize, Debug)]
 struct OllamaChatRequest {
     model: String,
@@ -419,7 +419,7 @@ struct OllamaModel {
     size: u64,
 }
 
-/// CreateOllama服务Provide商 (默认本地地址)
+/// Create Ollama service Provider (default local address)
 ///
 /// # Example
 /// ```rust,no_run
@@ -431,7 +431,7 @@ pub fn ollama() -> Result<OllamaProvider, LlmConnectorError> {
     OllamaProvider::new("http://localhost:11434")
 }
 
-/// Create带有customURLOllama服务Provide商
+/// CreatewithcustomURLOllamaserviceProvider
 ///
 /// # Parameters
 /// - `base_url`: Ollama service URL
@@ -446,12 +446,12 @@ pub fn ollama_with_base_url(base_url: &str) -> Result<OllamaProvider, LlmConnect
     OllamaProvider::new(base_url)
 }
 
-/// Create带有customconfigurationOllama服务Provide商
+/// CreatewithcustomconfigurationOllamaserviceProvider
 ///
 /// # Parameters
 /// - `base_url`: Ollama service URL
-/// - `timeout_secs`: 超时时间(秒)
-/// - `proxy`: 代理URL (optional)
+/// - `timeout_secs`: Timeout (seconds)
+/// - `proxy`: Proxy URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -459,7 +459,7 @@ pub fn ollama_with_base_url(base_url: &str) -> Result<OllamaProvider, LlmConnect
 ///
 /// let provider = ollama_with_config(
 ///     "http://localhost:11434",
-///     Some(120), // 2分钟超时
+///     Some(120), // 2 minutes timeout
 ///     None
 /// ).unwrap();
 /// ```

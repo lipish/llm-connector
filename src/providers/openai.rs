@@ -1,22 +1,22 @@
-//! OpenAI服务Provide商实现 - V2架构
+//! OpenAI Service Provider Implementation - V2 Architecture
 //!
-//! this模块ProvideOpenAI服务完整实现，Use统一V2架构。
+//! This module provides complete OpenAI service implementation，using unified V2 architecture。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::protocols::OpenAIProtocol;
 use crate::error::LlmConnectorError;
 use std::collections::HashMap;
 
-/// OpenAI服务Provide商类型
+/// OpenAIserviceProvidertype
 pub type OpenAIProvider = GenericProvider<OpenAIProtocol>;
 
-/// CreateOpenAI服务Provide商
+/// CreateOpenAIserviceProvider
 /// 
 /// # Parameters
 /// - `api_key`: OpenAI API key
 /// 
 /// # Returns
-/// configuration好OpenAI服务Provide商instance
+/// Configured OpenAI service Provider instance
 /// 
 /// # Example
 /// ```rust,no_run
@@ -28,11 +28,11 @@ pub fn openai(api_key: &str) -> Result<OpenAIProvider, LlmConnectorError> {
     openai_with_config(api_key, None, None, None)
 }
 
-/// Create带有Custom base URLOpenAI服务Provide商
+/// CreatewithCustom base URLOpenAIserviceProvider
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: Custom base URL (such asforOpenAI兼容服务)
+/// - `base_url`: Custom base URL (such asforOpenAIcompatibleservice)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -45,13 +45,13 @@ pub fn openai_with_base_url(api_key: &str, base_url: &str) -> Result<OpenAIProvi
     openai_with_config(api_key, Some(base_url), None, None)
 }
 
-/// Create带有customconfigurationOpenAI服务Provide商
+/// CreatewithcustomconfigurationOpenAIserviceProvider
 /// 
 /// # Parameters
 /// - `api_key`: API key
 /// - `base_url`: Custom base URL (optional)
-/// - `timeout_secs`: 超时时间(秒) (optional)
-/// - `proxy`: 代理URL (optional)
+/// - `timeout_secs`: Timeout (seconds) (optional)
+/// - `proxy`: Proxy URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -60,7 +60,7 @@ pub fn openai_with_base_url(api_key: &str, base_url: &str) -> Result<OpenAIProvi
 /// let provider = openai_with_config(
 ///     "sk-...",
 ///     Some("https://api.openai.com"),
-///     Some(60), // 60秒超时
+///     Some(60), // 60 seconds timeout
 ///     Some("http://proxy:8080")
 /// ).unwrap();
 /// ```
@@ -80,15 +80,15 @@ pub fn openai_with_config(
         proxy,
     )?;
     
-    // 添加authentication头
+    // Add authentication headers
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
     
-    // Create通用Provide商
+    // Create generic provider
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// CreateforAzure OpenAI服务Provide商
+/// CreateforAzure OpenAIserviceProvider
 /// 
 /// # Parameters
 /// - `api_key`: Azure OpenAI API key
@@ -112,7 +112,7 @@ pub fn azure_openai(
 ) -> Result<OpenAIProvider, LlmConnectorError> {
     let protocol = OpenAIProtocol::new(api_key);
 
-    // Content-Type 由 HttpClient::post()  .json() method自动Set
+    // Content-Type is automatically set by HttpClient::post() .json() method
     let client = HttpClient::new(endpoint)?
         .with_header("api-key".to_string(), api_key.to_string())
         .with_header("api-version".to_string(), api_version.to_string());
@@ -120,15 +120,15 @@ pub fn azure_openai(
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// CreateforOpenAI兼容服务Provide商
+/// CreateforOpenAIcompatibleserviceProvider
 /// 
-/// thisfunctionas各种OpenAI兼容服务Provide便利Createmethod，
+/// This function provides convenient create method for various OpenAI-compatible services，
 /// such asDeepSeek、Moonshot、Together AIetc.。
 /// 
 /// # Parameters
 /// - `api_key`: API key
 /// - `base_url`: Service base URL
-/// - `service_name`: Service name (forErrors消息)
+/// - `service_name`: Service name (for error messages)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -155,7 +155,7 @@ pub fn openai_compatible(
 ) -> Result<OpenAIProvider, LlmConnectorError> {
     let protocol = OpenAIProtocol::new(api_key);
 
-    // Content-Type 由 HttpClient::post()  .json() method自动Set
+    // Content-Type is automatically set by HttpClient::post() .json() method
     let client = HttpClient::new(base_url)?
         .with_header("Authorization".to_string(), format!("Bearer {}", api_key))
         .with_header("User-Agent".to_string(), format!("llm-connector/{}", service_name));
@@ -163,7 +163,7 @@ pub fn openai_compatible(
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// ValidateOpenAI API key格式
+/// ValidateOpenAI API keyformat
 pub fn validate_openai_key(api_key: &str) -> bool {
     api_key.starts_with("sk-") && api_key.len() > 20
 }
