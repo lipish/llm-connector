@@ -1,6 +1,6 @@
 //! Volcengine（Volcengine）服务Provide商实现
 //!
-//! VolcengineUse OpenAI 兼容的 API 格式，但端点路径不同：
+//! VolcengineUse OpenAI 兼容 API 格式，但endpoint路径不同：
 //! - OpenAI: `/v1/chat/completions`
 //! - Volcengine: `/api/v3/chat/completions`
 
@@ -8,9 +8,9 @@ use crate::core::{ConfigurableProtocol, ProviderBuilder, ProtocolConfig, Endpoin
 use crate::protocols::OpenAIProtocol;
 use crate::error::LlmConnectorError;
 
-/// Volcengine协议适配器
+/// Volcengineprotocoladapter
 ///
-/// Use ConfigurableProtocol 包装 OpenAI protocol，自Define端点路径
+/// Use ConfigurableProtocol 包装 OpenAI protocol，customendpoint路径
 pub type VolcengineProtocol = ConfigurableProtocol<OpenAIProtocol>;
 
 /// Volcengine服务Provide商类型
@@ -31,13 +31,13 @@ pub fn volcengine(api_key: &str) -> Result<VolcengineProvider, LlmConnectorError
     volcengine_with_config(api_key, None, None, None)
 }
 
-/// Create带有自Define配置的Volcengine服务Provide商
+/// Create带有customconfigurationVolcengine服务Provide商
 ///
 /// # Parameters
 /// - `api_key`: API 密钥
-/// - `base_url`: 自Define基础 URL (可选，默认为Volcengine端点)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理 URL (可选)
+/// - `base_url`: custom基础 URL (optional，默认asVolcengineendpoint)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理 URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -56,7 +56,7 @@ pub fn volcengine_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<VolcengineProvider, LlmConnectorError> {
-    // Create配置驱动的协议（自Define端点路径）
+    // Createconfiguration驱动protocol（customendpoint路径）
     let protocol = ConfigurableProtocol::new(
         OpenAIProtocol::new(api_key),
         ProtocolConfig {

@@ -1,12 +1,12 @@
 //! Tencent Hunyuan（Tencent Hunyuan）服务Provide商实现
 //!
-//! Tencent HunyuanUse OpenAI 兼容的 API 格式，完全兼容标准 OpenAI 协议。
+//! Tencent HunyuanUse OpenAI 兼容 API 格式，完全兼容标准 OpenAI protocol。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder};
 use crate::protocols::OpenAIProtocol;
 use crate::error::LlmConnectorError;
 
-/// Tencent Hunyuan协议适配器
+/// Tencent Hunyuanprotocoladapter
 ///
 /// Use ConfigurableProtocol 包装 OpenAI protocol
 pub type TencentProtocol = ConfigurableProtocol<OpenAIProtocol>;
@@ -29,13 +29,13 @@ pub fn tencent(api_key: &str) -> Result<TencentProvider, LlmConnectorError> {
     tencent_with_config(api_key, None, None, None)
 }
 
-/// Create带有自Define配置的Tencent Hunyuan服务Provide商
+/// Create带有customconfigurationTencent Hunyuan服务Provide商
 ///
 /// # Parameters
 /// - `api_key`: API 密钥
-/// - `base_url`: 自Define基础 URL (可选，默认为Tencent Hunyuan端点)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理 URL (可选)
+/// - `base_url`: custom基础 URL (optional，默认asTencent Hunyuanendpoint)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理 URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -54,7 +54,7 @@ pub fn tencent_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<TencentProvider, LlmConnectorError> {
-    // Create配置驱动的协议
+    // Createconfiguration驱动protocol
     let protocol = ConfigurableProtocol::openai_compatible(
         OpenAIProtocol::new(api_key),
         "tencent"

@@ -1,6 +1,6 @@
 //! OpenAI服务Provide商实现 - V2架构
 //!
-//! 这个模块ProvideOpenAI服务的完整实现，Use统一的V2架构。
+//! this模块ProvideOpenAI服务完整实现，Use统一V2架构。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::protocols::OpenAIProtocol;
@@ -16,7 +16,7 @@ pub type OpenAIProvider = GenericProvider<OpenAIProtocol>;
 /// - `api_key`: OpenAI API key
 /// 
 /// # Returns
-/// 配置好的OpenAI服务Provide商实例
+/// configuration好OpenAI服务Provide商instance
 /// 
 /// # Example
 /// ```rust,no_run
@@ -28,30 +28,30 @@ pub fn openai(api_key: &str) -> Result<OpenAIProvider, LlmConnectorError> {
     openai_with_config(api_key, None, None, None)
 }
 
-/// Create带有Custom base URL的OpenAI服务Provide商
+/// Create带有Custom base URLOpenAI服务Provide商
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: Custom base URL (如用于OpenAI兼容的服务)
+/// - `base_url`: Custom base URL (such asforOpenAI兼容服务)
 /// 
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::openai_with_base_url;
 /// 
-/// // Use自Define端点 (如Azure OpenAI)
+/// // Usecustomendpoint (such asAzure OpenAI)
 /// let provider = openai_with_base_url("sk-...", "https://your-resource.openai.azure.com").unwrap();
 /// ```
 pub fn openai_with_base_url(api_key: &str, base_url: &str) -> Result<OpenAIProvider, LlmConnectorError> {
     openai_with_config(api_key, Some(base_url), None, None)
 }
 
-/// Create带有自Define配置的OpenAI服务Provide商
+/// Create带有customconfigurationOpenAI服务Provide商
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: Custom base URL (可选)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理URL (可选)
+/// - `base_url`: Custom base URL (optional)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -70,17 +70,17 @@ pub fn openai_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<OpenAIProvider, LlmConnectorError> {
-    // Create协议实例
+    // CreateProtocol instance
     let protocol = OpenAIProtocol::new(api_key);
     
-    // CreateHTTP客户端
+    // CreateHTTP Client
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://api.openai.com"),
         timeout_secs,
         proxy,
     )?;
     
-    // 添加认证头
+    // 添加authentication头
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
     
@@ -88,12 +88,12 @@ pub fn openai_with_config(
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// Create用于Azure OpenAI的服务Provide商
+/// CreateforAzure OpenAI服务Provide商
 /// 
 /// # Parameters
 /// - `api_key`: Azure OpenAI API key
-/// - `endpoint`: Azure OpenAI endpoint (如 "https://your-resource.openai.azure.com")
-/// - `api_version`: API version (如 "2024-02-15-preview")
+/// - `endpoint`: Azure OpenAI endpoint (such as "https://your-resource.openai.azure.com")
+/// - `api_version`: API version (such as "2024-02-15-preview")
 /// 
 /// # Example
 /// ```rust,no_run
@@ -112,7 +112,7 @@ pub fn azure_openai(
 ) -> Result<OpenAIProvider, LlmConnectorError> {
     let protocol = OpenAIProtocol::new(api_key);
 
-    // Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
+    // Content-Type 由 HttpClient::post()  .json() method自动Set
     let client = HttpClient::new(endpoint)?
         .with_header("api-key".to_string(), api_key.to_string())
         .with_header("api-version".to_string(), api_version.to_string());
@@ -120,15 +120,15 @@ pub fn azure_openai(
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// Create用于OpenAI兼容服务的Provide商
+/// CreateforOpenAI兼容服务Provide商
 /// 
-/// 这个函数为各种OpenAI兼容的服务Provide便利的Create方法，
-/// 如DeepSeek、Moonshot、Together AIetc.。
+/// thisfunctionas各种OpenAI兼容服务Provide便利Createmethod，
+/// such asDeepSeek、Moonshot、Together AIetc.。
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: 服务的基础URL
-/// - `service_name`: Service name (用于Errors消息)
+/// - `base_url`: 服务基础URL
+/// - `service_name`: Service name (forErrors消息)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -155,7 +155,7 @@ pub fn openai_compatible(
 ) -> Result<OpenAIProvider, LlmConnectorError> {
     let protocol = OpenAIProtocol::new(api_key);
 
-    // Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
+    // Content-Type 由 HttpClient::post()  .json() method自动Set
     let client = HttpClient::new(base_url)?
         .with_header("Authorization".to_string(), format!("Bearer {}", api_key))
         .with_header("User-Agent".to_string(), format!("llm-connector/{}", service_name));

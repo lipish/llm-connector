@@ -1,8 +1,8 @@
 //! V2架构核心模块
 //!
-//! 这个模块ContainsV2架构的所有核心组件：
-//! - 统一的traitDefine (Protocol, Provider)
-//! - HTTP客户端实现
+//! this模块ContainsV2架构all核心组件：
+//! - 统一traitDefine (Protocol, Provider)
+//! - HTTP Client实现
 //! - 通用Provide商实现
 
 pub mod traits;

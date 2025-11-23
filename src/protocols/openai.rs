@@ -1,6 +1,6 @@
-//! OpenAI协议实现 - V2架构
+//! OpenAIprotocol实现 - V2架构
 //!
-//! 这个模块实现了标准的OpenAI API协议规范。
+//! this模块实现标准OpenAI APIprotocol规范。
 
 use crate::core::Protocol;
 use crate::types::{ChatRequest, ChatResponse, Message, Role, Choice, Usage};
@@ -8,14 +8,14 @@ use crate::error::LlmConnectorError;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-/// OpenAI协议实现
+/// OpenAIprotocol实现
 #[derive(Clone, Debug)]
 pub struct OpenAIProtocol {
     api_key: String,
 }
 
 impl OpenAIProtocol {
-    /// Create新的OpenAI协议实例
+    /// Create新OpenAIProtocol instance
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
@@ -48,7 +48,7 @@ impl Protocol for OpenAIProtocol {
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         let messages = request.messages.iter()
             .map(|msg| {
-                // Convert MessageBlock 到 OpenAI 格式
+                // Convert MessageBlock to OpenAI 格式
                 let content = if msg.content.len() == 1 && msg.content[0].is_text() {
                     // 纯文本：Use字符串格式
                     serde_json::json!(msg.content[0].as_text().unwrap())
@@ -141,7 +141,7 @@ impl Protocol for OpenAIProtocol {
                     }).collect()
                 });
 
-                // Convert content 到 MessageBlock
+                // Convert content to MessageBlock
                 let content = if let Some(content_value) = &choice.message.content {
                     if let Some(text) = content_value.as_str() {
                         // 纯文本
@@ -186,12 +186,12 @@ impl Protocol for OpenAIProtocol {
             prompt_tokens_details: None,
         });
 
-        // 提取第一个选择的内容作为便利字段（纯文本）
+        // 提取第a选择内容作as便利字段（纯文本）
         let content = choices.first()
             .map(|choice| choice.message.content_as_text())
             .unwrap_or_default();
 
-        // 提取第一个choice的reasoning_content
+        // 提取第achoicereasoning_content
         let reasoning_content = choices.first()
             .and_then(|c| c.message.reasoning_content.clone());
 
@@ -243,7 +243,7 @@ impl Protocol for OpenAIProtocol {
     }
 }
 
-// OpenAI请求类型
+// OpenAIrequest类型
 #[derive(Serialize, Debug)]
 pub struct OpenAIRequest {
     pub model: String,
@@ -269,7 +269,7 @@ pub struct OpenAIRequest {
 #[derive(Serialize, Debug)]
 pub struct OpenAIMessage {
     pub role: String,
-    pub content: serde_json::Value,  // Support String 或 Array
+    pub content: serde_json::Value,  // Support String or Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -278,7 +278,7 @@ pub struct OpenAIMessage {
     pub name: Option<String>,
 }
 
-// OpenAI响应类型
+// OpenAIresponse类型
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponse {
     pub id: String,
@@ -299,7 +299,7 @@ pub struct OpenAIChoice {
 
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponseMessage {
-    pub content: Option<serde_json::Value>,  // Support String 或 Array
+    pub content: Option<serde_json::Value>,  // Support String or Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -313,7 +313,7 @@ pub struct OpenAIUsage {
     pub total_tokens: u32,
 }
 
-// 模型列表响应
+// model列表response
 #[derive(Deserialize, Debug)]
 pub struct OpenAIModelsResponse {
     pub data: Vec<OpenAIModel>,

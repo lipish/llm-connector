@@ -1,12 +1,12 @@
 //! Moonshot（Moonshot）服务Provide商实现
 //!
-//! Moonshot uses OpenAI-compatible API format，完全兼容标准 OpenAI 协议。
+//! Moonshot uses OpenAI-compatible API format，完全兼容标准 OpenAI protocol。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder};
 use crate::protocols::OpenAIProtocol;
 use crate::error::LlmConnectorError;
 
-/// Moonshot 协议适配器
+/// Moonshot protocoladapter
 /// 
 /// Use ConfigurableProtocol 包装 OpenAI protocol
 pub type MoonshotProtocol = ConfigurableProtocol<OpenAIProtocol>;
@@ -29,13 +29,13 @@ pub fn moonshot(api_key: &str) -> Result<MoonshotProvider, LlmConnectorError> {
     moonshot_with_config(api_key, None, None, None)
 }
 
-/// Create带有自Define配置的 Moonshot 服务Provide商
+/// Create带有customconfiguration Moonshot 服务Provide商
 /// 
 /// # Parameters
 /// - `api_key`: API 密钥
-/// - `base_url`: 自Define基础 URL (可选，默认为 Moonshot 端点)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理 URL (可选)
+/// - `base_url`: custom基础 URL (optional，默认as Moonshot endpoint)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理 URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -54,7 +54,7 @@ pub fn moonshot_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<MoonshotProvider, LlmConnectorError> {
-    // Create配置驱动的协议
+    // Createconfiguration驱动protocol
     let protocol = ConfigurableProtocol::openai_compatible(
         OpenAIProtocol::new(api_key),
         "moonshot"

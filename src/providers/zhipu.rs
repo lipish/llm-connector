@@ -1,6 +1,6 @@
 //! Zhipu GLM服务Provide商实现 - V2架构
 //!
-//! 这个模块ProvideZhipu GLM服务的完整实现，Support原生格式和OpenAI兼容格式。
+//! this模块ProvideZhipu GLM服务完整实现，Support原生格式andOpenAI兼容格式。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::error::LlmConnectorError;
@@ -9,9 +9,9 @@ use crate::types::{ChatRequest, ChatResponse, Role, Tool, ToolChoice, Choice, Me
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// 从 Zhipu 响应中提取推理内容
+/// from Zhipu response中提取推理内容
 ///
-/// Zhipu GLM-Z1 etc.推理模型将推理过程嵌入在 content 中，Use标记分隔：
+/// Zhipu GLM-Z1 etc.推理model将推理过程嵌入in content 中，Use标记分隔：
 /// - `###Thinking` 标记推理过程开始
 /// - `###Response` 标记最终答案开始
 ///
@@ -19,11 +19,11 @@ use std::collections::HashMap;
 /// - `content`: 原始 content 字符串
 ///
 /// # Returns
-/// - `(reasoning_content, final_content)`: 推理内容和最终答案
+/// - `(reasoning_content, final_content)`: 推理内容and最终答案
 fn extract_zhipu_reasoning_content(content: &str) -> (Option<String>, String) {
-    // Check是否Contains推理标记
+    // Checkis否Contains推理标记
     if content.contains("###Thinking") && content.contains("###Response") {
-        // 分离推理内容和答案
+        // 分离推理内容and答案
         let parts: Vec<&str> = content.split("###Response").collect();
         if parts.len() >= 2 {
             let thinking = parts[0]
@@ -38,26 +38,26 @@ fn extract_zhipu_reasoning_content(content: &str) -> (Option<String>, String) {
         }
     }
 
-    // 如果没有推理标记，Returns原始内容
+    // if没有推理标记，Returns原始内容
     (None, content.to_string())
 }
 
-/// Zhipu 流式响应处理阶段
+/// Zhipu streamingresponse处理阶段
 #[cfg(feature = "streaming")]
 #[derive(Debug, Clone, PartialEq)]
 enum ZhipuStreamPhase {
-    /// 初始状态，etc.待检测是否为推理模型
+    /// 初始状态，etc.待检测is否as推理model
     Initial,
-    /// 在推理阶段（###Thinking 之后，###Response 之前）
+    /// in推理阶段（###Thinking 之后，###Response 之前）
     InThinking,
-    /// 在答案阶段（###Response 之后）
+    /// in答案阶段（###Response 之后）
     InResponse,
 }
 
-/// Zhipu 流式响应状态机
+/// Zhipu streamingresponse状态机
 #[cfg(feature = "streaming")]
 struct ZhipuStreamState {
-    /// 缓冲区，用于累积内容
+    /// 缓冲区，for累积内容
     buffer: String,
     /// 当前处理阶段
     phase: ZhipuStreamPhase,
@@ -72,39 +72,39 @@ impl ZhipuStreamState {
         }
     }
 
-    /// 处理流式内容增量
+    /// 处理streaming内容增量
     ///
     /// # Returns
-    /// - `(reasoning_delta, content_delta)`: 推理内容增量和答案内容增量
+    /// - `(reasoning_delta, content_delta)`: 推理内容增量and答案内容增量
     fn process(&mut self, delta_content: &str) -> (Option<String>, Option<String>) {
         self.buffer.push_str(delta_content);
 
         match self.phase {
             ZhipuStreamPhase::Initial => {
-                // 检测是否Contains ###Thinking 标记
+                // 检测is否Contains ###Thinking 标记
                 if self.buffer.contains("###Thinking") {
                     // 移除标记并进入推理阶段
                     self.buffer = self.buffer.replace("###Thinking", "").trim_start().to_string();
                     self.phase = ZhipuStreamPhase::InThinking;
 
-                    // Check是否立即Contains ###Response（完整推理在一个块中）
+                    // Checkis否立即Contains ###Response（完整推理ina块中）
                     if self.buffer.contains("###Response") {
                         return self.handle_response_marker();
                     }
 
-                    // Returns当前缓冲区作为推理内容
+                    // Returns当前缓冲区作as推理内容
                     let reasoning = self.buffer.clone();
                     self.buffer.clear();
                     (Some(reasoning), None)
                 } else {
-                    // 不是推理模型，直接Returns内容
+                    // 不is推理model，直接Returns内容
                     let content = self.buffer.clone();
                     self.buffer.clear();
                     (None, Some(content))
                 }
             }
             ZhipuStreamPhase::InThinking => {
-                // 检测是否Contains ###Response 标记
+                // 检测is否Contains ###Response 标记
                 if self.buffer.contains("###Response") {
                     self.handle_response_marker()
                 } else {
@@ -115,7 +115,7 @@ impl ZhipuStreamState {
                 }
             }
             ZhipuStreamPhase::InResponse => {
-                // 在答案阶段，直接Returns内容
+                // in答案阶段，直接Returns内容
                 let content = self.buffer.clone();
                 self.buffer.clear();
                 (None, Some(content))
@@ -148,7 +148,7 @@ impl ZhipuStreamState {
 
             (reasoning, content)
         } else {
-            // 不应该发生，但为了安全
+            // 不应该发生，但as安全
             (None, None)
         }
     }
@@ -158,10 +158,10 @@ impl ZhipuStreamState {
 // Zhipu Protocol Definition (Private)
 // ============================================================================
 
-/// Zhipu GLM私有协议实现
+/// Zhipu GLM私有protocol实现
 ///
-/// 智谱SupportOpenAI兼容格式，但有自己的认证和Errors处理。
-/// 由于这是私有协议，Define在provider内部而不是公开的protocols模块中。
+/// 智谱SupportOpenAI兼容格式，但有自己authenticationandErrors处理。
+/// 由于这is私有protocol，Defineinprovider内部而不is公开protocols模块中。
 #[derive(Clone, Debug)]
 pub struct ZhipuProtocol {
     api_key: String,
@@ -169,7 +169,7 @@ pub struct ZhipuProtocol {
 }
 
 impl ZhipuProtocol {
-    /// Create新的智谱协议实例 (Use原生格式)
+    /// Create新智谱Protocol instance (Use原生格式)
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
@@ -177,7 +177,7 @@ impl ZhipuProtocol {
         }
     }
 
-    /// CreateUseOpenAI兼容格式的智谱协议实例
+    /// CreateUseOpenAI兼容格式智谱Protocol instance
     pub fn new_openai_compatible(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
@@ -190,7 +190,7 @@ impl ZhipuProtocol {
         &self.api_key
     }
 
-    /// 是否UseOpenAI兼容格式
+    /// is否UseOpenAI兼容格式
     pub fn is_openai_compatible(&self) -> bool {
         self.use_openai_format
     }
@@ -215,8 +215,8 @@ impl Protocol for ZhipuProtocol {
                 "Authorization".to_string(),
                 format!("Bearer {}", self.api_key),
             ),
-            // 注意: Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
-            // 不要在这里重复Set，否则可能导致重复头部Errors
+            // Note: Content-Type 由 HttpClient::post()  .json() method自动Set
+            // 不要in这里重复Set，否则may导致重复headersErrors
         ]
     }
 
@@ -261,8 +261,8 @@ impl Protocol for ZhipuProtocol {
 
         if let Some(choices) = parsed.choices {
             if let Some(first_choice) = choices.first() {
-                // Convert ZhipuMessage 到 TypeMessage
-                // 提取推理内容（如果存在）
+                // Convert ZhipuMessage to TypeMessage
+                // 提取推理内容（if存in）
                 let (reasoning_content, final_content) =
                     extract_zhipu_reasoning_content(&first_choice.message.content);
 
@@ -313,10 +313,10 @@ impl Protocol for ZhipuProtocol {
         LlmConnectorError::from_status_code(status, format!("Zhipu API error: {}", body))
     }
 
-    /// 智谱专用流式Parse器
+    /// 智谱专用streamingParse器
     ///
-    /// 智谱 API Use单换行分隔 SSE 事件，而不是标准的双换行
-    /// 格式: data: {...}\n 而不是 data: {...}\n\n
+    /// 智谱 API Use单换行分隔 SSE 事件，而不is标准双换行
+    /// 格式: data: {...}\n 而不is data: {...}\n\n
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(
         &self,
@@ -345,7 +345,7 @@ impl Protocol for ZhipuProtocol {
                                 continue;
                             }
 
-                            // 提取 data: 后的内容
+                            // 提取 data: 后内容
                             if let Some(payload) = trimmed
                                 .strip_prefix("data: ")
                                 .or_else(|| trimmed.strip_prefix("data:"))
@@ -374,8 +374,8 @@ impl Protocol for ZhipuProtocol {
             })
             .flat_map(futures_util::stream::iter);
 
-        // 将 JSON 字符串流Convert为 StreamingResponse 流
-        // Use状态机处理 Zhipu 的 ###Thinking 和 ###Response 标记
+        // 将 JSON 字符串流Convertas StreamingResponse 流
+        // Use状态机处理 Zhipu  ###Thinking and ###Response 标记
         let response_stream = events_stream.scan(
             ZhipuStreamState::new(),
             |state, result| {
@@ -403,7 +403,7 @@ impl Protocol for ZhipuProtocol {
                                 // 同时更新 response.content
                                 response.content = content;
                             } else {
-                                // 如果没有内容增量，清空 delta.content
+                                // if没有内容增量，清空 delta.content
                                 first_choice.delta.content = None;
                                 response.content = String::new();
                             }
@@ -482,7 +482,7 @@ pub type ZhipuProvider = GenericProvider<ZhipuProtocol>;
 /// - `api_key`: Zhipu GLM API key
 ///
 /// # Returns
-/// 配置好的智谱服务Provide商实例
+/// configuration好智谱服务Provide商instance
 ///
 /// # Example
 /// ```rust,no_run
@@ -500,7 +500,7 @@ pub fn zhipu(api_key: &str) -> Result<ZhipuProvider, LlmConnectorError> {
 /// - `api_key`: Zhipu GLM API key
 ///
 /// # Returns
-/// 配置好的智谱服务Provide商实例 (OpenAI兼容模式)
+/// configuration好智谱服务Provide商instance (OpenAI兼容模式)
 ///
 /// # Example
 /// ```rust,no_run
@@ -512,14 +512,14 @@ pub fn zhipu_openai_compatible(api_key: &str) -> Result<ZhipuProvider, LlmConnec
     zhipu_with_config(api_key, true, None, None, None)
 }
 
-/// Create带有自Define配置的Zhipu GLM服务Provide商
+/// Create带有customconfigurationZhipu GLM服务Provide商
 ///
 /// # Parameters
 /// - `api_key`: API key
-/// - `openai_compatible`: 是否UseOpenAI兼容格式
-/// - `base_url`: Custom base URL (可选)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理URL (可选)
+/// - `openai_compatible`: is否UseOpenAI兼容格式
+/// - `base_url`: Custom base URL (optional)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -540,21 +540,21 @@ pub fn zhipu_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<ZhipuProvider, LlmConnectorError> {
-    // Create协议实例
+    // CreateProtocol instance
     let protocol = if openai_compatible {
         ZhipuProtocol::new_openai_compatible(api_key)
     } else {
         ZhipuProtocol::new(api_key)
     };
 
-    // CreateHTTP客户端
+    // CreateHTTP Client
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://open.bigmodel.cn"),
         timeout_secs,
         proxy,
     )?;
 
-    // 添加认证头
+    // 添加authentication头
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
 
@@ -562,7 +562,7 @@ pub fn zhipu_with_config(
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// Create带有自Define超时的Zhipu GLM服务Provide商
+/// Create带有custom超时Zhipu GLM服务Provide商
 ///
 /// # Parameters
 /// - `api_key`: API key
@@ -582,11 +582,11 @@ pub fn zhipu_with_timeout(
     zhipu_with_config(api_key, true, None, Some(timeout_secs), None)
 }
 
-/// Create用于Zhipu GLM企业版的服务Provide商
+/// CreateforZhipu GLM企业版服务Provide商
 ///
 /// # Parameters
 /// - `api_key`: 企业版API key
-/// - `enterprise_endpoint`: 企业版端点URL
+/// - `enterprise_endpoint`: 企业版endpointURL
 ///
 /// # Example
 /// ```rust,no_run
@@ -607,10 +607,10 @@ pub fn zhipu_enterprise(
 /// ValidateZhipu GLM API key格式
 ///
 /// # Parameters
-/// - `api_key`: 要Validate的API key
+/// - `api_key`: 要ValidateAPI key
 ///
 /// # Returns
-/// 如果格式看起来正确Returnstrue，否则Returnsfalse
+/// if格式看起to正确Returnstrue，否则Returnsfalse
 ///
 /// # Example
 /// ```rust
@@ -690,26 +690,26 @@ mod tests {
 
     #[test]
     fn test_extract_zhipu_reasoning_content() {
-        // 测试Contains推理内容的情况
-        let content_with_thinking = "###Thinking\n这是推理过程\n分析步骤1\n分析步骤2\n###Response\n这是最终答案";
+        // 测试Contains推理内容情况
+        let content_with_thinking = "###Thinking\n这is推理过程\n分析步骤1\n分析步骤2\n###Response\n这is最终答案";
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_with_thinking);
         assert!(reasoning.is_some());
-        assert_eq!(reasoning.unwrap(), "这是推理过程\n分析步骤1\n分析步骤2");
-        assert_eq!(answer, "这是最终答案");
+        assert_eq!(reasoning.unwrap(), "这is推理过程\n分析步骤1\n分析步骤2");
+        assert_eq!(answer, "这is最终答案");
 
-        // 测试不Contains推理内容的情况
-        let content_without_thinking = "这只是一个普通的回答";
+        // 测试不Contains推理内容情况
+        let content_without_thinking = "这只isa普通回答";
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_without_thinking);
         assert!(reasoning.is_none());
-        assert_eq!(answer, "这只是一个普通的回答");
+        assert_eq!(answer, "这只isa普通回答");
 
-        // 测试只有 Thinking 没有 Response 的情况
-        let content_only_thinking = "###Thinking\n这是推理过程";
+        // 测试只有 Thinking 没有 Response 情况
+        let content_only_thinking = "###Thinking\n这is推理过程";
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_only_thinking);
         assert!(reasoning.is_none());
-        assert_eq!(answer, "###Thinking\n这是推理过程");
+        assert_eq!(answer, "###Thinking\n这is推理过程");
 
-        // 测试空推理内容的情况
+        // 测试空推理内容情况
         let content_empty_thinking = "###Thinking\n\n###Response\n答案";
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_empty_thinking);
         assert!(reasoning.is_none());
@@ -719,10 +719,10 @@ mod tests {
     #[cfg(feature = "streaming")]
     #[test]
     fn test_zhipu_stream_state() {
-        // 测试推理模型流式响应
+        // 测试推理modelstreamingresponse
         let mut state = ZhipuStreamState::new();
 
-        // 第一个块: ###Thinking
+        // 第a块: ###Thinking
         let (reasoning, content) = state.process("###Thinking\n开始");
         assert_eq!(reasoning, Some("开始".to_string()));
         assert_eq!(content, None);
@@ -746,13 +746,13 @@ mod tests {
     #[cfg(feature = "streaming")]
     #[test]
     fn test_zhipu_stream_state_non_reasoning() {
-        // 测试非推理模型流式响应
+        // 测试非推理modelstreamingresponse
         let mut state = ZhipuStreamState::new();
 
-        // 第一个块: 普通内容
-        let (reasoning, content) = state.process("这是");
+        // 第a块: 普通内容
+        let (reasoning, content) = state.process("这is");
         assert_eq!(reasoning, None);
-        assert_eq!(content, Some("这是".to_string()));
+        assert_eq!(content, Some("这is".to_string()));
 
         // 第二个块: 继续内容
         let (reasoning, content) = state.process("普通回答");
@@ -763,7 +763,7 @@ mod tests {
     #[cfg(feature = "streaming")]
     #[test]
     fn test_zhipu_stream_state_complete_in_one_chunk() {
-        // 测试完整推理在一个块中
+        // 测试完整推理ina块中
         let mut state = ZhipuStreamState::new();
 
         let (reasoning, content) = state.process("###Thinking\n推理过程\n###Response\n答案");

@@ -1,6 +1,6 @@
 //! Anthropic Claude服务Provide商实现 - V2架构
 //!
-//! 这个模块ProvideAnthropic Claude服务的完整实现，Use统一的V2架构。
+//! this模块ProvideAnthropic Claude服务完整实现，Use统一V2架构。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::protocols::AnthropicProtocol;
@@ -16,7 +16,7 @@ pub type AnthropicProvider = GenericProvider<AnthropicProtocol>;
 /// - `api_key`: Anthropic API key (格式: sk-ant-...)
 /// 
 /// # Returns
-/// 配置好的Anthropic服务Provide商实例
+/// configuration好Anthropic服务Provide商instance
 /// 
 /// # Example
 /// ```rust,no_run
@@ -28,13 +28,13 @@ pub fn anthropic(api_key: &str) -> Result<AnthropicProvider, LlmConnectorError> 
     anthropic_with_config(api_key, None, None, None)
 }
 
-/// Create带有自Define配置的Anthropic服务Provide商
+/// Create带有customconfigurationAnthropic服务Provide商
 /// 
 /// # Parameters
 /// - `api_key`: API key
-/// - `base_url`: Custom base URL (可选，默认为官方端点)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理URL (可选)
+/// - `base_url`: Custom base URL (optional，默认as官方endpoint)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -53,17 +53,17 @@ pub fn anthropic_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<AnthropicProvider, LlmConnectorError> {
-    // Create协议实例
+    // CreateProtocol instance
     let protocol = AnthropicProtocol::new(api_key);
     
-    // CreateHTTP客户端
+    // CreateHTTP Client
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://api.anthropic.com"),
         timeout_secs,
         proxy,
     )?;
     
-    // 添加认证头
+    // 添加authentication头
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
     
@@ -71,11 +71,11 @@ pub fn anthropic_with_config(
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// Create用于Anthropic Vertex AI的服务Provide商
+/// CreateforAnthropic Vertex AI服务Provide商
 /// 
 /// # Parameters
 /// - `project_id`: Google Cloud项目ID
-/// - `location`: 区域 (如 "us-central1")
+/// - `location`: 区域 (such as "us-central1")
 /// - `access_token`: Google Cloud访问令牌
 /// 
 /// # Example
@@ -102,15 +102,15 @@ pub fn anthropic_vertex(
     
     let client = HttpClient::new(&base_url)?
         .with_header("Authorization".to_string(), format!("Bearer {}", access_token));
-        // 注意: Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
+        // Note: Content-Type 由 HttpClient::post()  .json() method自动Set
 
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// Create用于Amazon Bedrock的Anthropic服务Provide商
+/// CreateforAmazon BedrockAnthropic服务Provide商
 /// 
 /// # Parameters
-/// - `region`: AWS区域 (如 "us-east-1")
+/// - `region`: AWS区域 (such as "us-east-1")
 /// - `access_key_id`: AWS访问密钥ID
 /// - `secret_access_key`: AWS秘密访问密钥
 /// 
@@ -133,17 +133,17 @@ pub fn anthropic_bedrock(
     
     let base_url = format!("https://bedrock-runtime.{}.amazonaws.com", region);
     
-    // 注意: 这里简化了AWS签名过程，实际Use中需要实现AWS SigV4签名
-    // Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
+    // Note: 这里简化AWS签名过程，实际Use中需要实现AWS SigV4签名
+    // Content-Type 由 HttpClient::post()  .json() method自动Set
     let client = HttpClient::new(&base_url)?
         .with_header("X-Amz-Target".to_string(), "BedrockRuntime_20231002.InvokeModel".to_string());
 
     Ok(GenericProvider::new(protocol, client))
 }
 
-/// Create带有自Define超时的Anthropic服务Provide商
+/// Create带有custom超时Anthropic服务Provide商
 /// 
-/// Anthropic的某些模型可能需要较长的处理时间，这个函数Provide便利的超时配置。
+/// Anthropic某些modelmay需要较长处理时间，thisfunctionProvide便利超时configuration。
 /// 
 /// # Parameters
 /// - `api_key`: API key
@@ -153,7 +153,7 @@ pub fn anthropic_bedrock(
 /// ```rust,no_run
 /// use llm_connector::providers::anthropic_with_timeout;
 /// 
-/// // Set120秒超时，适用于长文本处理
+/// // Set120秒超时，适for长文本处理
 /// let provider = anthropic_with_timeout("sk-ant-...", 120).unwrap();
 /// ```
 pub fn anthropic_with_timeout(
@@ -166,10 +166,10 @@ pub fn anthropic_with_timeout(
 /// ValidateAnthropic API key格式
 /// 
 /// # Parameters
-/// - `api_key`: 要Validate的API key
+/// - `api_key`: 要ValidateAPI key
 /// 
 /// # Returns
-/// 如果格式正确Returnstrue，否则Returnsfalse
+/// if格式正确Returnstrue，否则Returnsfalse
 /// 
 /// # Example
 /// ```rust

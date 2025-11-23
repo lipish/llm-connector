@@ -1,6 +1,6 @@
-//! Provider Build器 - 统一的Build接口
+//! Provider Build器 - 统一Build接口
 //!
-//! 这个模块Provide了一个优雅的 Builder 模式 API，用于Build各种 Provider。
+//! this模块Providea优雅 Builder 模式 API，forBuild各种 Provider。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::error::LlmConnectorError;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// Provider Build器
 ///
-/// Provide链式调用的 API 来Build Provider，统一处理所有配置项。
+/// Provides fluent API to build Provider, handling all configuration items uniformly.
 ///
 /// # Example
 /// ```rust,no_run
@@ -34,10 +34,10 @@ pub struct ProviderBuilder<P: Protocol> {
 }
 
 impl<P: Protocol> ProviderBuilder<P> {
-    /// Create新的 Provider Build器
+    /// Create新 Provider Build器
     ///
     /// # Parameters
-    /// - `protocol`: 协议实例
+    /// - `protocol`: Protocol instance
     /// - `base_url`: 基础 URL
     ///
     /// # Example
@@ -94,9 +94,9 @@ impl<P: Protocol> ProviderBuilder<P> {
         self
     }
 
-    /// 添加额外的 HTTP 头部
+    /// 添加额外 HTTP headers
     ///
-    /// 注意：这些头部会与协议的认证头部合并。
+    /// Note: These headers will be merged with the protocol's authentication headers.
     ///
     /// # Example
     /// ```rust,no_run
@@ -117,10 +117,10 @@ impl<P: Protocol> ProviderBuilder<P> {
     /// Build Provider
     ///
     /// # Returns
-    /// 配置好的 GenericProvider 实例
+    /// Configured GenericProvider instance
     ///
     /// # Errors
-    /// 如果 HTTP 客户端Create失败，ReturnsErrors
+    /// Returns error if HTTP client creation fails
     ///
     /// # Example
     /// ```rust,no_run
@@ -135,14 +135,14 @@ impl<P: Protocol> ProviderBuilder<P> {
     /// .unwrap();
     /// ```
     pub fn build(self) -> Result<GenericProvider<P>, LlmConnectorError> {
-        // Create HTTP 客户端
+        // Create HTTP client
         let client = HttpClient::with_config(
             &self.base_url,
             self.timeout_secs,
             self.proxy.as_deref(),
         )?;
 
-        // 合并认证头和额外头部
+        // 合并authentication头and额外headers
         let mut headers: HashMap<String, String> =
             self.protocol.auth_headers().into_iter().collect();
         headers.extend(self.extra_headers);

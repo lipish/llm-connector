@@ -1,4 +1,4 @@
-//! HTTP客户端实现 - V2架构
+//! HTTP Client Implementation - V2 Architecture
 //!
 //! Provides unified HTTP communication layer, supporting standard and streaming requests.
 
@@ -8,7 +8,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// HTTP客户端
+/// HTTP Client
 /// 
 /// Encapsulates all HTTP communication details, including authentication, timeout, proxy configuration, etc.
 #[derive(Clone)]
@@ -19,7 +19,7 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
-    /// Create新的HTTP客户端
+    /// Create新HTTP Client
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -33,7 +33,7 @@ impl HttpClient {
         })
     }
     
-    /// Create带有自Define配置的HTTP客户端
+    /// Create带有customconfigurationHTTP Client
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
@@ -65,13 +65,13 @@ impl HttpClient {
         })
     }
     
-    /// 添加请求头
+    /// Add request headers
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         self.headers.extend(headers);
         self
     }
     
-    /// 添加单个请求头
+    /// Add single request header
     pub fn with_header(mut self, key: String, value: String) -> Self {
         self.headers.insert(key, value);
         self
@@ -82,11 +82,11 @@ impl HttpClient {
         &self.base_url
     }
     
-    /// 发送GET请求
+    /// Send GET request
     pub async fn get(&self, url: &str) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.get(url);
         
-        // 添加所有配置的请求头
+        // Add all configured request headers
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }
@@ -103,7 +103,7 @@ impl HttpClient {
             })
     }
     
-    /// 发送POST请求
+    /// Send POST request
     pub async fn post<T: Serialize>(
         &self, 
         url: &str, 
@@ -111,7 +111,7 @@ impl HttpClient {
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
         
-        // 添加所有配置的请求头
+        // Add all configured request headers
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }
@@ -128,7 +128,7 @@ impl HttpClient {
             })
     }
     
-    /// 发送流式POST请求
+    /// Send streaming POST request
     #[cfg(feature = "streaming")]
     pub async fn stream<T: Serialize>(
         &self,
@@ -137,7 +137,7 @@ impl HttpClient {
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
         
-        // 添加所有配置的请求头
+        // Add all configured request headers
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }
@@ -154,7 +154,7 @@ impl HttpClient {
             })
     }
     
-    /// 发送带有自Define头的POST请求
+    /// Send POST request with custom headers
     pub async fn post_with_custom_headers<T: Serialize>(
         &self,
         url: &str,
@@ -163,12 +163,12 @@ impl HttpClient {
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
         
-        // 先添加自Define头
+        // 先添加custom头
         for (key, value) in custom_headers {
             request = request.header(key, value);
         }
         
-        // 再添加配置的请求头 (可能会覆盖自Define头)
+        // Then add configured headers (may override custom headers)
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }

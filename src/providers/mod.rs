@@ -1,6 +1,6 @@
 //! V2服务Provide商模块
 //!
-//! 这个模块Contains所有服务Provide商的实现，每个Provide商代表一个具体的LLM服务。
+//! this模块Containsall服务Provide商实现，每个Provide商代表a具体LLM服务。
 
 pub mod openai;
 pub mod aliyun;
@@ -13,7 +13,7 @@ pub mod tencent;
 pub mod moonshot;
 pub mod deepseek;
 
-// 重新导出服务Provide商类型和函数
+// 重新导出服务Provide商类型andfunction
 pub use openai::{
     OpenAIProvider,
     openai,

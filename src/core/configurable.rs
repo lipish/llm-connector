@@ -1,7 +1,7 @@
 //! Configurable Protocol Adapter - Configuration-driven abstraction
 //!
 //! This module provides a generic protocol adapter that customizes behavior through configuration,
-//! 避免为每个 Provider 编写重复的样板代码。
+//! 避免as每个 Provider 编写重复样板代码。
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
@@ -47,7 +47,7 @@ pub struct ConfigurableProtocol<P: Protocol> {
 /// Defines static configuration for the protocol, including name, endpoints, authentication methods, etc.
 #[derive(Clone, Debug)]
 pub struct ProtocolConfig {
-    /// 协议名称
+    /// Protocol name
     pub name: String,
 
     /// Endpoint Configuration
@@ -56,7 +56,7 @@ pub struct ProtocolConfig {
     /// Authentication Configuration
     pub auth: AuthConfig,
 
-    /// 额外的静态头部
+    /// 额外静态headers
     pub extra_headers: Vec<(String, String)>,
 }
 
@@ -65,16 +65,16 @@ pub struct ProtocolConfig {
 /// Defines API endpoint path templates, supporting `{base_url}` variable substitution.
 #[derive(Clone, Debug)]
 pub struct EndpointConfig {
-    /// 聊天端点模板
+    /// 聊天endpoint模板
     ///
     /// Supports variable: `{base_url}`
     ///
-    /// 例如: `"{base_url}/v1/chat/completions"`
+    /// 例such as: `"{base_url}/v1/chat/completions"`
     pub chat_template: String,
 
-    /// 模型列表端点模板（可选）
+    /// Model list endpoint template (optional)
     ///
-    /// 例如: `"{base_url}/v1/models"`
+    /// 例such as: `"{base_url}/v1/models"`
     pub models_template: Option<String>,
 }
 
@@ -83,12 +83,12 @@ pub struct EndpointConfig {
 /// Defines how to handle API authentication.
 #[derive(Clone)]
 pub enum AuthConfig {
-    /// Bearer token 认证
+    /// Bearer token authentication
     ///
     /// 生成: `Authorization: Bearer {token}`
     Bearer,
 
-    /// API Key header 认证
+    /// API Key header authentication
     ///
     /// 生成: `{header_name}: {token}`
     ApiKeyHeader {
@@ -96,12 +96,12 @@ pub enum AuthConfig {
         header_name: String,
     },
 
-    /// 无认证
+    /// 无authentication
     None,
 
-    /// 自Define认证（Through闭包）
+    /// customauthentication（Through闭包）
     ///
-    /// 闭包接收 token，Returns头部列表
+    /// 闭包接收 token，Returnsheaders列表
     Custom(Arc<dyn Fn(&str) -> Vec<(String, String)> + Send + Sync>),
 }
 
@@ -122,19 +122,19 @@ impl<P: Protocol> ConfigurableProtocol<P> {
     /// Create new configurable protocol adapter
     ///
     /// # Parameters
-    /// - `inner`: 基础协议实例
+    /// - `inner`: Base protocol instance
     /// - `config`: Protocol Configuration
     pub fn new(inner: P, config: ProtocolConfig) -> Self {
         Self { inner, config }
     }
 
-    /// 便捷构造器 - OpenAI 兼容协议
+    /// Convenience constructor - OpenAI compatible protocol
     ///
     /// Create a configuration using standard OpenAI endpoints and Bearer authentication.
     ///
     /// # Parameters
-    /// - `inner`: 基础协议实例
-    /// - `name`: 协议名称
+    /// - `inner`: Base protocol instance
+    /// - `name`: Protocol name
     ///
     /// # Example
     /// ```rust,no_run
@@ -161,14 +161,14 @@ impl<P: Protocol> ConfigurableProtocol<P> {
         )
     }
 
-    /// 从内部协议提取 token
+    /// Extract token from internal protocol
     ///
-    /// 这是一个辅助方法，用于从内部协议的认证头中提取 token。
+    /// This is a helper method to extract token from the internal protocol's authentication headers.
     fn extract_token_from_inner(&self) -> String {
         let headers = self.inner.auth_headers();
         for (key, value) in headers {
             if key.to_lowercase() == "authorization" {
-                // 提取 "Bearer xxx" 或 "xxx"
+                // 提取 "Bearer xxx" or "xxx"
                 if let Some(token) = value.strip_prefix("Bearer ") {
                     return token.to_string();
                 }
@@ -177,7 +177,7 @@ impl<P: Protocol> ConfigurableProtocol<P> {
                 return value;
             }
         }
-        // 如果找不到，Returns空字符串
+        // if找不to，Returns空字符串
         String::new()
     }
 }
@@ -228,7 +228,7 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
     fn auth_headers(&self) -> Vec<(String, String)> {
         let mut headers = match &self.config.auth {
             AuthConfig::Bearer => {
-                // 从 inner protocol Get token 并Convert为 Bearer 格式
+                // from inner protocol Get token 并Convertas Bearer 格式
                 let token = self.extract_token_from_inner();
                 if token.is_empty() {
                     vec![]
@@ -237,7 +237,7 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
                 }
             }
             AuthConfig::ApiKeyHeader { header_name } => {
-                // 从 inner protocol Get token，Use自Define header 名称
+                // from inner protocol Get token，Usecustom header 名称
                 let token = self.extract_token_from_inner();
                 if token.is_empty() {
                     vec![]
@@ -252,7 +252,7 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
             }
         };
 
-        // 添加额外的静态头部
+        // 添加额外静态headers
         headers.extend(self.config.extra_headers.clone());
         headers
     }

@@ -110,7 +110,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// CreateAliyun DashScope客户端
+    /// Create Aliyun DashScope client
     ///
     /// # Parameters
     /// - `api_key`: Aliyun DashScope API key
@@ -142,7 +142,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// CreateZhipu GLM客户端
+    /// Create Zhipu GLM client
     ///
     /// # Parameters
     /// - `api_key`: Zhipu GLM API key
@@ -158,7 +158,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// CreateZhipu GLM客户端 (OpenAI兼容模式)
+    /// Create Zhipu GLM client (OpenAI兼容模式)
     ///
     /// # Parameters
     /// - `api_key`: Zhipu GLM API key
@@ -278,9 +278,9 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// CreateVolcengine（Volcengine）客户端
+    /// Create Volcengine client
     ///
-    /// VolcengineUse OpenAI 兼容的 API 格式，但端点路径不同
+    /// VolcengineUse OpenAI 兼容 API 格式，但endpoint路径不同
     ///
     /// # Parameters
     /// - `api_key`: Volcengine API 密钥 (UUID 格式)
@@ -296,7 +296,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create带有自Define配置的Volcengine客户端
+    /// Create Volcengine client with custom configuration
     pub fn volcengine_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -312,9 +312,9 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// CreateTencent Hunyuan（Tencent Hunyuan）客户端
+    /// Create Tencent Hunyuan client
     ///
-    /// Tencent HunyuanUse OpenAI 兼容的 API 格式
+    /// Tencent HunyuanUse OpenAI 兼容 API 格式
     ///
     /// # Parameters
     /// - `api_key`: Tencent Hunyuan API 密钥 (格式: sk-...)
@@ -330,7 +330,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create带有自Define配置的Tencent Hunyuan客户端
+    /// Create带有customconfigurationTencent Hunyuanclient
     pub fn tencent_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -346,7 +346,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create Moonshot（Moonshot）客户端
+    /// Create Moonshot（Moonshot）client
     ///
     /// Moonshot uses OpenAI-compatible API format
     ///
@@ -688,7 +688,7 @@ impl LlmClient {
     /// Try to convert client to OllamaProvider
     ///
     /// # Returns
-    /// 如果底层Provider是OllamaProvider，ReturnsSome引用，否则ReturnsNone
+    /// if底层ProviderisOllamaProvider，ReturnsSome引用，否则ReturnsNone
     ///
     /// # Example
     /// ```rust,no_run
@@ -697,7 +697,7 @@ impl LlmClient {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = LlmClient::ollama()?;
     /// if let Some(_ollama) = client.as_ollama() {
-    ///     // 可以访问 Ollama 特定的功能
+    ///     // 可以访问 Ollama 特定功能
     /// }
     /// # Ok(())
     /// # }
@@ -708,28 +708,28 @@ impl LlmClient {
             .downcast_ref::<crate::providers::OllamaProvider>()
     }
 
-    /// 尝试将客户端Convert为OpenAIProvider
+    /// 尝试将clientConvertasOpenAIProvider
     pub fn as_openai(&self) -> Option<&crate::providers::OpenAIProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::OpenAIProvider>()
     }
 
-    /// 尝试将客户端Convert为AliyunProvider
+    /// 尝试将clientConvertasAliyunProvider
     pub fn as_aliyun(&self) -> Option<&crate::providers::AliyunProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::AliyunProvider>()
     }
 
-    /// 尝试将客户端Convert为AnthropicProvider
+    /// 尝试将clientConvertasAnthropicProvider
     pub fn as_anthropic(&self) -> Option<&crate::providers::AnthropicProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::AnthropicProvider>()
     }
 
-    /// 尝试将客户端Convert为ZhipuProvider
+    /// 尝试将clientConvertasZhipuProvider
     pub fn as_zhipu(&self) -> Option<&crate::providers::ZhipuProvider> {
         self.provider
             .as_any()

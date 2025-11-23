@@ -2,18 +2,18 @@
 //!
 //! LongCat Support两种 API 格式：
 //! 1. OpenAI 格式 - Use OpenAI 兼容接口
-//! 2. Anthropic 格式 - Use Anthropic 兼容接口，但认证方式为 Bearer token
+//! 2. Anthropic 格式 - Use Anthropic 兼容接口，但authentication方式as Bearer token
 //!
-//! 注意：LongCat 的 Anthropic 格式Use `Authorization: Bearer` 认证，
-//! 而不是标准 Anthropic 的 `x-api-key` 认证。
+//! Note：LongCat  Anthropic 格式Use `Authorization: Bearer` authentication，
+//! 而不is标准 Anthropic  `x-api-key` authentication。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder, ProtocolConfig, EndpointConfig, AuthConfig};
 use crate::protocols::AnthropicProtocol;
 use crate::error::LlmConnectorError;
 
-/// LongCat Anthropic 格式协议适配器
+/// LongCat Anthropic 格式protocoladapter
 ///
-/// Use ConfigurableProtocol 包装 Anthropic protocol，Use Bearer 认证
+/// Use ConfigurableProtocol 包装 Anthropic protocol，Use Bearer authentication
 pub type LongCatAnthropicProtocol = ConfigurableProtocol<AnthropicProtocol>;
 
 /// LongCat Anthropic 格式服务Provide商类型
@@ -34,13 +34,13 @@ pub fn longcat_anthropic(api_key: &str) -> Result<LongCatAnthropicProvider, LlmC
     longcat_anthropic_with_config(api_key, None, None, None)
 }
 
-/// Create带有自Define配置的 LongCat Anthropic 服务Provide商
+/// Create带有customconfiguration LongCat Anthropic 服务Provide商
 ///
 /// # Parameters
 /// - `api_key`: API 密钥
-/// - `base_url`: 自Define基础 URL (可选，默认为 LongCat Anthropic 端点)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理 URL (可选)
+/// - `base_url`: custom基础 URL (optional，默认as LongCat Anthropic endpoint)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理 URL (optional)
 ///
 /// # Example
 /// ```rust,no_run
@@ -59,7 +59,7 @@ pub fn longcat_anthropic_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<LongCatAnthropicProvider, LlmConnectorError> {
-    // Create配置驱动的协议（Use Bearer 认证 + 额外头部）
+    // Createconfiguration驱动protocol（Use Bearer authentication + 额外headers）
     let protocol = ConfigurableProtocol::new(
         AnthropicProtocol::new(api_key),
         ProtocolConfig {
@@ -68,7 +68,7 @@ pub fn longcat_anthropic_with_config(
                 chat_template: "{base_url}/v1/messages".to_string(),
                 models_template: None,
             },
-            auth: AuthConfig::Bearer,  // Use Bearer 而不是 x-api-key
+            auth: AuthConfig::Bearer,  // Use Bearer 而不is x-api-key
             extra_headers: vec![
                 ("anthropic-version".to_string(), "2023-06-01".to_string()),
             ],
@@ -132,7 +132,7 @@ mod tests {
         );
         let headers = protocol.auth_headers();
 
-        // 应该Use Bearer 认证
+        // 应该Use Bearer authentication
         assert!(headers.iter().any(|(k, v)| k == "Authorization" && v == "Bearer ak_test123"));
 
         // 应该Contains anthropic-version

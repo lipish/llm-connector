@@ -1,6 +1,6 @@
-//! 统一的traitDefine - V2架构核心
+//! 统一traitDefine - V2架构核心
 //!
-//! 这个模块Define了V2架构的核心trait，Provide清晰、统一的抽象层。
+//! this模块DefineV2架构核心trait，Provide清晰、统一抽象层。
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -13,51 +13,51 @@ use crate::error::LlmConnectorError;
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
-/// 协议trait - Define纯API规范
+/// Protocol trait - Defines pure API specification
 /// 
-/// 这个trait代表一个LLM API的协议规范，如OpenAI API、Anthropic APIetc.。
-/// 它只关注API的格式Convert，不涉及具体的网络通信。
+/// This trait represents an LLM API protocol specification, such as OpenAI API, Anthropic API, etc.
+/// 它只关注API格式Convert，不涉及具体网络通信。
 #[async_trait]
 pub trait Protocol: Send + Sync + Clone + 'static {
-    /// 协议特定的请求类型
+    /// Protocol-specific request type
     type Request: Serialize + Send + Sync;
     
-    /// 协议特定的响应类型  
+    /// Protocol-specific response type  
     type Response: for<'de> Deserialize<'de> + Send + Sync;
     
-    /// 协议名称 (如 "openai", "anthropic")
+    /// Protocol name (such as "openai", "anthropic")
     fn name(&self) -> &str;
     
-    /// Get聊天完成的端点URL
+    /// Get聊天完成endpointURL
     fn chat_endpoint(&self, base_url: &str) -> String;
     
-    /// Get模型列表的端点URL (可选)
+    /// Get model list endpoint URL (optional)
     fn models_endpoint(&self, _base_url: &str) -> Option<String> {
         None
     }
     
-    /// Build协议特定的请求
+    /// Build protocol-specific request
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError>;
     
-    /// Parse协议特定的响应
+    /// Parse protocol-specific response
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError>;
     
-    /// Parse模型列表响应
+    /// Parse model list response
     fn parse_models(&self, _response: &str) -> Result<Vec<String>, LlmConnectorError> {
         Err(LlmConnectorError::UnsupportedOperation(
             format!("{} does not support model listing", self.name())
         ))
     }
     
-    /// 映射HTTPErrors到统一Errors类型
+    /// 映射HTTPErrorsto统一Errors类型
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError;
     
-    /// Get认证头 (可选)
+    /// Getauthentication头 (optional)
     fn auth_headers(&self) -> Vec<(String, String)> {
         Vec::new()
     }
 
-    /// Parse流式响应 (可选)
+    /// Parse streaming response (optional)
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(&self, response: reqwest::Response) -> Result<ChatStream, LlmConnectorError> {
         // 默认Use通用SSE流Parse
@@ -65,51 +65,51 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     }
 }
 
-/// 服务Provide商trait - Define统一的服务接口
+/// 服务Provide商trait - Define统一服务接口
 /// 
-/// 这个trait代表一个具体的LLM服务Provide商，Provide完整的服务功能。
-/// 它是用户直接交互的接口。
+/// thistrait代表a具体LLM服务Provide商，Provide完整服务功能。
+/// 它is用户直接交互接口。
 #[async_trait]
 pub trait Provider: Send + Sync {
-    /// Provide商名称 (如 "openai", "aliyun", "ollama")
+    /// Provide商名称 (such as "openai", "aliyun", "ollama")
     fn name(&self) -> &str;
     
     /// 聊天完成
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError>;
     
-    /// 流式聊天完成
+    /// Streaming chat completion
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError>;
     
     /// Get available models list
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError>;
     
-    /// 类型ConvertSupport (用于特殊功能访问)
+    /// 类型ConvertSupport (for特殊功能访问)
     fn as_any(&self) -> &dyn Any;
 }
 
 /// 通用Provide商实现
 /// 
-/// 这个结构体为大多数标准LLM APIProvide通用实现。
-/// 它UseProtocol trait来处理API特定的格式Convert，
-/// UseHttpClient来处理网络通信。
+/// this结构体as大多数标准LLM APIProvide通用实现。
+/// 它UseProtocol traitto处理API特定格式Convert，
+/// UseHttpClientto处理网络通信。
 pub struct GenericProvider<P: Protocol> {
     protocol: P,
     client: super::HttpClient,
 }
 
 impl<P: Protocol> GenericProvider<P> {
-    /// Create新的通用Provide商
+    /// Create新通用Provide商
     pub fn new(protocol: P, client: super::HttpClient) -> Self {
         Self { protocol, client }
     }
     
-    /// Get协议引用
+    /// Get protocol reference
     pub fn protocol(&self) -> &P {
         &self.protocol
     }
     
-    /// Get客户端引用
+    /// Get client reference
     pub fn client(&self) -> &super::HttpClient {
         &self.client
     }
@@ -131,10 +131,10 @@ impl<P: Protocol> Provider for GenericProvider<P> {
     }
     
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
-        // Build协议特定的请求
+        // Build protocol-specific request
         let protocol_request = self.protocol.build_request(request)?;
         
-        // Get端点URL
+        // GetendpointURL
         let url = self.protocol.chat_endpoint(self.client.base_url());
         
         // Send request
@@ -148,7 +148,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }
         
-        // Parse响应
+        // Parse response
         self.protocol.parse_response(&text)
     }
     

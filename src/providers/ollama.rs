@@ -1,6 +1,6 @@
 //! Ollama服务Provide商实现
 //!
-//! Ollama是一个本地LLM服务，具有特殊的模型管理功能，因此需要自DefineProvider实现。
+//! Ollamaisa本地LLM服务，具有特殊model管理功能，因此需要customProvider实现。
 
 use crate::core::{HttpClient, Provider};
 use crate::error::LlmConnectorError;
@@ -14,8 +14,8 @@ use crate::types::ChatStream;
 
 /// Ollama服务Provide商
 ///
-/// 由于Ollama具有特殊的模型管理功能，我们Use自DefineProvider实现
-/// 而不是GenericProvider模式。
+/// 由于Ollama具有特殊model管理功能，我们UsecustomProvider实现
+/// 而不isGenericProvider模式。
 #[derive(Clone, Debug)]
 pub struct OllamaProvider {
     client: HttpClient,
@@ -23,7 +23,7 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
-    /// Create新的OllamaProvide商
+    /// Create新OllamaProvide商
     ///
     /// # Parameters
     /// - `base_url`: Ollama service URL (默认: http://localhost:11434)
@@ -35,7 +35,7 @@ impl OllamaProvider {
     /// let provider = OllamaProvider::new("http://localhost:11434").unwrap();
     /// ```
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
-        // Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
+        // Content-Type 由 HttpClient::post()  .json() method自动Set
         let client = HttpClient::new(base_url)?;
 
         Ok(Self {
@@ -44,13 +44,13 @@ impl OllamaProvider {
         })
     }
 
-    /// Create带有自Define配置的OllamaProvide商
+    /// Create带有customconfigurationOllamaProvide商
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        // Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
+        // Content-Type 由 HttpClient::post()  .json() method自动Set
         let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
 
         Ok(Self {
@@ -59,10 +59,10 @@ impl OllamaProvider {
         })
     }
 
-    /// 拉取模型
+    /// 拉取model
     ///
     /// # Parameters
-    /// - `model_name`: 要拉取的模型名称 (如 "llama2", "codellama")
+    /// - `model_name`: 要拉取model名称 (such as "llama2", "codellama")
     ///
     /// # Example
     /// ```rust,no_run
@@ -97,10 +97,10 @@ impl OllamaProvider {
         Ok(())
     }
 
-    /// 删除模型
+    /// 删除model
     ///
     /// # Parameters
-    /// - `model_name`: 要删除的模型名称
+    /// - `model_name`: 要删除model名称
     ///
     /// # Example
     /// ```rust,no_run
@@ -134,13 +134,13 @@ impl OllamaProvider {
         Ok(())
     }
 
-    /// Get模型信息
+    /// Getmodel信息
     ///
     /// # Parameters
-    /// - `model_name`: 模型名称
+    /// - `model_name`: model名称
     ///
     /// # Returns
-    /// 模型的详细信息
+    /// model详细信息
     pub async fn show_model(&self, model_name: &str) -> Result<OllamaModelInfo, LlmConnectorError> {
         let request = OllamaShowRequest {
             name: model_name.to_string(),
@@ -166,7 +166,7 @@ impl OllamaProvider {
         })
     }
 
-    /// Check模型是否存在
+    /// Checkmodelis否存in
     pub async fn model_exists(&self, model_name: &str) -> Result<bool, LlmConnectorError> {
         match self.show_model(model_name).await {
             Ok(_) => Ok(true),
@@ -323,7 +323,7 @@ impl Provider for OllamaProvider {
             )));
         }
 
-        // OllamaUseJSONL格式而不是SSE
+        // OllamaUseJSONL格式而不isSSE
         Ok(crate::sse::sse_to_streaming_response(response))
     }
 
@@ -332,7 +332,7 @@ impl Provider for OllamaProvider {
     }
 }
 
-// Ollama请求/响应类型
+// Ollamarequest/response类型
 #[derive(Serialize, Debug)]
 struct OllamaChatRequest {
     model: String,
@@ -431,7 +431,7 @@ pub fn ollama() -> Result<OllamaProvider, LlmConnectorError> {
     OllamaProvider::new("http://localhost:11434")
 }
 
-/// Create带有自DefineURL的Ollama服务Provide商
+/// Create带有customURLOllama服务Provide商
 ///
 /// # Parameters
 /// - `base_url`: Ollama service URL
@@ -446,12 +446,12 @@ pub fn ollama_with_base_url(base_url: &str) -> Result<OllamaProvider, LlmConnect
     OllamaProvider::new(base_url)
 }
 
-/// Create带有自Define配置的Ollama服务Provide商
+/// Create带有customconfigurationOllama服务Provide商
 ///
 /// # Parameters
 /// - `base_url`: Ollama service URL
 /// - `timeout_secs`: 超时时间(秒)
-/// - `proxy`: 代理URL (可选)
+/// - `proxy`: 代理URL (optional)
 ///
 /// # Example
 /// ```rust,no_run

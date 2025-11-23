@@ -59,8 +59,8 @@ impl MessageBlock {
     ///
     /// # Parameters
     ///
-    /// - `media_type`: 媒体类型，如 "image/jpeg", "image/png"
-    /// - `data`: Base64 编码的图片数据
+    /// - `media_type`: 媒体类型，such as "image/jpeg", "image/png"
+    /// - `data`: Base64 编码图片数据
     ///
     /// # Example
     ///
@@ -121,7 +121,7 @@ impl MessageBlock {
     /// # Parameters
     ///
     /// - `url`: 图片 URL
-    /// - `detail`: 图片细节级别，可选值: "auto", "low", "high"
+    /// - `detail`: 图片细节级别，optional值: "auto", "low", "high"
     ///
     /// # Example
     ///
@@ -142,7 +142,7 @@ impl MessageBlock {
         }
     }
 
-    /// Get文本内容（如果是文本块）
+    /// Get文本内容（ifis文本块）
     ///
     /// # Example
     ///
@@ -162,26 +162,26 @@ impl MessageBlock {
         }
     }
 
-    /// 判断是否为文本块
+    /// 判断is否as文本块
     pub fn is_text(&self) -> bool {
         matches!(self, Self::Text { .. })
     }
 
-    /// 判断是否为图片块
+    /// 判断is否as图片块
     pub fn is_image(&self) -> bool {
         matches!(self, Self::Image { .. } | Self::ImageUrl { .. })
     }
 }
 
-/// 图片来源（Anthropic 格式）
+/// 图片to源（Anthropic 格式）
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImageSource {
-    /// Base64 编码的图片
+    /// Base64 编码图片
     Base64 {
-        /// 媒体类型，如 "image/jpeg", "image/png"
+        /// 媒体类型，such as "image/jpeg", "image/png"
         media_type: String,
-        /// Base64 编码的图片数据
+        /// Base64 编码图片数据
         data: String,
     },
 
@@ -200,7 +200,7 @@ pub struct ImageUrl {
 
     /// 图片细节级别
     ///
-    /// 可选值: "auto", "low", "high"
+    /// optional值: "auto", "low", "high"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 }

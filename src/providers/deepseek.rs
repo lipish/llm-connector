@@ -1,13 +1,13 @@
 //! DeepSeek 服务Provide商实现
 //!
-//! DeepSeek Use OpenAI 兼容的 API 格式，完全兼容标准 OpenAI 协议。
-//! Support推理模型（reasoning content）和标准对话模型。
+//! DeepSeek Use OpenAI 兼容 API 格式，完全兼容标准 OpenAI protocol。
+//! Support推理model（reasoning content）and标准对话model。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder};
 use crate::protocols::OpenAIProtocol;
 use crate::error::LlmConnectorError;
 
-/// DeepSeek 协议适配器
+/// DeepSeek protocoladapter
 /// 
 /// Use ConfigurableProtocol 包装 OpenAI protocol
 pub type DeepSeekProtocol = ConfigurableProtocol<OpenAIProtocol>;
@@ -30,13 +30,13 @@ pub fn deepseek(api_key: &str) -> Result<DeepSeekProvider, LlmConnectorError> {
     deepseek_with_config(api_key, None, None, None)
 }
 
-/// Create带有自Define配置的 DeepSeek 服务Provide商
+/// Create带有customconfiguration DeepSeek 服务Provide商
 /// 
 /// # Parameters
 /// - `api_key`: API 密钥
-/// - `base_url`: 自Define基础 URL (可选，默认为 DeepSeek 端点)
-/// - `timeout_secs`: 超时时间(秒) (可选)
-/// - `proxy`: 代理 URL (可选)
+/// - `base_url`: custom基础 URL (optional，默认as DeepSeek endpoint)
+/// - `timeout_secs`: 超时时间(秒) (optional)
+/// - `proxy`: 代理 URL (optional)
 /// 
 /// # Example
 /// ```rust,no_run
@@ -55,7 +55,7 @@ pub fn deepseek_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<DeepSeekProvider, LlmConnectorError> {
-    // Create配置驱动的协议
+    // Createconfiguration驱动protocol
     let protocol = ConfigurableProtocol::openai_compatible(
         OpenAIProtocol::new(api_key),
         "deepseek"
