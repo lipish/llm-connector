@@ -2,6 +2,83 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.5] - 2025-11-23
+
+### 🚀 Improvements
+
+#### Streaming Timeout Configuration
+- **Increased**: Default HTTP timeout from 30s to 60s
+  - Better support for long streaming responses
+  - More reasonable default for LLM APIs
+  - Reduces risk of premature timeouts
+- **Added**: Streaming-specific HTTP headers
+  - `Accept: text/event-stream` - Standard SSE header
+  - `Cache-Control: no-cache` - Prevents caching issues
+  - `Connection: keep-alive` - Maintains connection
+- **Improved**: Error messages for timeout errors
+  - Now suggests increasing timeout for long-running streams
+  - More actionable guidance for troubleshooting
+
+#### Code Quality
+- **Completed**: Full Chinese to English translation
+  - All source code comments now in English
+  - 100% internationalization complete
+  - Zero Chinese characters remaining in codebase
+  - 18 source files completely translated
+  - 4 cleanup scripts created for future reference
+
+### 🧪 Testing
+
+#### New Test Examples
+- **Added**: `examples/test_zhipu_streaming_timeout.rs`
+  - Tests basic streaming functionality
+  - Verifies timeout behavior
+  - Measures chunk count and timing
+- **Added**: `examples/test_zhipu_long_streaming.rs`
+  - Tests long streaming responses (17+ seconds)
+  - Verifies no timeout issues with extended streams
+  - Demonstrates 600+ chunk handling
+
+### 📚 Documentation
+
+#### New Documentation
+- **Added**: `docs/STREAMING_TIMEOUT_FIX.md`
+  - Detailed explanation of timeout improvements
+  - Usage recommendations and guidelines
+  - Timeout configuration examples
+- **Added**: `docs/STREAMING_INVESTIGATION_REPORT.md`
+  - Investigation results and findings
+  - Test evidence and verification
+  - Recommendations for integration
+- **Added**: `docs/COMPLETE_CHINESE_CLEANUP_FINAL.md`
+  - Complete translation summary
+  - Statistics and verification
+  - Quality assurance report
+- **Added**: `docs/CHINESE_CLEANUP_STATUS.md`
+  - Translation progress tracking
+  - Remaining work documentation
+
+### ✅ Verification
+
+- All 82 tests passing
+- Streaming verified with Zhipu GLM API
+- Short responses: 2.27s, 52 chunks ✅
+- Long responses: 17.4s, 633 chunks ✅
+- No timeout issues observed
+- Fully backward compatible
+
+### 🔄 Migration
+
+No breaking changes. All existing code continues to work.
+
+Optional: Use custom timeout for very long responses:
+```rust
+// 120 seconds timeout for long responses
+let client = LlmClient::zhipu_with_timeout(api_key, 120)?;
+```
+
+---
+
 ## [0.5.4] - 2025-01-22
 
 ### 🔧 Bug Fixes
