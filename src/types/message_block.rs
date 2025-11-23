@@ -1,14 +1,14 @@
-//! 消息内容块定义
+//! 消息内容块Define
 //!
-//! 支持多模态内容，包括文本、图片等
+//! Supports multi-modal content including text, images, etc.
 
 use serde::{Deserialize, Serialize};
 
 /// 消息内容块
 ///
-/// 一条消息可以包含多个内容块，支持文本、图片等多模态内容
+/// A message can contain multiple content blocks, supporting multi-modal content like text, images, etc.
 ///
-/// # 示例
+/// # Example
 ///
 /// ```rust
 /// use llm_connector::types::MessageBlock;
@@ -42,9 +42,9 @@ pub enum MessageBlock {
 }
 
 impl MessageBlock {
-    /// 创建文本块
+    /// Create文本块
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use llm_connector::types::MessageBlock;
@@ -55,14 +55,14 @@ impl MessageBlock {
         Self::Text { text: text.into() }
     }
 
-    /// 创建 Base64 图片块（Anthropic 格式）
+    /// Create Base64 图片块（Anthropic 格式）
     ///
-    /// # 参数
+    /// # Parameters
     ///
     /// - `media_type`: 媒体类型，如 "image/jpeg", "image/png"
     /// - `data`: Base64 编码的图片数据
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use llm_connector::types::MessageBlock;
@@ -81,9 +81,9 @@ impl MessageBlock {
         }
     }
 
-    /// 创建图片 URL 块（Anthropic 格式）
+    /// Create图片 URL 块（Anthropic 格式）
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use llm_connector::types::MessageBlock;
@@ -98,9 +98,9 @@ impl MessageBlock {
         }
     }
 
-    /// 创建图片 URL 块（OpenAI 格式）
+    /// Create图片 URL 块（OpenAI 格式）
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use llm_connector::types::MessageBlock;
@@ -116,14 +116,14 @@ impl MessageBlock {
         }
     }
 
-    /// 创建图片 URL 块（OpenAI 格式，带 detail 参数）
+    /// Create图片 URL 块（OpenAI 格式，带 detail Parameters）
     ///
-    /// # 参数
+    /// # Parameters
     ///
     /// - `url`: 图片 URL
     /// - `detail`: 图片细节级别，可选值: "auto", "low", "high"
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use llm_connector::types::MessageBlock;
@@ -142,9 +142,9 @@ impl MessageBlock {
         }
     }
 
-    /// 获取文本内容（如果是文本块）
+    /// Get文本内容（如果是文本块）
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use llm_connector::types::MessageBlock;

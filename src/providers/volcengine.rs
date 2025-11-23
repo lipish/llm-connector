@@ -1,6 +1,6 @@
-//! 火山引擎（Volcengine）服务提供商实现
+//! Volcengine（Volcengine）服务Provide商实现
 //!
-//! 火山引擎使用 OpenAI 兼容的 API 格式，但端点路径不同：
+//! VolcengineUse OpenAI 兼容的 API 格式，但端点路径不同：
 //! - OpenAI: `/v1/chat/completions`
 //! - Volcengine: `/api/v3/chat/completions`
 
@@ -8,20 +8,20 @@ use crate::core::{ConfigurableProtocol, ProviderBuilder, ProtocolConfig, Endpoin
 use crate::protocols::OpenAIProtocol;
 use crate::error::LlmConnectorError;
 
-/// 火山引擎协议适配器
+/// Volcengine协议适配器
 ///
-/// 使用 ConfigurableProtocol 包装 OpenAI protocol，自定义端点路径
+/// Use ConfigurableProtocol 包装 OpenAI protocol，自Define端点路径
 pub type VolcengineProtocol = ConfigurableProtocol<OpenAIProtocol>;
 
-/// 火山引擎服务提供商类型
+/// Volcengine服务Provide商类型
 pub type VolcengineProvider = crate::core::GenericProvider<VolcengineProtocol>;
 
-/// 创建火山引擎服务提供商
+/// CreateVolcengine服务Provide商
 ///
-/// # 参数
-/// - `api_key`: 火山引擎 API 密钥 (UUID 格式)
+/// # Parameters
+/// - `api_key`: Volcengine API 密钥 (UUID 格式)
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::volcengine;
 ///
@@ -31,21 +31,21 @@ pub fn volcengine(api_key: &str) -> Result<VolcengineProvider, LlmConnectorError
     volcengine_with_config(api_key, None, None, None)
 }
 
-/// 创建带有自定义配置的火山引擎服务提供商
+/// Create带有自Define配置的Volcengine服务Provide商
 ///
-/// # 参数
+/// # Parameters
 /// - `api_key`: API 密钥
-/// - `base_url`: 自定义基础 URL (可选，默认为火山引擎端点)
+/// - `base_url`: 自Define基础 URL (可选，默认为Volcengine端点)
 /// - `timeout_secs`: 超时时间(秒) (可选)
 /// - `proxy`: 代理 URL (可选)
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::volcengine_with_config;
 ///
 /// let provider = volcengine_with_config(
 ///     "your-volcengine-api-key",
-///     None, // 使用默认 URL
+///     None, // Use默认 URL
 ///     Some(60), // 60秒超时
 ///     None
 /// ).unwrap();
@@ -56,7 +56,7 @@ pub fn volcengine_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<VolcengineProvider, LlmConnectorError> {
-    // 创建配置驱动的协议（自定义端点路径）
+    // Create配置驱动的协议（自Define端点路径）
     let protocol = ConfigurableProtocol::new(
         OpenAIProtocol::new(api_key),
         ProtocolConfig {
@@ -70,7 +70,7 @@ pub fn volcengine_with_config(
         }
     );
 
-    // 使用 Builder 构建
+    // Use Builder Build
     let mut builder = ProviderBuilder::new(
         protocol,
         base_url.unwrap_or("https://ark.cn-beijing.volces.com")

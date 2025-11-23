@@ -1,6 +1,6 @@
-//! 可配置的协议适配器 - 配置驱动的抽象
+//! Configurable Protocol Adapter - Configuration-driven abstraction
 //!
-//! 这个模块提供了一个通用的协议适配器，通过配置来定制行为，
+//! This module provides a generic protocol adapter that customizes behavior through configuration,
 //! 避免为每个 Provider 编写重复的样板代码。
 
 use crate::core::Protocol;
@@ -12,11 +12,11 @@ use std::sync::Arc;
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
-/// 可配置的协议适配器
+/// Configurable Protocol Adapter
 ///
-/// 包装一个基础协议，通过配置来修改其行为（端点路径、认证方式等）。
+/// Wraps a base protocol and modifies its behavior through configuration (endpoint paths, authentication methods, etc.).
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::core::{ConfigurableProtocol, ProtocolConfig, EndpointConfig, AuthConfig};
 /// use llm_connector::protocols::OpenAIProtocol;
@@ -42,32 +42,32 @@ pub struct ConfigurableProtocol<P: Protocol> {
     config: ProtocolConfig,
 }
 
-/// 协议配置
+/// Protocol Configuration
 ///
-/// 定义协议的静态配置，包括名称、端点、认证方式等。
+/// Defines static configuration for the protocol, including name, endpoints, authentication methods, etc.
 #[derive(Clone, Debug)]
 pub struct ProtocolConfig {
     /// 协议名称
     pub name: String,
 
-    /// 端点配置
+    /// Endpoint Configuration
     pub endpoints: EndpointConfig,
 
-    /// 认证配置
+    /// Authentication Configuration
     pub auth: AuthConfig,
 
     /// 额外的静态头部
     pub extra_headers: Vec<(String, String)>,
 }
 
-/// 端点配置
+/// Endpoint Configuration
 ///
-/// 定义 API 端点的路径模板，支持 `{base_url}` 变量替换。
+/// Defines API endpoint path templates, supporting `{base_url}` variable substitution.
 #[derive(Clone, Debug)]
 pub struct EndpointConfig {
     /// 聊天端点模板
     ///
-    /// 支持变量: `{base_url}`
+    /// Supports variable: `{base_url}`
     ///
     /// 例如: `"{base_url}/v1/chat/completions"`
     pub chat_template: String,
@@ -78,9 +78,9 @@ pub struct EndpointConfig {
     pub models_template: Option<String>,
 }
 
-/// 认证配置
+/// Authentication Configuration
 ///
-/// 定义如何处理 API 认证。
+/// Defines how to handle API authentication.
 #[derive(Clone)]
 pub enum AuthConfig {
     /// Bearer token 认证
@@ -99,9 +99,9 @@ pub enum AuthConfig {
     /// 无认证
     None,
 
-    /// 自定义认证（通过闭包）
+    /// 自Define认证（Through闭包）
     ///
-    /// 闭包接收 token，返回头部列表
+    /// 闭包接收 token，Returns头部列表
     Custom(Arc<dyn Fn(&str) -> Vec<(String, String)> + Send + Sync>),
 }
 
@@ -119,24 +119,24 @@ impl std::fmt::Debug for AuthConfig {
 }
 
 impl<P: Protocol> ConfigurableProtocol<P> {
-    /// 创建新的可配置协议适配器
+    /// Create new configurable protocol adapter
     ///
-    /// # 参数
+    /// # Parameters
     /// - `inner`: 基础协议实例
-    /// - `config`: 协议配置
+    /// - `config`: Protocol Configuration
     pub fn new(inner: P, config: ProtocolConfig) -> Self {
         Self { inner, config }
     }
 
     /// 便捷构造器 - OpenAI 兼容协议
     ///
-    /// 创建一个使用标准 OpenAI 端点和 Bearer 认证的配置。
+    /// Create a configuration using standard OpenAI endpoints and Bearer authentication.
     ///
-    /// # 参数
+    /// # Parameters
     /// - `inner`: 基础协议实例
     /// - `name`: 协议名称
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::core::ConfigurableProtocol;
     /// use llm_connector::protocols::OpenAIProtocol;
@@ -177,7 +177,7 @@ impl<P: Protocol> ConfigurableProtocol<P> {
                 return value;
             }
         }
-        // 如果找不到，返回空字符串
+        // 如果找不到，Returns空字符串
         String::new()
     }
 }
@@ -228,7 +228,7 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
     fn auth_headers(&self) -> Vec<(String, String)> {
         let mut headers = match &self.config.auth {
             AuthConfig::Bearer => {
-                // 从 inner protocol 获取 token 并转换为 Bearer 格式
+                // 从 inner protocol Get token 并Convert为 Bearer 格式
                 let token = self.extract_token_from_inner();
                 if token.is_empty() {
                     vec![]
@@ -237,7 +237,7 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
                 }
             }
             AuthConfig::ApiKeyHeader { header_name } => {
-                // 从 inner protocol 获取 token，使用自定义 header 名称
+                // 从 inner protocol Get token，Use自Define header 名称
                 let token = self.extract_token_from_inner();
                 if token.is_empty() {
                     vec![]

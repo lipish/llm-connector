@@ -1,6 +1,6 @@
-//! V2统一客户端 - 下一代LLM客户端接口
+//! V2 Unified Client - Next-generation LLM client interface
 //!
-//! 这个模块提供统一的客户端接口，支持所有LLM服务提供商。
+//! This module provides a unified client interface supporting all LLM service providers.
 
 use crate::core::Provider;
 use crate::error::LlmConnectorError;
@@ -10,28 +10,28 @@ use std::sync::Arc;
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
-/// 统一LLM客户端
+/// Unified LLM Client
 ///
-/// 这个客户端提供统一的接口来访问各种LLM服务，
-/// 使用V2架构的清晰抽象层。
+/// This client provides a unified interface to access various LLM services,
+/// using V2 architecture's clean abstraction layer.
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // 创建OpenAI客户端
+///     // Create OpenAI client
 ///     let client = LlmClient::openai("sk-...")?;
 ///
-///     // 创建请求
+///     // Create request
 ///     let request = ChatRequest {
 ///         model: "gpt-4".to_string(),
 ///         messages: vec![Message::text(Role::User, "Hello, how are you?")],
 ///         ..Default::default()
 ///     };
 ///
-///     // 发送请求
+///     // Send request
 ///     let response = client.chat(&request).await?;
 ///     println!("Response: {}", response.content);
 ///
@@ -43,17 +43,17 @@ pub struct LlmClient {
 }
 
 impl LlmClient {
-    /// 从任何Provider创建客户端
+    /// Create client from any Provider
     pub fn from_provider(provider: Arc<dyn Provider>) -> Self {
         Self { provider }
     }
 
-    /// 创建OpenAI客户端
+    /// Create OpenAI client
     ///
-    /// # 参数
-    /// - `api_key`: OpenAI API密钥
+    /// # Parameters
+    /// - `api_key`: OpenAI API key
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -64,13 +64,13 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义基础URL的OpenAI客户端
+    /// Create OpenAI client with custom base URL
     ///
-    /// # 参数
-    /// - `api_key`: API密钥
-    /// - `base_url`: 自定义基础URL
+    /// # Parameters
+    /// - `api_key`: API key
+    /// - `base_url`: Custom base URL
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -84,14 +84,14 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Azure OpenAI客户端
+    /// Create Azure OpenAI client
     ///
-    /// # 参数
-    /// - `api_key`: Azure OpenAI API密钥
-    /// - `endpoint`: Azure OpenAI端点
-    /// - `api_version`: API版本
+    /// # Parameters
+    /// - `api_key`: Azure OpenAI API key
+    /// - `endpoint`: Azure OpenAI endpoint
+    /// - `api_version`: API version
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -110,12 +110,12 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建阿里云DashScope客户端
+    /// CreateAliyun DashScope客户端
     ///
-    /// # 参数
-    /// - `api_key`: 阿里云DashScope API密钥
+    /// # Parameters
+    /// - `api_key`: Aliyun DashScope API key
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -126,12 +126,12 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Anthropic Claude客户端
+    /// Create Anthropic Claude client
     ///
-    /// # 参数
-    /// - `api_key`: Anthropic API密钥 (格式: sk-ant-...)
+    /// # Parameters
+    /// - `api_key`: Anthropic API key (格式: sk-ant-...)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -142,12 +142,12 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建智谱GLM客户端
+    /// CreateZhipu GLM客户端
     ///
-    /// # 参数
-    /// - `api_key`: 智谱GLM API密钥
+    /// # Parameters
+    /// - `api_key`: Zhipu GLM API key
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -158,12 +158,12 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建智谱GLM客户端 (OpenAI兼容模式)
+    /// CreateZhipu GLM客户端 (OpenAI兼容模式)
     ///
-    /// # 参数
-    /// - `api_key`: 智谱GLM API密钥
+    /// # Parameters
+    /// - `api_key`: Zhipu GLM API key
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -174,9 +174,9 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Ollama客户端 (默认本地地址)
+    /// Create Ollama client (default local address)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -187,12 +187,12 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义URL的Ollama客户端
+    /// Create Ollama client with custom URL
     ///
-    /// # 参数
-    /// - `base_url`: Ollama服务的URL
+    /// # Parameters
+    /// - `base_url`: Ollama service URL
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -203,14 +203,14 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建OpenAI兼容服务客户端
+    /// Create OpenAI-compatible service client
     ///
-    /// # 参数
-    /// - `api_key`: API密钥
-    /// - `base_url`: 服务基础URL
-    /// - `service_name`: 服务名称
+    /// # Parameters
+    /// - `api_key`: API key
+    /// - `base_url`: Service base URL
+    /// - `service_name`: Service name
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -244,14 +244,14 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建LongCat Anthropic格式客户端
+    /// Create LongCat Anthropic format client
     ///
-    /// LongCat的Anthropic端点使用Bearer认证而不是标准的x-api-key认证
+    /// LongCat's Anthropic endpoint uses Bearer authentication instead of standard x-api-key authentication
     ///
-    /// # 参数
-    /// - `api_key`: LongCat API密钥 (格式: ak_...)
+    /// # Parameters
+    /// - `api_key`: LongCat API key (格式: ak_...)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -262,7 +262,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的LongCat Anthropic客户端
+    /// Create LongCat Anthropic client with custom configuration
     pub fn longcat_anthropic_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -278,14 +278,14 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建火山引擎（Volcengine）客户端
+    /// CreateVolcengine（Volcengine）客户端
     ///
-    /// 火山引擎使用 OpenAI 兼容的 API 格式，但端点路径不同
+    /// VolcengineUse OpenAI 兼容的 API 格式，但端点路径不同
     ///
-    /// # 参数
-    /// - `api_key`: 火山引擎 API 密钥 (UUID 格式)
+    /// # Parameters
+    /// - `api_key`: Volcengine API 密钥 (UUID 格式)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -296,7 +296,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的火山引擎客户端
+    /// Create带有自Define配置的Volcengine客户端
     pub fn volcengine_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -312,14 +312,14 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建腾讯云混元（Tencent Hunyuan）客户端
+    /// CreateTencent Hunyuan（Tencent Hunyuan）客户端
     ///
-    /// 腾讯云混元使用 OpenAI 兼容的 API 格式
+    /// Tencent HunyuanUse OpenAI 兼容的 API 格式
     ///
-    /// # 参数
-    /// - `api_key`: 腾讯云混元 API 密钥 (格式: sk-...)
+    /// # Parameters
+    /// - `api_key`: Tencent Hunyuan API 密钥 (格式: sk-...)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -330,7 +330,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的腾讯云混元客户端
+    /// Create带有自Define配置的Tencent Hunyuan客户端
     pub fn tencent_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -346,14 +346,14 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建 Moonshot（月之暗面）客户端
+    /// Create Moonshot（Moonshot）客户端
     ///
-    /// Moonshot 使用 OpenAI 兼容的 API 格式
+    /// Moonshot uses OpenAI-compatible API format
     ///
-    /// # 参数
+    /// # Parameters
     /// - `api_key`: Moonshot API 密钥 (格式: sk-...)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -364,7 +364,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的 Moonshot 客户端
+    /// Create Moonshot client with custom configuration
     pub fn moonshot_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -380,14 +380,14 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建 DeepSeek 客户端
+    /// Create DeepSeek client
     ///
-    /// DeepSeek 使用 OpenAI 兼容的 API 格式，支持推理模型
+    /// DeepSeek uses OpenAI-compatible API format, supports reasoning models
     ///
-    /// # 参数
+    /// # Parameters
     /// - `api_key`: DeepSeek API 密钥 (格式: sk-...)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -398,7 +398,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的 DeepSeek 客户端
+    /// Create DeepSeek client with custom configuration
     pub fn deepseek_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -415,10 +415,10 @@ impl LlmClient {
     }
 
     // ============================================================================
-    // 高级构造函数 - 自定义配置
+    // Advanced Constructors - Custom Configuration
     // ============================================================================
 
-    /// 创建带有自定义配置的OpenAI客户端
+    /// Create OpenAI client with custom configuration
     pub fn openai_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -430,7 +430,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的Aliyun客户端
+    /// Create Aliyun client with custom configuration
     pub fn aliyun_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -442,19 +442,19 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Aliyun国际版客户端
+    /// Create Aliyun international client
     pub fn aliyun_international(api_key: &str, region: &str) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::aliyun_international(api_key, region)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Aliyun专有云客户端
+    /// Create Aliyun private cloud client
     pub fn aliyun_private(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::aliyun_private(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义超时的Aliyun客户端
+    /// Create Aliyun client with custom timeout
     pub fn aliyun_with_timeout(
         api_key: &str,
         timeout_secs: u64,
@@ -463,7 +463,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的Anthropic客户端
+    /// Create Anthropic client with custom configuration
     pub fn anthropic_with_config(
         api_key: &str,
         base_url: Option<&str>,
@@ -475,7 +475,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Anthropic Vertex AI客户端
+    /// Create Anthropic Vertex AI client
     pub fn anthropic_vertex(
         project_id: &str,
         location: &str,
@@ -485,7 +485,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Anthropic AWS Bedrock客户端
+    /// Create Anthropic AWS Bedrock client
     pub fn anthropic_bedrock(
         region: &str,
         access_key: &str,
@@ -495,7 +495,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义超时的Anthropic客户端
+    /// Create Anthropic client with custom timeout
     pub fn anthropic_with_timeout(
         api_key: &str,
         timeout_secs: u64,
@@ -504,7 +504,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的Zhipu客户端
+    /// Create Zhipu client with custom configuration
     pub fn zhipu_with_config(
         api_key: &str,
         openai_compatible: bool,
@@ -522,19 +522,19 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义超时的Zhipu客户端
+    /// Create Zhipu client with custom timeout
     pub fn zhipu_with_timeout(api_key: &str, timeout_secs: u64) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::zhipu_with_timeout(api_key, timeout_secs)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建Zhipu企业版客户端
+    /// Create Zhipu enterprise client
     pub fn zhipu_enterprise(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::zhipu_enterprise(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 创建带有自定义配置的Ollama客户端
+    /// Create Ollama client with custom configuration
     pub fn ollama_with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
@@ -544,7 +544,7 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// 获取提供商名称
+    /// Get provider name
     pub fn provider_name(&self) -> &str {
         self.provider.name()
     }
@@ -564,15 +564,15 @@ impl LlmClient {
         ]
     }
 
-    /// 发送聊天完成请求
+    /// Send chat completion request
     ///
-    /// # 参数
-    /// - `request`: 聊天请求
+    /// # Parameters
+    /// - `request`: Chat request
     ///
-    /// # 返回
-    /// 聊天响应
+    /// # Returns
+    /// Chat response
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     /// use llm_connector::types::{ChatRequest, Message};
@@ -597,15 +597,15 @@ impl LlmClient {
         self.provider.chat(request).await
     }
 
-    /// 发送流式聊天完成请求
+    /// Send streaming chat completion request
     ///
-    /// # 参数
-    /// - `request`: 聊天请求
+    /// # Parameters
+    /// - `request`: Chat request
     ///
-    /// # 返回
-    /// 聊天流
+    /// # Returns
+    /// Chat stream
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     /// use llm_connector::types::{ChatRequest, Message};
@@ -641,12 +641,12 @@ impl LlmClient {
         self.provider.chat_stream(request).await
     }
 
-    /// 获取可用模型列表
+    /// Get available models list
     ///
-    /// # 返回
-    /// 模型名称列表
+    /// # Returns
+    /// List of model names
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -666,31 +666,31 @@ impl LlmClient {
         self.provider.models().await
     }
 
-    /// 获取底层提供商的引用 (用于特殊功能访问)
+    /// Get reference to underlying provider (for special feature access)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
     /// let client = LlmClient::openai("sk-...").unwrap();
     /// let provider = client.provider();
     ///
-    /// // 可以进行类型转换以访问特定提供商的功能
+    /// // Can perform type conversion to access provider-specific features
     /// ```
     pub fn provider(&self) -> &dyn Provider {
         self.provider.as_ref()
     }
 
     // ============================================================================
-    // 类型安全的Provider转换方法
+    // Type-safe Provider conversion methods
     // ============================================================================
 
-    /// 尝试将客户端转换为OllamaProvider
+    /// Try to convert client to OllamaProvider
     ///
-    /// # 返回
-    /// 如果底层Provider是OllamaProvider，返回Some引用，否则返回None
+    /// # Returns
+    /// 如果底层Provider是OllamaProvider，ReturnsSome引用，否则ReturnsNone
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
@@ -708,28 +708,28 @@ impl LlmClient {
             .downcast_ref::<crate::providers::OllamaProvider>()
     }
 
-    /// 尝试将客户端转换为OpenAIProvider
+    /// 尝试将客户端Convert为OpenAIProvider
     pub fn as_openai(&self) -> Option<&crate::providers::OpenAIProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::OpenAIProvider>()
     }
 
-    /// 尝试将客户端转换为AliyunProvider
+    /// 尝试将客户端Convert为AliyunProvider
     pub fn as_aliyun(&self) -> Option<&crate::providers::AliyunProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::AliyunProvider>()
     }
 
-    /// 尝试将客户端转换为AnthropicProvider
+    /// 尝试将客户端Convert为AnthropicProvider
     pub fn as_anthropic(&self) -> Option<&crate::providers::AnthropicProvider> {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::AnthropicProvider>()
     }
 
-    /// 尝试将客户端转换为ZhipuProvider
+    /// 尝试将客户端Convert为ZhipuProvider
     pub fn as_zhipu(&self) -> Option<&crate::providers::ZhipuProvider> {
         self.provider
             .as_any()

@@ -1,16 +1,16 @@
-//! Provider 构建器 - 统一的构建接口
+//! Provider Build器 - 统一的Build接口
 //!
-//! 这个模块提供了一个优雅的 Builder 模式 API，用于构建各种 Provider。
+//! 这个模块Provide了一个优雅的 Builder 模式 API，用于Build各种 Provider。
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::error::LlmConnectorError;
 use std::collections::HashMap;
 
-/// Provider 构建器
+/// Provider Build器
 ///
-/// 提供链式调用的 API 来构建 Provider，统一处理所有配置项。
+/// Provide链式调用的 API 来Build Provider，统一处理所有配置项。
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::core::{ProviderBuilder, Protocol};
 /// use llm_connector::protocols::OpenAIProtocol;
@@ -34,13 +34,13 @@ pub struct ProviderBuilder<P: Protocol> {
 }
 
 impl<P: Protocol> ProviderBuilder<P> {
-    /// 创建新的 Provider 构建器
+    /// Create新的 Provider Build器
     ///
-    /// # 参数
+    /// # Parameters
     /// - `protocol`: 协议实例
     /// - `base_url`: 基础 URL
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::core::ProviderBuilder;
     /// use llm_connector::protocols::OpenAIProtocol;
@@ -60,9 +60,9 @@ impl<P: Protocol> ProviderBuilder<P> {
         }
     }
 
-    /// 设置超时时间（秒）
+    /// Set超时时间（秒）
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// # use llm_connector::core::ProviderBuilder;
     /// # use llm_connector::protocols::OpenAIProtocol;
@@ -77,9 +77,9 @@ impl<P: Protocol> ProviderBuilder<P> {
         self
     }
 
-    /// 设置代理
+    /// Set代理
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// # use llm_connector::core::ProviderBuilder;
     /// # use llm_connector::protocols::OpenAIProtocol;
@@ -98,7 +98,7 @@ impl<P: Protocol> ProviderBuilder<P> {
     ///
     /// 注意：这些头部会与协议的认证头部合并。
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// # use llm_connector::core::ProviderBuilder;
     /// # use llm_connector::protocols::OpenAIProtocol;
@@ -114,15 +114,15 @@ impl<P: Protocol> ProviderBuilder<P> {
         self
     }
 
-    /// 构建 Provider
+    /// Build Provider
     ///
-    /// # 返回
+    /// # Returns
     /// 配置好的 GenericProvider 实例
     ///
-    /// # 错误
-    /// 如果 HTTP 客户端创建失败，返回错误
+    /// # Errors
+    /// 如果 HTTP 客户端Create失败，ReturnsErrors
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// # use llm_connector::core::ProviderBuilder;
     /// # use llm_connector::protocols::OpenAIProtocol;
@@ -135,7 +135,7 @@ impl<P: Protocol> ProviderBuilder<P> {
     /// .unwrap();
     /// ```
     pub fn build(self) -> Result<GenericProvider<P>, LlmConnectorError> {
-        // 创建 HTTP 客户端
+        // Create HTTP 客户端
         let client = HttpClient::with_config(
             &self.base_url,
             self.timeout_secs,
@@ -148,7 +148,7 @@ impl<P: Protocol> ProviderBuilder<P> {
         headers.extend(self.extra_headers);
         let client = client.with_headers(headers);
 
-        // 创建通用提供商
+        // Create通用Provide商
         Ok(GenericProvider::new(self.protocol, client))
     }
 }

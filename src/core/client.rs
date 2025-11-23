@@ -1,6 +1,6 @@
 //! HTTP客户端实现 - V2架构
 //!
-//! 提供统一的HTTP通信层，支持标准请求和流式请求。
+//! Provides unified HTTP communication layer, supporting standard and streaming requests.
 
 use crate::error::LlmConnectorError;
 use reqwest::Client;
@@ -10,7 +10,7 @@ use std::time::Duration;
 
 /// HTTP客户端
 /// 
-/// 封装了HTTP通信的所有细节，包括认证、超时、代理等配置。
+/// Encapsulates all HTTP communication details, including authentication, timeout, proxy configuration, etc.
 #[derive(Clone)]
 pub struct HttpClient {
     client: Client,
@@ -19,7 +19,7 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
-    /// 创建新的HTTP客户端
+    /// Create新的HTTP客户端
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -33,7 +33,7 @@ impl HttpClient {
         })
     }
     
-    /// 创建带有自定义配置的HTTP客户端
+    /// Create带有自Define配置的HTTP客户端
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
@@ -41,14 +41,14 @@ impl HttpClient {
     ) -> Result<Self, LlmConnectorError> {
         let mut builder = Client::builder();
         
-        // 设置超时
+        // Set超时
         if let Some(timeout) = timeout_secs {
             builder = builder.timeout(Duration::from_secs(timeout));
         } else {
             builder = builder.timeout(Duration::from_secs(30));
         }
         
-        // 设置代理
+        // Set代理
         if let Some(proxy_url) = proxy {
             let proxy = reqwest::Proxy::all(proxy_url)
                 .map_err(|e| LlmConnectorError::ConfigError(format!("Invalid proxy URL: {}", e)))?;
@@ -77,7 +77,7 @@ impl HttpClient {
         self
     }
     
-    /// 获取基础URL
+    /// Get基础URL
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
@@ -154,7 +154,7 @@ impl HttpClient {
             })
     }
     
-    /// 发送带有自定义头的POST请求
+    /// 发送带有自Define头的POST请求
     pub async fn post_with_custom_headers<T: Serialize>(
         &self,
         url: &str,
@@ -163,12 +163,12 @@ impl HttpClient {
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
         
-        // 先添加自定义头
+        // 先添加自Define头
         for (key, value) in custom_headers {
             request = request.header(key, value);
         }
         
-        // 再添加配置的请求头 (可能会覆盖自定义头)
+        // 再添加配置的请求头 (可能会覆盖自Define头)
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }

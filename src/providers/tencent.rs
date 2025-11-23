@@ -1,25 +1,25 @@
-//! 腾讯云混元（Tencent Hunyuan）服务提供商实现
+//! Tencent Hunyuan（Tencent Hunyuan）服务Provide商实现
 //!
-//! 腾讯云混元使用 OpenAI 兼容的 API 格式，完全兼容标准 OpenAI 协议。
+//! Tencent HunyuanUse OpenAI 兼容的 API 格式，完全兼容标准 OpenAI 协议。
 
 use crate::core::{ConfigurableProtocol, ProviderBuilder};
 use crate::protocols::OpenAIProtocol;
 use crate::error::LlmConnectorError;
 
-/// 腾讯云混元协议适配器
+/// Tencent Hunyuan协议适配器
 ///
-/// 使用 ConfigurableProtocol 包装 OpenAI protocol
+/// Use ConfigurableProtocol 包装 OpenAI protocol
 pub type TencentProtocol = ConfigurableProtocol<OpenAIProtocol>;
 
-/// 腾讯云混元服务提供商类型
+/// Tencent Hunyuan服务Provide商类型
 pub type TencentProvider = crate::core::GenericProvider<TencentProtocol>;
 
-/// 创建腾讯云混元服务提供商
+/// CreateTencent Hunyuan服务Provide商
 ///
-/// # 参数
-/// - `api_key`: 腾讯云混元 API 密钥 (格式: sk-...)
+/// # Parameters
+/// - `api_key`: Tencent Hunyuan API 密钥 (格式: sk-...)
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::tencent;
 ///
@@ -29,21 +29,21 @@ pub fn tencent(api_key: &str) -> Result<TencentProvider, LlmConnectorError> {
     tencent_with_config(api_key, None, None, None)
 }
 
-/// 创建带有自定义配置的腾讯云混元服务提供商
+/// Create带有自Define配置的Tencent Hunyuan服务Provide商
 ///
-/// # 参数
+/// # Parameters
 /// - `api_key`: API 密钥
-/// - `base_url`: 自定义基础 URL (可选，默认为腾讯云混元端点)
+/// - `base_url`: 自Define基础 URL (可选，默认为Tencent Hunyuan端点)
 /// - `timeout_secs`: 超时时间(秒) (可选)
 /// - `proxy`: 代理 URL (可选)
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::tencent_with_config;
 ///
 /// let provider = tencent_with_config(
 ///     "sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50",
-///     None, // 使用默认 URL
+///     None, // Use默认 URL
 ///     Some(60), // 60秒超时
 ///     None
 /// ).unwrap();
@@ -54,13 +54,13 @@ pub fn tencent_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<TencentProvider, LlmConnectorError> {
-    // 创建配置驱动的协议
+    // Create配置驱动的协议
     let protocol = ConfigurableProtocol::openai_compatible(
         OpenAIProtocol::new(api_key),
         "tencent"
     );
 
-    // 使用 Builder 构建
+    // Use Builder Build
     let mut builder = ProviderBuilder::new(
         protocol,
         base_url.unwrap_or("https://api.hunyuan.cloud.tencent.com")

@@ -15,14 +15,14 @@ pub struct OpenAIProtocol {
 }
 
 impl OpenAIProtocol {
-    /// 创建新的OpenAI协议实例
+    /// Create新的OpenAI协议实例
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
         }
     }
     
-    /// 获取API密钥
+    /// GetAPI key
     pub fn api_key(&self) -> &str {
         &self.api_key
     }
@@ -48,12 +48,12 @@ impl Protocol for OpenAIProtocol {
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         let messages = request.messages.iter()
             .map(|msg| {
-                // 转换 MessageBlock 到 OpenAI 格式
+                // Convert MessageBlock 到 OpenAI 格式
                 let content = if msg.content.len() == 1 && msg.content[0].is_text() {
-                    // 纯文本：使用字符串格式
+                    // 纯文本：Use字符串格式
                     serde_json::json!(msg.content[0].as_text().unwrap())
                 } else {
-                    // 多模态：使用数组格式
+                    // 多模态：Use数组格式
                     serde_json::to_value(&msg.content).unwrap()
                 };
 
@@ -83,7 +83,7 @@ impl Protocol for OpenAIProtocol {
             })
             .collect();
 
-        // 转换 tools
+        // Convert tools
         let tools = request.tools.as_ref().map(|tools| {
             tools.iter().map(|tool| {
                 serde_json::json!({
@@ -97,7 +97,7 @@ impl Protocol for OpenAIProtocol {
             }).collect()
         });
 
-        // 转换 tool_choice
+        // Convert tool_choice
         let tool_choice = request.tool_choice.as_ref().map(|choice| {
             serde_json::to_value(choice).unwrap_or(serde_json::json!("auto"))
         });
@@ -126,7 +126,7 @@ impl Protocol for OpenAIProtocol {
 
         let choices: Vec<Choice> = openai_response.choices.into_iter()
             .map(|choice| {
-                // 转换 tool_calls
+                // Convert tool_calls
                 let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
                     calls.iter().filter_map(|call| {
                         Some(crate::types::ToolCall {
@@ -141,7 +141,7 @@ impl Protocol for OpenAIProtocol {
                     }).collect()
                 });
 
-                // 转换 content 到 MessageBlock
+                // Convert content 到 MessageBlock
                 let content = if let Some(content_value) = &choice.message.content {
                     if let Some(text) = content_value.as_str() {
                         // 纯文本
@@ -269,7 +269,7 @@ pub struct OpenAIRequest {
 #[derive(Serialize, Debug)]
 pub struct OpenAIMessage {
     pub role: String,
-    pub content: serde_json::Value,  // 支持 String 或 Array
+    pub content: serde_json::Value,  // Support String 或 Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -299,7 +299,7 @@ pub struct OpenAIChoice {
 
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponseMessage {
-    pub content: Option<serde_json::Value>,  // 支持 String 或 Array
+    pub content: Option<serde_json::Value>,  // Support String 或 Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]

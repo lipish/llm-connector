@@ -1,6 +1,6 @@
-//! 阿里云DashScope服务提供商实现 - V2架构
+//! Aliyun DashScope服务Provide商实现 - V2架构
 //!
-//! 这个模块提供阿里云DashScope服务的完整实现，使用统一的V2架构。
+//! 这个模块ProvideAliyun DashScope服务的完整实现，Use统一的V2架构。
 
 use crate::core::{HttpClient, Protocol};
 use crate::error::LlmConnectorError;
@@ -14,29 +14,29 @@ use async_trait::async_trait;
 // Aliyun Protocol Definition (Private)
 // ============================================================================
 
-/// 阿里云DashScope私有协议实现
+/// Aliyun DashScope私有协议实现
 ///
 /// 这是阿里云专用的API格式，与OpenAI和Anthropic都不同。
-/// 由于这是私有协议，定义在provider内部而不是公开的protocols模块中。
+/// 由于这是私有协议，Define在provider内部而不是公开的protocols模块中。
 #[derive(Debug, Clone)]
 pub struct AliyunProtocol {
     api_key: String,
 }
 
 impl AliyunProtocol {
-    /// 创建新的阿里云协议实例
+    /// Create新的阿里云协议实例
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
         }
     }
 
-    /// 获取API密钥
+    /// GetAPI key
     pub fn api_key(&self) -> &str {
         &self.api_key
     }
 
-    /// 获取流式请求的额外头部
+    /// Get流式请求的额外头部
     pub fn streaming_headers(&self) -> Vec<(String, String)> {
         vec![
             ("X-DashScope-SSE".to_string(), "enable".to_string()),
@@ -61,13 +61,13 @@ impl Protocol for AliyunProtocol {
     fn auth_headers(&self) -> Vec<(String, String)> {
         vec![
             ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
-            // 注意: Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
-            // 不要在这里重复设置，否则会导致 "Content-Type application/json,application/json is not supported" 错误
+            // 注意: Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
+            // 不要在这里重复Set，否则会导致 "Content-Type application/json,application/json is not supported" Errors
         ]
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        // 转换为阿里云格式
+        // Convert为阿里云格式
         let aliyun_messages: Vec<AliyunMessage> = request.messages.iter().map(|msg| {
             AliyunMessage {
                 role: match msg.role {
@@ -76,7 +76,7 @@ impl Protocol for AliyunProtocol {
                     Role::Assistant => "assistant".to_string(),
                     Role::Tool => "tool".to_string(),
                 },
-                // Aliyun 使用纯文本格式
+                // Aliyun Use纯文本格式
                 content: msg.content_as_text(),
             }
         }).collect();
@@ -97,7 +97,7 @@ impl Protocol for AliyunProtocol {
                 } else {
                     None
                 },
-                // 直接使用用户指定的值
+                // 直接Use用户指定的值
                 enable_thinking: request.enable_thinking,
             },
         })
@@ -127,11 +127,11 @@ impl Protocol for AliyunProtocol {
                                 continue;
                             }
 
-                            // 解析 Aliyun 响应
+                            // Parse Aliyun 响应
                             if let Ok(aliyun_resp) = serde_json::from_str::<AliyunResponse>(json_str) {
                                 if let Some(choices) = aliyun_resp.output.choices {
                                     if let Some(first_choice) = choices.first() {
-                                        // 转换为 StreamingResponse
+                                        // Convert为 StreamingResponse
                                         let streaming_choice = StreamingChoice {
                                             index: 0,
                                             delta: Delta {
@@ -210,7 +210,7 @@ impl Protocol for AliyunProtocol {
 
         if let Some(aliyun_choices) = parsed.output.choices {
             if let Some(first_choice) = aliyun_choices.first() {
-                // 构建 choices 数组（符合 OpenAI 标准格式）
+                // Build choices 数组（符合 OpenAI 标准格式）
                 let choices = vec![crate::types::Choice {
                     index: 0,
                     message: crate::types::Message {
@@ -245,7 +245,7 @@ impl Protocol for AliyunProtocol {
                 return Ok(ChatResponse {
                     id: parsed.request_id.unwrap_or_default(),
                     object: "chat.completion".to_string(),
-                    created: 0,  // Aliyun 不提供 created 时间戳
+                    created: 0,  // Aliyun 不Provide created 时间戳
                     model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
                     choices,
                     content,
@@ -335,7 +335,7 @@ pub struct AliyunUsage {
 // Custom Aliyun Provider Implementation
 // ============================================================================
 
-/// 自定义 Aliyun Provider 实现
+/// 自Define Aliyun Provider 实现
 ///
 /// 需要特殊处理流式请求，因为 Aliyun 需要 X-DashScope-SSE 头部
 pub struct AliyunProviderImpl {
@@ -344,12 +344,12 @@ pub struct AliyunProviderImpl {
 }
 
 impl AliyunProviderImpl {
-    /// 获取协议实例的引用
+    /// Get协议实例的引用
     pub fn protocol(&self) -> &AliyunProtocol {
         &self.protocol
     }
 
-    /// 获取 HTTP 客户端的引用
+    /// Get HTTP 客户端的引用
     pub fn client(&self) -> &HttpClient {
         &self.client
     }
@@ -366,7 +366,7 @@ impl crate::core::Provider for AliyunProviderImpl {
     }
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
-        // 使用标准实现
+        // Use标准实现
         let protocol_request = self.protocol.build_request(request)?;
         let url = self.protocol.chat_endpoint(self.client.base_url());
 
@@ -393,7 +393,7 @@ impl crate::core::Provider for AliyunProviderImpl {
         let protocol_request = self.protocol.build_request(&streaming_request)?;
         let url = self.protocol.chat_endpoint(self.client.base_url());
 
-        // 创建临时客户端，添加流式头部
+        // Create临时客户端，添加流式头部
         let streaming_headers: HashMap<String, String> = self.protocol.streaming_headers().into_iter().collect();
         let streaming_client = self.client.clone().with_headers(streaming_headers);
 
@@ -420,18 +420,18 @@ impl crate::core::Provider for AliyunProviderImpl {
 // Aliyun Provider Public API
 // ============================================================================
 
-/// 阿里云DashScope服务提供商类型
+/// Aliyun DashScope服务Provide商类型
 pub type AliyunProvider = AliyunProviderImpl;
 
-/// 创建阿里云DashScope服务提供商
+/// CreateAliyun DashScope服务Provide商
 /// 
-/// # 参数
-/// - `api_key`: 阿里云DashScope API密钥
+/// # Parameters
+/// - `api_key`: Aliyun DashScope API key
 /// 
-/// # 返回
-/// 配置好的阿里云服务提供商实例
+/// # Returns
+/// 配置好的阿里云服务Provide商实例
 /// 
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun;
 /// 
@@ -441,21 +441,21 @@ pub fn aliyun(api_key: &str) -> Result<AliyunProvider, LlmConnectorError> {
     aliyun_with_config(api_key, None, None, None)
 }
 
-/// 创建带有自定义配置的阿里云服务提供商
+/// Create带有自Define配置的阿里云服务Provide商
 ///
-/// # 参数
-/// - `api_key`: API密钥
-/// - `base_url`: 自定义基础URL (可选，默认为官方端点)
+/// # Parameters
+/// - `api_key`: API key
+/// - `base_url`: Custom base URL (可选，默认为官方端点)
 /// - `timeout_secs`: 超时时间(秒) (可选)
 /// - `proxy`: 代理URL (可选)
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_with_config;
 ///
 /// let provider = aliyun_with_config(
 ///     "sk-...",
-///     None, // 使用默认URL
+///     None, // Use默认URL
 ///     Some(60), // 60秒超时
 ///     Some("http://proxy:8080")
 /// ).unwrap();
@@ -466,10 +466,10 @@ pub fn aliyun_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<AliyunProvider, LlmConnectorError> {
-    // 创建协议实例
+    // Create协议实例
     let protocol = AliyunProtocol::new(api_key);
 
-    // 创建HTTP客户端（不包含流式头部）
+    // CreateHTTP客户端（不Contains流式头部）
     let client = HttpClient::with_config(
         base_url.unwrap_or("https://dashscope.aliyuncs.com"),
         timeout_secs,
@@ -480,20 +480,20 @@ pub fn aliyun_with_config(
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
 
-    // 创建自定义 Aliyun Provider（需要特殊处理流式请求）
+    // Create自Define Aliyun Provider（需要特殊处理流式请求）
     Ok(AliyunProviderImpl {
         protocol,
         client,
     })
 }
 
-/// 创建用于阿里云国际版的服务提供商
+/// Create用于阿里云国际版的服务Provide商
 /// 
-/// # 参数
-/// - `api_key`: 阿里云国际版API密钥
+/// # Parameters
+/// - `api_key`: 阿里云国际版API key
 /// - `region`: 区域 (如 "us-west-1", "ap-southeast-1")
 /// 
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_international;
 /// 
@@ -507,13 +507,13 @@ pub fn aliyun_international(
     aliyun_with_config(api_key, Some(&base_url), None, None)
 }
 
-/// 创建用于阿里云专有云的服务提供商
+/// Create用于阿里云专有云的服务Provide商
 /// 
-/// # 参数
-/// - `api_key`: API密钥
+/// # Parameters
+/// - `api_key`: API key
 /// - `endpoint`: 专有云端点URL
 /// 
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_private;
 /// 
@@ -529,19 +529,19 @@ pub fn aliyun_private(
     aliyun_with_config(api_key, Some(endpoint), None, None)
 }
 
-/// 创建带有自定义超时的阿里云服务提供商
+/// Create带有自Define超时的阿里云服务Provide商
 /// 
-/// 阿里云的某些模型可能需要较长的处理时间，这个函数提供便利的超时配置。
+/// 阿里云的某些模型可能需要较长的处理时间，这个函数Provide便利的超时配置。
 /// 
-/// # 参数
-/// - `api_key`: API密钥
+/// # Parameters
+/// - `api_key`: API key
 /// - `timeout_secs`: 超时时间(秒)
 /// 
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_with_timeout;
 /// 
-/// // 设置120秒超时，适用于长文本处理
+/// // Set120秒超时，适用于长文本处理
 /// let provider = aliyun_with_timeout("sk-...", 120).unwrap();
 /// ```
 pub fn aliyun_with_timeout(
@@ -551,7 +551,7 @@ pub fn aliyun_with_timeout(
     aliyun_with_config(api_key, None, Some(timeout_secs), None)
 }
 
-/// 验证Aliyun API密钥格式
+/// ValidateAliyun API key格式
 pub fn validate_aliyun_key(api_key: &str) -> bool {
     api_key.starts_with("sk-") && api_key.len() > 20
 }

@@ -15,14 +15,14 @@ pub struct AnthropicProtocol {
 }
 
 impl AnthropicProtocol {
-    /// 创建新的Anthropic协议实例
+    /// Create新的Anthropic协议实例
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
         }
     }
     
-    /// 获取API密钥
+    /// GetAPI key
     pub fn api_key(&self) -> &str {
         &self.api_key
     }
@@ -49,7 +49,7 @@ impl Protocol for AnthropicProtocol {
         for msg in &request.messages {
             match msg.role {
                 Role::System => {
-                    // Anthropic 只支持一个 system 消息，放在单独的字段中
+                    // Anthropic 只Support一个 system 消息，放在单独的字段中
                     let text = msg.content_as_text();
                     if system_message.is_none() {
                         system_message = Some(text);
@@ -60,7 +60,7 @@ impl Protocol for AnthropicProtocol {
                     }
                 }
                 Role::User => {
-                    // Anthropic 总是使用数组格式
+                    // Anthropic 总是Use数组格式
                     let content = serde_json::to_value(&msg.content).unwrap();
                     messages.push(AnthropicMessage {
                         role: "user".to_string(),
@@ -68,7 +68,7 @@ impl Protocol for AnthropicProtocol {
                     });
                 }
                 Role::Assistant => {
-                    // Anthropic 总是使用数组格式
+                    // Anthropic 总是Use数组格式
                     let content = serde_json::to_value(&msg.content).unwrap();
                     messages.push(AnthropicMessage {
                         role: "assistant".to_string(),
@@ -76,7 +76,7 @@ impl Protocol for AnthropicProtocol {
                     });
                 }
                 Role::Tool => {
-                    // Anthropic 暂不支持 tool 角色，转换为 user
+                    // Anthropic 暂不Support tool 角色，Convert为 user
                     let text = format!("Tool result: {}", msg.content_as_text());
                     messages.push(AnthropicMessage {
                         role: "user".to_string(),
@@ -88,7 +88,7 @@ impl Protocol for AnthropicProtocol {
 
         Ok(AnthropicRequest {
             model: request.model.clone(),
-            max_tokens: request.max_tokens.unwrap_or(1024), // Anthropic 要求必须设置
+            max_tokens: request.max_tokens.unwrap_or(1024), // Anthropic 要求必须Set
             messages,
             system: system_message,
             temperature: request.temperature,
@@ -101,8 +101,8 @@ impl Protocol for AnthropicProtocol {
         let anthropic_response: AnthropicResponse = serde_json::from_str(response)
             .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse Anthropic response: {}", e)))?;
 
-        // Anthropic 返回单个内容块
-        // 转换 Anthropic content 到 MessageBlock
+        // Anthropic Returns单个内容块
+        // Convert Anthropic content 到 MessageBlock
         let message_blocks: Vec<crate::types::MessageBlock> = anthropic_response.content.iter()
             .map(|c| crate::types::MessageBlock::text(&c.text))
             .collect();
@@ -182,14 +182,14 @@ impl Protocol for AnthropicProtocol {
         ]
     }
 
-    /// 解析 Anthropic 流式响应
+    /// Parse Anthropic 流式响应
     ///
-    /// Anthropic 使用不同的流式格式：
-    /// - message_start: 包含 message 对象（有 id）
+    /// Anthropic Use不同的流式格式：
+    /// - message_start: Contains message 对象（有 id）
     /// - content_block_start: 开始内容块
-    /// - content_block_delta: 内容增量（包含 text）
+    /// - content_block_delta: 内容增量（Contains text）
     /// - content_block_stop: 结束内容块
-    /// - message_delta: 消息增量（包含 usage）
+    /// - message_delta: 消息增量（Contains usage）
     /// - message_stop: 消息结束
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(&self, response: reqwest::Response) -> Result<crate::types::ChatStream, LlmConnectorError> {
@@ -197,19 +197,19 @@ impl Protocol for AnthropicProtocol {
         use futures_util::StreamExt;
         use std::sync::{Arc, Mutex};
 
-        // 使用标准 SSE 解析器
+        // Use标准 SSE Parse器
         let events_stream = crate::sse::sse_events(response);
 
         // 共享状态：保存 message_id
         let message_id = Arc::new(Mutex::new(String::new()));
 
-        // 转换事件流
+        // Convert事件流
         let response_stream = events_stream.filter_map(move |result| {
             let message_id = message_id.clone();
             async move {
                 match result {
                     Ok(json_str) => {
-                        // 解析 Anthropic 流式事件
+                        // Parse Anthropic 流式事件
                         match serde_json::from_str::<serde_json::Value>(&json_str) {
                             Ok(event) => {
                                 let event_type = event.get("type").and_then(|t| t.as_str()).unwrap_or("");
@@ -224,7 +224,7 @@ impl Protocol for AnthropicProtocol {
                                                 *id = msg_id.to_string();
                                             }
                                         }
-                                        // message_start 不返回内容
+                                        // message_start 不Returns内容
                                         None
                                     }
                                     "content_block_delta" => {
@@ -294,7 +294,7 @@ impl Protocol for AnthropicProtocol {
                                             .map(|id| id.clone())
                                             .unwrap_or_default();
 
-                                        // 返回最终的响应（包含 finish_reason 和 usage）
+                                        // Returns最终的响应（Contains finish_reason 和 usage）
                                         Some(Ok(StreamingResponse {
                                             id,
                                             object: "chat.completion.chunk".to_string(),
@@ -365,7 +365,7 @@ pub struct AnthropicRequest {
 #[derive(Serialize, Debug)]
 pub struct AnthropicMessage {
     pub role: String,
-    pub content: serde_json::Value,  // 支持 String 或 Array
+    pub content: serde_json::Value,  // Support String 或 Array
 }
 
 // Anthropic响应类型

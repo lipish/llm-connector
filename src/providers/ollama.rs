@@ -1,6 +1,6 @@
-//! Ollama服务提供商实现
+//! Ollama服务Provide商实现
 //!
-//! Ollama是一个本地LLM服务，具有特殊的模型管理功能，因此需要自定义Provider实现。
+//! Ollama是一个本地LLM服务，具有特殊的模型管理功能，因此需要自DefineProvider实现。
 
 use crate::core::{HttpClient, Provider};
 use crate::error::LlmConnectorError;
@@ -12,9 +12,9 @@ use std::any::Any;
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
-/// Ollama服务提供商
+/// Ollama服务Provide商
 ///
-/// 由于Ollama具有特殊的模型管理功能，我们使用自定义Provider实现
+/// 由于Ollama具有特殊的模型管理功能，我们Use自DefineProvider实现
 /// 而不是GenericProvider模式。
 #[derive(Clone, Debug)]
 pub struct OllamaProvider {
@@ -23,19 +23,19 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
-    /// 创建新的Ollama提供商
+    /// Create新的OllamaProvide商
     ///
-    /// # 参数
-    /// - `base_url`: Ollama服务的URL (默认: http://localhost:11434)
+    /// # Parameters
+    /// - `base_url`: Ollama service URL (默认: http://localhost:11434)
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// use llm_connector::providers::OllamaProvider;
     ///
     /// let provider = OllamaProvider::new("http://localhost:11434").unwrap();
     /// ```
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
-        // Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
+        // Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
         let client = HttpClient::new(base_url)?;
 
         Ok(Self {
@@ -44,13 +44,13 @@ impl OllamaProvider {
         })
     }
 
-    /// 创建带有自定义配置的Ollama提供商
+    /// Create带有自Define配置的OllamaProvide商
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        // Content-Type 由 HttpClient::post() 的 .json() 方法自动设置
+        // Content-Type 由 HttpClient::post() 的 .json() 方法自动Set
         let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
 
         Ok(Self {
@@ -61,10 +61,10 @@ impl OllamaProvider {
 
     /// 拉取模型
     ///
-    /// # 参数
+    /// # Parameters
     /// - `model_name`: 要拉取的模型名称 (如 "llama2", "codellama")
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// # use llm_connector::providers::OllamaProvider;
     /// # #[tokio::main]
@@ -99,10 +99,10 @@ impl OllamaProvider {
 
     /// 删除模型
     ///
-    /// # 参数
+    /// # Parameters
     /// - `model_name`: 要删除的模型名称
     ///
-    /// # 示例
+    /// # Example
     /// ```rust,no_run
     /// # use llm_connector::providers::OllamaProvider;
     /// # #[tokio::main]
@@ -134,12 +134,12 @@ impl OllamaProvider {
         Ok(())
     }
 
-    /// 获取模型信息
+    /// Get模型信息
     ///
-    /// # 参数
+    /// # Parameters
     /// - `model_name`: 模型名称
     ///
-    /// # 返回
+    /// # Returns
     /// 模型的详细信息
     pub async fn show_model(&self, model_name: &str) -> Result<OllamaModelInfo, LlmConnectorError> {
         let request = OllamaShowRequest {
@@ -166,7 +166,7 @@ impl OllamaProvider {
         })
     }
 
-    /// 检查模型是否存在
+    /// Check模型是否存在
     pub async fn model_exists(&self, model_name: &str) -> Result<bool, LlmConnectorError> {
         match self.show_model(model_name).await {
             Ok(_) => Ok(true),
@@ -215,9 +215,9 @@ impl Provider for OllamaProvider {
                         Role::User => "user".to_string(),
                         Role::Assistant => "assistant".to_string(),
                         Role::System => "system".to_string(),
-                        Role::Tool => "user".to_string(), // Ollama不支持tool角色
+                        Role::Tool => "user".to_string(), // Ollama不Supporttool角色
                     },
-                    // Ollama 使用纯文本格式
+                    // Ollama Use纯文本格式
                     content: msg.content_as_text(),
                 })
                 .collect(),
@@ -278,7 +278,7 @@ impl Provider for OllamaProvider {
             choices,
             content,
             reasoning_content: None,
-            usage: None, // Ollama不返回token使用信息
+            usage: None, // Ollama不ReturnstokenUse信息
             system_fingerprint: None,
         })
     }
@@ -323,7 +323,7 @@ impl Provider for OllamaProvider {
             )));
         }
 
-        // Ollama使用JSONL格式而不是SSE
+        // OllamaUseJSONL格式而不是SSE
         Ok(crate::sse::sse_to_streaming_response(response))
     }
 
@@ -419,9 +419,9 @@ struct OllamaModel {
     size: u64,
 }
 
-/// 创建Ollama服务提供商 (默认本地地址)
+/// CreateOllama服务Provide商 (默认本地地址)
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::ollama;
 ///
@@ -431,12 +431,12 @@ pub fn ollama() -> Result<OllamaProvider, LlmConnectorError> {
     OllamaProvider::new("http://localhost:11434")
 }
 
-/// 创建带有自定义URL的Ollama服务提供商
+/// Create带有自DefineURL的Ollama服务Provide商
 ///
-/// # 参数
-/// - `base_url`: Ollama服务的URL
+/// # Parameters
+/// - `base_url`: Ollama service URL
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::ollama_with_base_url;
 ///
@@ -446,14 +446,14 @@ pub fn ollama_with_base_url(base_url: &str) -> Result<OllamaProvider, LlmConnect
     OllamaProvider::new(base_url)
 }
 
-/// 创建带有自定义配置的Ollama服务提供商
+/// Create带有自Define配置的Ollama服务Provide商
 ///
-/// # 参数
-/// - `base_url`: Ollama服务的URL
+/// # Parameters
+/// - `base_url`: Ollama service URL
 /// - `timeout_secs`: 超时时间(秒)
 /// - `proxy`: 代理URL (可选)
 ///
-/// # 示例
+/// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::ollama_with_config;
 ///
