@@ -22,9 +22,13 @@ impl HttpClient {
     /// Create new HTTP client
     ///
     /// Default timeout: 60 seconds (suitable for most requests including streaming)
+    ///
+    /// **Important**: System proxy is **disabled** by default to avoid unexpected timeout issues.
+    /// If you need to use a proxy, use `with_config()` and explicitly set the proxy parameter.
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(60))  // Increased from 30 to 60 seconds
+            .no_proxy()  // Disable system proxy by default to avoid timeout issues
             .build()
             .map_err(|e| LlmConnectorError::ConfigError(format!("Failed to create HTTP client: {}", e)))?;
 
@@ -41,6 +45,13 @@ impl HttpClient {
     /// - `base_url`: Base URL for the API
     /// - `timeout_secs`: Optional timeout in seconds (default: 60 seconds)
     /// - `proxy`: Optional proxy URL
+    ///
+    /// # Proxy Behavior
+    /// - If `proxy` is `None`: System proxy is **disabled** (no proxy used)
+    /// - If `proxy` is `Some(url)`: The specified proxy is used for all protocols (HTTP/HTTPS)
+    ///
+    /// **Note**: System proxy is disabled by default to avoid unexpected timeout issues.
+    /// This is different from reqwest's default behavior which enables system proxy.
     pub fn with_config(
         base_url: &str,
         timeout_secs: Option<u64>,
@@ -54,12 +65,16 @@ impl HttpClient {
         } else {
             builder = builder.timeout(Duration::from_secs(60));  // Increased from 30 to 60 seconds
         }
-        
-        // Set proxy
+
+        // Set proxy or disable system proxy
         if let Some(proxy_url) = proxy {
+            // Use explicit proxy
             let proxy = reqwest::Proxy::all(proxy_url)
                 .map_err(|e| LlmConnectorError::ConfigError(format!("Invalid proxy URL: {}", e)))?;
             builder = builder.proxy(proxy);
+        } else {
+            // Disable system proxy to avoid timeout issues
+            builder = builder.no_proxy();
         }
         
         let client = builder.build()
