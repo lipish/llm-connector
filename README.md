@@ -179,6 +179,7 @@ llm-connector supports 11+ LLM providers with a unified interface:
 | **Volcengine** | `LlmClient::volcengine("key")` | Chat, Streaming, Reasoning (Doubao-Seed-Code) |
 | **DeepSeek** | `LlmClient::deepseek("sk-...")` | Chat, Streaming, Reasoning (R1) |
 | **Moonshot** | `LlmClient::moonshot("sk-...")` | Chat, Streaming, Long context |
+| **Google** | `LlmClient::google("key")` | Chat, Gemini models |
 | **LongCat** | `LlmClient::longcat_openai("ak-...")` | Chat, Streaming |
 
 For detailed provider documentation and advanced configuration, see:
@@ -588,6 +589,29 @@ if let Some(reasoning) = response.reasoning_content {
 // Get final answer
 println!("Answer: {}", response.content);
 ```
+
+### 11. Google Gemini
+Native Google Gemini API support.
+
+```rust
+// Default
+let client = LlmClient::google("api-key")?;
+
+// With custom configuration
+let client = LlmClient::google_with_config(
+    "api-key",
+    None,      // base_url (uses default)
+    Some(60),  // timeout in seconds
+    None       // proxy
+)?;
+```
+
+**Models**: gemini-2.0-flash, gemini-2.0-flash-lite-preview-02-05, gemini-1.5-flash, gemini-1.5-pro
+
+**Features**:
+- Native Google API implementation
+- Chat completion support
+- Token usage tracking
 
 ## Ollama Model Management
 

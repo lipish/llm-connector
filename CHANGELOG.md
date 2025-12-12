@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.8] - 2025-12-11
+
+### 🚀 New Features
+
+#### Google Gemini Support
+- **Added**: Native support for Google Gemini API
+  - Implemented `GoogleProvider`
+  - Added `LlmClient::google()` and `LlmClient::google_with_config()`
+  - Supports chat completion with `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-3-pro-preview`, etc.
+  - Added `examples/google_basic.rs`
+
 ## [0.5.7] - 2025-11-23
 
 ### 🚀 New Features
