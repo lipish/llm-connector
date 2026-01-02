@@ -2,8 +2,6 @@
 
 use llm_connector::LlmClient;
 
-mod common;
-
 #[tokio::test]
 async fn test_protocol_chat_functionality() {
     // 协议聊天功能测试框架
