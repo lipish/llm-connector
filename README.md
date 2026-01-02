@@ -29,14 +29,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.5.8"
+llm-connector = "0.5.11"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.5.8", features = ["streaming"] }
+llm-connector = { version = "0.5.11", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -297,7 +297,7 @@ llm-connector provides unified streaming support across all providers with the `
 
 ```toml
 [dependencies]
-llm-connector = { version = "0.5.8", features = ["streaming"] }
+llm-connector = { version = "0.5.11", features = ["streaming"] }
 ```
 
 ### Basic Streaming

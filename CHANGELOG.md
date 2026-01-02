@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.11] - 2026-01-02
+
+### 🚀 New Features
+
+- **Tencent Hunyuan Native API v3 Streaming**
+  - Implemented `chat_stream` for Tencent Native API v3.
+  - Added strict streaming response parsing for Hunyuan's PascalCase SSE format.
+  - Added example: `examples/tencent_native_streaming.rs`
+
+### 📝 Documentation
+
+- Updated README with Tencent Native streaming usage.
+- Updated provider docs to mention Tencent streaming support.
+
 ## [0.5.10] - 2026-01-02
 
 ### 🚀 New Features
@@ -10,12 +24,6 @@ All notable changes to this project will be documented in this file.
   - `LlmClient::google(api_key)`
   - `LlmClient::google_with_config(api_key, base_url, timeout_secs, proxy)`
   - Example: `examples/google_basic.rs`
-
-### 🐛 Bug Fixes
-
-- **Tencent Hunyuan Streaming**
-  - Implemented `chat_stream` for Tencent Native API v3.
-  - Added strict streaming response parsing for Hunyuan's format.
 
 ### 📝 Documentation
 

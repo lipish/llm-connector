@@ -70,9 +70,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "streaming")]
     {
-        use llm_connector::core::Provider;
-
-        let mut stream = provider.chat_stream(&request).await?;
+        let client = llm_connector::LlmClient::volcengine(api_key)?;
+        let mut stream = client.chat_stream(&request).await?;
 
         println!("\n📥 Receiving streaming response:");
         println!("---");
