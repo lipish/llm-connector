@@ -691,23 +691,23 @@ mod tests {
     #[test]
     fn test_extract_zhipu_reasoning_content() {
         // Test case with reasoning content
-        let content_with_thinking = "###Thinking\n这isReasoning process\n分析步骤1\n分析步骤2\n###Response\n这is最终answer";
+        let content_with_thinking = "###Thinking\nthis_is_reasoning_process\nanalysis_step_1\nanalysis_step_2\n###Response\nthis_is_final_answer";
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_with_thinking);
         assert!(reasoning.is_some());
-        assert_eq!(reasoning.unwrap(), "这isReasoning process\n分析步骤1\n分析步骤2");
-        assert_eq!(answer, "这is最终answer");
+        assert_eq!(reasoning.unwrap(), "this_is_reasoning_process\nanalysis_step_1\nanalysis_step_2");
+        assert_eq!(answer, "this_is_final_answer");
 
         // Test case without reasoning content
-        let content_without_thinking = "这只isanormal回答";
+        let content_without_thinking = "this_is_a_normal_answer";
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_without_thinking);
         assert!(reasoning.is_none());
-        assert_eq!(answer, "这只isanormal回答");
+        assert_eq!(answer, "this_is_a_normal_answer");
 
         // Test case with only Thinking, no Response
-        let content_only_thinking = "###Thinking\n这isReasoning process";
+        let content_only_thinking = "###Thinking\nthis_is_reasoning_process";
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_only_thinking);
         assert!(reasoning.is_none());
-        assert_eq!(answer, "###Thinking\n这isReasoning process");
+        assert_eq!(answer, "###Thinking\nthis_is_reasoning_process");
 
         // Test case with empty reasoning content
         let content_empty_thinking = "###Thinking\n\n###Response\nanswer";
@@ -723,8 +723,8 @@ mod tests {
         let mut state = ZhipuStreamState::new();
 
         // First chunk: ###Thinking
-        let (reasoning, content) = state.process("###Thinking\n开始");
-        assert_eq!(reasoning, Some("开始".to_string()));
+        let (reasoning, content) = state.process("###Thinking\nstart");
+        assert_eq!(reasoning, Some("start".to_string()));
         assert_eq!(content, None);
 
         // Second chunk: Reasoning process
@@ -750,14 +750,14 @@ mod tests {
         let mut state = ZhipuStreamState::new();
 
         // First chunk: Normal content
-        let (reasoning, content) = state.process("这is");
+        let (reasoning, content) = state.process("this_is");
         assert_eq!(reasoning, None);
-        assert_eq!(content, Some("这is".to_string()));
+        assert_eq!(content, Some("this_is".to_string()));
 
         // Second chunk: Continue content
-        let (reasoning, content) = state.process("normal回答");
+        let (reasoning, content) = state.process("normal_answer");
         assert_eq!(reasoning, None);
-        assert_eq!(content, Some("normal回答".to_string()));
+        assert_eq!(content, Some("normal_answer".to_string()));
     }
 
     #[cfg(feature = "streaming")]

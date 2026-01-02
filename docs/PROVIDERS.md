@@ -56,7 +56,7 @@ let client = LlmClient::anthropic_vertex("project-id", "us-central1", "access-to
 
 ---
 
-## Aliyun DashScope (通义千问)
+## Aliyun DashScope (Qwen)
 
 Support for Alibaba Cloud's Qwen models.
 
@@ -72,7 +72,7 @@ Aliyun provider supports full tool calling (function calling) capabilities, comp
 
 ---
 
-## Zhipu GLM (智谱AI)
+## Zhipu GLM (Zhipu AI)
 
 Support for ChatGLM models.
 
@@ -89,7 +89,7 @@ let client = LlmClient::zhipu_openai_compatible("your-api-key")?;
 
 ---
 
-## Tencent Hunyuan (腾讯混元)
+## Tencent Hunyuan (Hunyuan)
 
 Native support for Tencent Cloud API v3 (TC3-HMAC-SHA256).
 
@@ -106,7 +106,7 @@ let client = LlmClient::tencent("AKID...", "SecretKey...")?;
 
 ---
 
-## Volcengine (火山引擎)
+## Volcengine
 
 Support for Doubao models via Volcengine Ark.
 
@@ -120,7 +120,7 @@ let client = LlmClient::volcengine("your-api-key")?;
 
 ---
 
-## DeepSeek (深度求索)
+## DeepSeek
 
 Support for DeepSeek-V3 and R1 reasoning models.
 
@@ -138,7 +138,7 @@ DeepSeek R1 models output reasoning content. `llm-connector` automatically handl
 
 ---
 
-## Moonshot (月之暗面)
+## Moonshot
 
 Support for Kimi models.
 

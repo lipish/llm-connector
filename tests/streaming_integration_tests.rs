@@ -157,7 +157,7 @@ mod tests {
             .map_err(|_| "ZHIPU_API_KEY environment variable not set")?;
 
         let client = LlmClient::zhipu(&api_key)?;
-        test_streaming(&client, "Zhipu", "glm-4-flash", "说一个字").await
+        test_streaming(&client, "Zhipu", "glm-4-flash", "Say one word").await
     }
 
     #[tokio::test]
@@ -167,7 +167,7 @@ mod tests {
             .map_err(|_| "ALIYUN_API_KEY environment variable not set")?;
 
         let client = LlmClient::aliyun(&api_key)?;
-        test_streaming(&client, "Aliyun", "qwen-turbo", "说一个字").await
+        test_streaming(&client, "Aliyun", "qwen-turbo", "Say one word").await
     }
 
     #[tokio::test]

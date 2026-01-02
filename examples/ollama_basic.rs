@@ -1,88 +1,88 @@
-//! Ollama基础示例
+//! Ollama Basic Example
 //!
-//! 展示如何使用本地Ollama服务进行基本的聊天对话
+//! Demonstrates how to use a local Ollama service for a basic chat conversation.
 //!
-//! 运行方式: cargo run --example ollama_basic
+//! Run: cargo run --example ollama_basic
 
 use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🤖 Ollama本地模型基础聊天示例\n");
+    println!("🤖 Ollama Local Model Basic Chat Example\n");
 
-    // 创建Ollama客户端 (默认连接到 http://localhost:11434)
+    // Create Ollama client (defaults to http://localhost:11434)
     let client = LlmClient::ollama().unwrap();
 
-    // 获取可用模型列表
-    println!("🔍 获取可用模型列表...");
+    // Fetch available models
+    println!("🔍 Fetching available models...");
     match client.models().await {
         Ok(models) => {
             if models.is_empty() {
-                println!("❌ 没有找到可用的模型");
-                println!("💡 请先下载模型，例如:");
+                println!("❌ No available models found");
+                println!("💡 Please download a model first, e.g.:");
                 println!("   ollama pull llama2");
                 println!("   ollama pull qwen:7b");
                 return Ok(());
             }
             
-            println!("✅ 找到 {} 个可用模型:", models.len());
+            println!("✅ Found {} available models:", models.len());
             for (i, model) in models.iter().enumerate() {
                 println!("  {}. {}", i + 1, model);
             }
             println!();
         }
         Err(e) => {
-            println!("❌ 获取模型列表失败: {}", e);
-            println!("💡 请检查:");
-            println!("  1. Ollama服务是否正在运行 (ollama serve)");
-            println!("  2. 服务地址是否正确 (默认: http://localhost:11434)");
+            println!("❌ Failed to fetch model list: {}", e);
+            println!("💡 Please check:");
+            println!("  1. Whether the Ollama service is running (ollama serve)");
+            println!("  2. Whether the service URL is correct (default: http://localhost:11434)");
             return Ok(());
         }
     }
 
-    // 使用第一个可用模型或默认模型
+    // Use the first available model or a default model
     let model = std::env::var("OLLAMA_MODEL")
         .unwrap_or_else(|_| "llama2".to_string());
 
-    // 构建聊天请求
+    // Build chat request
     let request = ChatRequest {
         model: model.clone(),
         messages: vec![
-            Message::user("请简要介绍一下你自己，以及你能帮助我做什么。")
+            Message::user("Please briefly introduce yourself and what you can help me with.")
         ],
         max_tokens: Some(200),
         temperature: Some(0.7),
         ..Default::default()
     };
 
-    println!("🚀 发送请求到Ollama...");
-    println!("📝 模型: {}", request.model);
-    println!("💬 消息: {}", request.messages[0].content_as_text());
+    println!("🚀 Sending request to Ollama...");
+    println!("📝 Model: {}", request.model);
+    println!("💬 Message: {}", request.messages[0].content_as_text());
     println!();
 
-    // 发送请求
+    // Send request
     match client.chat(&request).await {
         Ok(response) => {
-            println!("✅ 成功收到回复:");
+            println!("✅ Received response successfully:");
             println!("{}", response.content);
             println!();
-            println!("📊 Token使用情况:");
-            println!("  输入: {} tokens", response.prompt_tokens());
-            println!("  输出: {} tokens", response.completion_tokens());
-            println!("  总计: {} tokens", response.total_tokens());
+            println!("📊 Token usage:");
+            println!("  Input: {} tokens", response.prompt_tokens());
+            println!("  Output: {} tokens", response.completion_tokens());
+            println!("  Total: {} tokens", response.total_tokens());
         }
         Err(e) => {
-            println!("❌ 请求失败: {}", e);
+            println!("❌ Request failed: {}", e);
             println!();
-            println!("💡 请检查:");
-            println!("  1. Ollama服务是否正在运行");
-            println!("  2. 模型 '{}' 是否已下载", model);
-            println!("  3. 网络连接是否正常");
+            println!("💡 Please check:");
+            println!("  1. Whether the Ollama service is running");
+            println!("  2. Whether the model '{}' has been downloaded", model);
+            println!("  3. Whether your network connection is working");
             println!();
-            println!("🔧 常用命令:");
-            println!("  ollama serve          # 启动Ollama服务");
-            println!("  ollama pull {}   # 下载模型", model);
-            println!("  ollama list           # 查看已下载的模型");
+            println!("🔧 Common commands:");
+            println!("  ollama serve          # Start Ollama service");
+            println!("  ollama pull {}   # Download model", model);
+            println!("  ollama list           # List downloaded models");
         }
     }
 

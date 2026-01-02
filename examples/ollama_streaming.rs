@@ -1,6 +1,6 @@
-//! Ollama 流式响应示例
+//! Ollama Streaming Response Example
 //!
-//! 展示如何在本地 Ollama 下使用流式聊天输出。
+//! Demonstrates how to use streaming chat output with a local Ollama instance.
 
 #[cfg(feature = "streaming")]
 use llm_connector::{LlmClient, types::{ChatRequest, Message}};
@@ -10,22 +10,22 @@ use futures_util::StreamExt;
 #[cfg(feature = "streaming")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🦙 Ollama 流式响应示例\n");
+    println!("🦙 Ollama Streaming Response Example\n");
 
-    // 创建 Ollama 客户端（默认 http://localhost:11434）
+    // Create Ollama client (default http://localhost:11434)
     let client = LlmClient::ollama().unwrap();
 
-    // 准备请求（确保模型已安装，如 llama3.2）
+    // Prepare request (ensure the model is installed, e.g. llama3.2)
     let request = ChatRequest {
         model: "llama3.2".to_string(),
         messages: vec![
-            Message::user("请用中文简要说明流式输出的优势。"),
+            Message::user("Please briefly explain the benefits of streaming output."),
         ],
         max_tokens: Some(128),
         ..Default::default()
     };
 
-    println!("🌊 开始流式回复...\n");
+    println!("🌊 Starting streaming response...\n");
     match client.chat_stream(&request).await {
         Ok(mut stream) => {
             print!("   ");
@@ -40,20 +40,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         if let Some(reason) = sr.choices.first().and_then(|c| c.finish_reason.as_ref()) {
                             if reason == "stop" {
-                                println!("\n\n✅ 流式完成");
+                                println!("\n\n✅ Streaming completed");
                             }
                         }
                     }
                     Err(e) => {
-                        println!("\n❌ 错误: {}", e);
+                        println!("\n❌ Error: {}", e);
                         break;
                     }
                 }
             }
         }
         Err(e) => {
-            println!("❌ 启动流式失败: {}", e);
-            println!("💡 请确保 Ollama 正在运行，且模型已安装，例如: 'ollama pull llama3.2' ");
+            println!("❌ Failed to start streaming: {}", e);
+            println!("💡 Please ensure Ollama is running and the model is installed, e.g.: 'ollama pull llama3.2'");
         }
     }
 
@@ -62,5 +62,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(not(feature = "streaming"))]
 fn main() {
-    println!("❌ 需要启用 'streaming' 功能: cargo run --example ollama_streaming --features streaming");
+    println!("❌ The 'streaming' feature must be enabled: cargo run --example ollama_streaming --features streaming");
 }

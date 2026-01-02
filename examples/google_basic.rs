@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build chat request
     let request = ChatRequest {
-        model: "gemini-3-pro-preview".to_string(),
+        model: "gemini-1.5-flash".to_string(),
         messages: vec![
             Message::user("Briefly explain the features of Rust programming language.")
         ],

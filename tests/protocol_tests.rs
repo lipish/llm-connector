@@ -4,14 +4,14 @@ use llm_connector::LlmClient;
 
 #[tokio::test]
 async fn test_protocol_chat_functionality() {
-    // 协议聊天功能测试框架
+    // Protocol chat functionality test scaffold
     let _client = LlmClient::openai("test-key").unwrap();
-    // 这是一个占位测试，实际测试需要有效的API密钥
+    // Placeholder test; real tests require a valid API key
     assert!(true, "Protocol chat test placeholder");
 }
 
 #[tokio::test]
 async fn test_protocol_agnostic_interaction() {
-    // 协议无关交互测试
+    // Protocol-agnostic interaction test
     assert!(true, "Protocol agnostic test placeholder");
 }

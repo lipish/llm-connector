@@ -1,55 +1,55 @@
-//! Aliyun enable_thinking 参数测试示例
+//! Aliyun enable_thinking Parameter Test Example
 //!
-//! 测试 Aliyun 混合推理模式的 enable_thinking 参数
+//! Tests the enable_thinking parameter for Aliyun hybrid reasoning mode.
 
 use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 从环境变量获取 API key
+    // Read API key from environment variables
     let api_key = std::env::var("ALIYUN_API_KEY")
         .expect("ALIYUN_API_KEY environment variable not set");
 
-    println!("🧪 测试 Aliyun enable_thinking 参数");
+    println!("🧪 Testing Aliyun enable_thinking parameter");
     println!("{}", "=".repeat(80));
 
-    // 创建客户端
+    // Create client
     let client = LlmClient::aliyun(&api_key)?;
 
-    println!("\n📝 测试 1: 混合推理模型 + 显式启用");
+    println!("\n📝 Test 1: Hybrid reasoning model + explicitly enabled");
     println!("{}", "-".repeat(80));
-    println!("模型: qwen-plus");
-    println!("enable_thinking: Some(true)（显式启用）");
-    println!("预期: 返回 reasoning_content");
+    println!("Model: qwen-plus");
+    println!("enable_thinking: Some(true) (explicitly enabled)");
+    println!("Expected: returns reasoning_content");
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message::text(Role::User, "9.11 和 9.9 哪个更大？请详细解释你的推理过程。")],
-        enable_thinking: Some(true),  // 显式启用
+        messages: vec![Message::text(Role::User, "Which is larger, 9.11 or 9.9? Please explain your reasoning in detail.")],
+        enable_thinking: Some(true),
         max_tokens: Some(500),
         ..Default::default()
     };
 
-    println!("\n📤 发送请求...");
+    println!("\n📤 Sending request...");
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("\n✅ 请求成功！");
+            println!("\n✅ Request succeeded!");
             
             if let Some(reasoning) = response.reasoning_content {
-                println!("\n🧠 推理过程:");
+                println!("\n🧠 Reasoning:");
                 println!("{}", "-".repeat(80));
                 println!("{}", reasoning);
                 println!("{}", "-".repeat(80));
-                println!("✅ 成功返回 reasoning_content（显式启用生效）");
+                println!("✅ Successfully returned reasoning_content (explicit enable works)");
             } else {
-                println!("\n⚠️  未返回 reasoning_content");
-                println!("   可能原因:");
-                println!("   1. 模型不支持推理模式");
-                println!("   2. API 配置问题");
+                println!("\n⚠️  reasoning_content was not returned");
+                println!("   Possible causes:");
+                println!("   1. The model does not support reasoning mode");
+                println!("   2. API configuration issue");
             }
             
-            println!("\n💡 最终答案:");
+            println!("\n💡 Final answer:");
             println!("{}", response.content);
 
             if let Some(usage) = response.usage {
@@ -60,172 +60,170 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Err(e) => {
-            eprintln!("\n❌ 错误: {}", e);
+            eprintln!("\n❌ Error: {}", e);
             return Err(e.into());
         }
     }
 
-    println!("\n\n📝 测试 2: 混合推理模型 + 未指定（默认不启用）");
+    println!("\n\n📝 Test 2: Hybrid reasoning model + not specified (disabled by default)");
     println!("{}", "-".repeat(80));
-    println!("模型: qwen-plus");
-    println!("enable_thinking: None（未指定）");
-    println!("预期: 不返回 reasoning_content");
+    println!("Model: qwen-plus");
+    println!("enable_thinking: None (not specified)");
+    println!("Expected: does not return reasoning_content");
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message::text(Role::User, "如果一个数的平方是 144，这个数是多少？")],
-        // enable_thinking 未指定
+        messages: vec![Message::text(Role::User, "If a number squared is 144, what is the number?")],
         max_tokens: Some(500),
         ..Default::default()
     };
 
-    println!("\n📤 发送请求...");
+    println!("\n📤 Sending request...");
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("\n✅ 请求成功！");
+            println!("\n✅ Request succeeded!");
 
             if response.reasoning_content.is_none() {
-                println!("\n✅ 正确：未返回 reasoning_content（默认不启用）");
+                println!("\n✅ Correct: reasoning_content not returned (default disabled)");
             } else {
-                println!("\n⚠️  意外：返回了 reasoning_content");
+                println!("\n⚠️  Unexpected: reasoning_content was returned");
             }
 
-            println!("\n💡 答案:");
+            println!("\n💡 Answer:");
             println!("{}", response.content);
         }
         Err(e) => {
-            eprintln!("\n❌ 错误: {}", e);
+            eprintln!("\n❌ Error: {}", e);
             return Err(e.into());
         }
     }
 
-    println!("\n\n📝 测试 3: 混合推理模型 + 显式禁用");
+    println!("\n\n📝 Test 3: Hybrid reasoning model + explicitly disabled");
     println!("{}", "-".repeat(80));
-    println!("模型: qwen-plus");
-    println!("enable_thinking: Some(false)（显式禁用）");
-    println!("预期: 不返回 reasoning_content");
+    println!("Model: qwen-plus");
+    println!("enable_thinking: Some(false) (explicitly disabled)");
+    println!("Expected: does not return reasoning_content");
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message::text(Role::User, "你好，请介绍一下你自己")],
-        enable_thinking: Some(false),  // 手动禁用
+        messages: vec![Message::text(Role::User, "Hello, please introduce yourself")],
+        enable_thinking: Some(false),
         max_tokens: Some(100),
         ..Default::default()
     };
 
-    println!("\n📤 发送请求...");
+    println!("\n📤 Sending request...");
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("\n✅ 请求成功！");
+            println!("\n✅ Request succeeded!");
             
             if response.reasoning_content.is_none() {
-                println!("\n✅ 正确：未返回 reasoning_content（显式禁用生效）");
+                println!("\n✅ Correct: reasoning_content not returned (explicit disable works)");
             } else {
-                println!("\n⚠️  意外：返回了 reasoning_content");
+                println!("\n⚠️  Unexpected: reasoning_content was returned");
             }
             
-            println!("\n💡 答案:");
+            println!("\n💡 Answer:");
             println!("{}", response.content);
         }
         Err(e) => {
-            eprintln!("\n❌ 错误: {}", e);
+            eprintln!("\n❌ Error: {}", e);
             return Err(e.into());
         }
     }
 
-    println!("\n\n📝 测试 4: 纯推理模型（无需配置）");
+    println!("\n\n📝 Test 4: Pure reasoning model (no config required)");
     println!("{}", "-".repeat(80));
-    println!("模型: qwq-plus");
-    println!("enable_thinking: None（纯推理模型默认启用）");
-    println!("预期: 返回 reasoning_content");
+    println!("Model: qwq-plus");
+    println!("enable_thinking: None (pure reasoning model enabled by default)");
+    println!("Expected: returns reasoning_content");
 
     let request = ChatRequest {
         model: "qwq-plus".to_string(),
-        messages: vec![Message::text(Role::User, "解释为什么天空是蓝色的")],
+        messages: vec![Message::text(Role::User, "Explain why the sky is blue")],
         max_tokens: Some(500),
         ..Default::default()
     };
 
-    println!("\n📤 发送请求...");
+    println!("\n📤 Sending request...");
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("\n✅ 请求成功！");
+            println!("\n✅ Request succeeded!");
             
             if let Some(reasoning) = response.reasoning_content {
-                println!("\n🧠 推理过程:");
+                println!("\n🧠 Reasoning:");
                 println!("{}", "-".repeat(80));
                 println!("{}...", &reasoning[..reasoning.len().min(200)]);
                 println!("{}", "-".repeat(80));
-                println!("✅ 成功返回 reasoning_content（纯推理模型）");
+                println!("✅ Successfully returned reasoning_content (pure reasoning model)");
             } else {
-                println!("\n⚠️  未返回 reasoning_content");
+                println!("\n⚠️  reasoning_content was not returned");
             }
             
-            println!("\n💡 最终答案:");
+            println!("\n💡 Final answer:");
             println!("{}", response.content);
         }
         Err(e) => {
-            eprintln!("\n❌ 错误: {}", e);
+            eprintln!("\n❌ Error: {}", e);
             return Err(e.into());
         }
     }
 
-    println!("\n\n📝 测试 5: 非推理模型");
+    println!("\n\n📝 Test 5: Non-reasoning model");
     println!("{}", "-".repeat(80));
-    println!("模型: qwen-max");
-    println!("enable_thinking: None（非推理模型）");
-    println!("预期: 不返回 reasoning_content");
+    println!("Model: qwen-max");
+    println!("enable_thinking: None (non-reasoning model)");
+    println!("Expected: does not return reasoning_content");
 
     let request = ChatRequest {
         model: "qwen-max".to_string(),
-        messages: vec![Message::text(Role::User, "你好")],
+        messages: vec![Message::text(Role::User, "Hello")],
         max_tokens: Some(50),
         ..Default::default()
     };
 
-    println!("\n📤 发送请求...");
+    println!("\n📤 Sending request...");
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("\n✅ 请求成功！");
+            println!("\n✅ Request succeeded!");
             
             if response.reasoning_content.is_none() {
-                println!("\n✅ 正确：未返回 reasoning_content（非推理模型）");
+                println!("\n✅ Correct: reasoning_content not returned (non-reasoning model)");
             } else {
-                println!("\n⚠️  意外：返回了 reasoning_content");
+                println!("\n⚠️  Unexpected: reasoning_content was returned");
             }
             
-            println!("\n💡 答案:");
+            println!("\n💡 Answer:");
             println!("{}", response.content);
         }
         Err(e) => {
-            eprintln!("\n❌ 错误: {}", e);
+            eprintln!("\n❌ Error: {}", e);
             return Err(e.into());
         }
     }
 
     println!("\n{}", "=".repeat(80));
-    println!("✅ Aliyun enable_thinking 参数测试完成！");
+    println!("✅ Aliyun enable_thinking parameter test completed!");
     println!("{}", "=".repeat(80));
 
-    println!("\n📝 总结:");
-    println!("   1. 混合推理模型（qwen-plus 等）:");
-    println!("      - 需要显式设置 enable_thinking: Some(true)");
-    println!("      - 未设置时默认不启用推理模式");
-    println!("   2. 纯推理模型（qwq-plus 等）:");
-    println!("      - 默认启用，无需配置");
-    println!("   3. 非推理模型（qwen-max 等）:");
-    println!("      - 不支持 enable_thinking");
-    println!("   4. 统一的 API:");
-    println!("      - response.reasoning_content - 推理过程");
-    println!("      - response.content - 最终答案");
-    println!("   5. 显式控制:");
-    println!("      - 用户完全控制是否启用推理模式");
-    println!("      - 无自动检测，行为明确可预测");
+    println!("\n📝 Summary:");
+    println!("   1. Hybrid reasoning models (e.g., qwen-plus):");
+    println!("      - Must explicitly set enable_thinking: Some(true)");
+    println!("      - If not set, reasoning is disabled by default");
+    println!("   2. Pure reasoning models (e.g., qwq-plus):");
+    println!("      - Enabled by default; no configuration required");
+    println!("   3. Non-reasoning models (e.g., qwen-max):");
+    println!("      - Does not support enable_thinking");
+    println!("   4. Unified API:");
+    println!("      - response.reasoning_content - Reasoning process");
+    println!("      - response.content - Final answer");
+    println!("   5. Explicit control:");
+    println!("      - User has full control over whether to enable reasoning mode");
+    println!("      - No automatic detection; behavior is clear and predictable");
 
     Ok(())
 }
-

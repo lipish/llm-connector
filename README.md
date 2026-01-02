@@ -480,7 +480,7 @@ let client = LlmClient::volcengine_with_config(
 
     let request = ChatRequest {
         model: "ep-20250118155555-xxxxx".to_string(), // Use endpoint ID as model
-        messages: vec![Message::user("介绍一下你自己")],
+        messages: vec![Message::user("Introduce yourself")],
         stream: Some(true),
         ..Default::default()
     };
@@ -574,7 +574,7 @@ let request = ChatRequest {
     model: "deepseek-reasoner".to_string(),
     messages: vec![Message {
         role: Role::User,
-        content: "9.11 和 9.9 哪个更大？".to_string(),
+        content: "Which is larger, 9.11 or 9.9?".to_string(),
         ..Default::default()
     }],
     ..Default::default()
@@ -595,6 +595,9 @@ println!("Answer: {}", response.content);
 Native Google Gemini API support.
 
 ```rust
+// Environment variable (recommended)
+// export GEMINI_API_KEY="your-api-key"
+
 // Default
 let client = LlmClient::google("api-key")?;
 
@@ -613,6 +616,10 @@ let client = LlmClient::google_with_config(
 - Native Google API implementation
 - Chat completion support
 - Token usage tracking
+
+**Notes**:
+- Streaming is not yet supported for the Google provider (`chat_stream` returns an unsupported operation).
+- See `examples/google_basic.rs` for a runnable end-to-end example.
 
 ## Ollama Model Management
 
@@ -872,7 +879,7 @@ let request = ChatRequest {
 ```rust
 let request = ChatRequest {
     model: "qwen-max".to_string(),
-    messages: vec![Message::user("你好！")],
+    messages: vec![Message::user("Hello!")],
     ..Default::default()
 };
 ```

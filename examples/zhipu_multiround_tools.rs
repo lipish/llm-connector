@@ -6,22 +6,22 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api_key = std::env::var("ZHIPU_API_KEY").expect("请设置环境变量 ZHIPU_API_KEY");
+    let api_key = std::env::var("ZHIPU_API_KEY").expect("Please set environment variable ZHIPU_API_KEY");
 
     let client = LlmClient::zhipu(&api_key)?;
 
-    // 定义工具
+    // Define tools
     let tools = vec![Tool {
         tool_type: "function".to_string(),
         function: Function {
             name: "get_weather".to_string(),
-            description: Some("获取指定城市的天气信息".to_string()),
+            description: Some("Get weather information for specified city".to_string()),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "城市名称"
+                        "description": "City name, e.g., New York, London"
                     }
                 },
                 "required": ["location"]
@@ -29,10 +29,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     }];
 
-    println!("🧪 测试智谱多轮工具调用\n");
+    println!("🧪 Testing Zhipu Multi-round Tool Calling\n");
 
-    // === 第一轮：用户提问 ===
-    let mut messages = vec![Message::text(Role::User, "请使用 get_weather 函数查询北京的天气")];
+    // === Round 1: User question ===
+    let mut messages = vec![Message::text(Role::User, "Please use the get_weather function to query the weather in New York")];
 
     let request = ChatRequest {
         model: "glm-4-flash".to_string(),
@@ -41,12 +41,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    println!("📤 第一轮：用户提问");
-    println!("  消息数量: {}", request.messages.len());
+    println!("📤 Round 1: User Question");
+    println!("  Message count: {}", request.messages.len());
 
     let response = client.chat(&request).await?;
 
-    println!("\n📥 第一轮：LLM 响应");
+    println!("\n📥 Round 1: LLM Response");
     println!(
         "  finish_reason: {:?}",
         response
@@ -57,15 +57,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(choice) = response.choices.first() {
         if let Some(tool_calls) = &choice.message.tool_calls {
-            println!("  ✅ 触发工具调用: {} 个", tool_calls.len());
+            println!("  ✅ Triggered tool calls: {}", tool_calls.len());
             for call in tool_calls {
-                println!("    - 函数: {}", call.function.name);
-                println!("      参数: {}", call.function.arguments);
+                println!("    - Function: {}", call.function.name);
+                println!("      Arguments: {}", call.function.arguments);
             }
 
-            // === 第二轮：添加 assistant 消息和 tool 消息 ===
+            // === Round 2: Add assistant message and tool message ===
 
-            // 添加 assistant 的工具调用消息
+            // Add assistant's tool call message
             messages.push(Message {
                 role: Role::Assistant,
                 content: vec![],
@@ -73,14 +73,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ..Default::default()
             });
 
-            // 添加 tool 执行结果消息
+            // Add tool execution result message
             for call in tool_calls {
                 messages.push(Message {
                     role: Role::Tool,
                     content: vec![MessageBlock::text(json!({
-                        "location": "北京",
+                        "location": "New York",
                         "temperature": "15°C",
-                        "condition": "晴天"
+                        "condition": "Clear"
                     })
                     .to_string())],
                     tool_call_id: Some(call.id.clone()),
@@ -89,9 +89,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
 
-            println!("\n📤 第二轮：发送工具执行结果");
-            println!("  消息数量: {}", messages.len());
-            println!("  消息历史:");
+            println!("\n📤 Round 2: Send tool execution result");
+            println!("  Message count: {}", messages.len());
+            println!("  Message history:");
             for (i, msg) in messages.iter().enumerate() {
                 let content_text = msg.content_as_text();
                 println!(
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let response2 = client.chat(&request2).await?;
 
-            println!("\n📥 第二轮：LLM 最终响应");
+            println!("\n📥 Round 2: LLM Final Response");
             println!(
                 "  finish_reason: {:?}",
                 response2
@@ -129,13 +129,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if let Some(choice) = response2.choices.first() {
                 if choice.message.tool_calls.is_some() {
-                    println!("  ❌ 仍然返回工具调用（应该返回文本）");
+                    println!("  ❌ Still returns tool calls (should return text)");
                 } else {
-                    println!("  ✅ 返回文本响应（正确）");
+                    println!("  ✅ Returns text response (correct)");
                 }
             }
         } else {
-            println!("  ❌ 未触发工具调用");
+            println!("  ❌ No tool calls triggered");
         }
     }
 

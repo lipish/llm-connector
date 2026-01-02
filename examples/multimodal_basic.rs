@@ -1,26 +1,26 @@
-//! 多模态内容基础示例
+//! Multi-modal Content Basic Example
 //!
-//! 演示如何使用 MessageBlock 发送文本和图片
+//! Demonstrates how to use MessageBlock to send text and images.
 
 use llm_connector::{LlmClient, types::{ChatRequest, Message, Role, MessageBlock}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🎨 多模态内容示例");
+    println!("🎨 Multi-modal Content Example");
     println!("{}", "=".repeat(80));
 
-    // 示例 1: 纯文本消息（向后兼容）
-    println!("\n📝 示例 1: 纯文本消息");
+    // Example 1: Text-only message (backward compatible)
+    println!("\n📝 Example 1: Text-only message");
     println!("{}", "-".repeat(80));
     
     let message = Message::text(Role::User, "Hello, world!");
-    println!("创建纯文本消息:");
+    println!("Create text-only message:");
     println!("  role: {:?}", message.role);
     println!("  content blocks: {}", message.content.len());
     println!("  text: {}", message.content_as_text());
 
-    // 示例 2: 多模态消息（文本 + 图片 URL）
-    println!("\n\n🖼️  示例 2: 多模态消息（文本 + 图片 URL）");
+    // Example 2: Multi-modal message (text + image URL)
+    println!("\n\n🖼️  Example 2: Multi-modal message (text + image URL)");
     println!("{}", "-".repeat(80));
     
     let message = Message::new(
@@ -31,14 +31,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
     );
     
-    println!("创建多模态消息:");
+    println!("Create multi-modal message:");
     println!("  role: {:?}", message.role);
     println!("  content blocks: {}", message.content.len());
     println!("  has images: {}", message.has_images());
     println!("  is text only: {}", message.is_text_only());
 
-    // 示例 3: Base64 图片
-    println!("\n\n📷 示例 3: Base64 图片");
+    // Example 3: Base64 image
+    println!("\n\n📷 Example 3: Base64 image");
     println!("{}", "-".repeat(80));
     
     let message = Message::new(
@@ -52,13 +52,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
     );
     
-    println!("创建 Base64 图片消息:");
+    println!("Create Base64 image message:");
     println!("  content blocks: {}", message.content.len());
     println!("  block 0: text");
     println!("  block 1: image (base64)");
 
-    // 示例 4: 多张图片
-    println!("\n\n🖼️🖼️  示例 4: 多张图片");
+    // Example 4: Multiple images
+    println!("\n\n🖼️🖼️  Example 4: Multiple images");
     println!("{}", "-".repeat(80));
     
     let message = Message::new(
@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
     );
     
-    println!("创建多图片消息:");
+    println!("Create multi-image message:");
     println!("  content blocks: {}", message.content.len());
     for (i, block) in message.content.iter().enumerate() {
         if block.is_text() {
@@ -80,12 +80,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // 示例 5: 实际 API 调用（需要 API key）
-    println!("\n\n🚀 示例 5: 实际 API 调用");
+    // Example 5: Real API call (requires API key)
+    println!("\n\n🚀 Example 5: Real API call");
     println!("{}", "-".repeat(80));
     
     if let Ok(api_key) = std::env::var("OPENAI_API_KEY") {
-        println!("使用 OpenAI API...");
+        println!("Using OpenAI API...");
         
         let client = LlmClient::openai(&api_key)?;
         
@@ -100,42 +100,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         match client.chat(&request).await {
             Ok(response) => {
-                println!("✅ 响应成功:");
+                println!("✅ Response succeeded:");
                 println!("  {}", response.content);
             }
             Err(e) => {
-                println!("❌ 错误: {}", e);
+                println!("❌ Error: {}", e);
             }
         }
     } else {
-        println!("⚠️  未设置 OPENAI_API_KEY，跳过 API 调用");
-        println!("   设置方法: export OPENAI_API_KEY=your-key");
+        println!("⚠️  OPENAI_API_KEY is not set; skipping API call");
+        println!("   Set it via: export OPENAI_API_KEY=your-key");
     }
 
-    // 示例 6: 使用便捷构造函数
-    println!("\n\n⚡ 示例 6: 便捷构造函数");
+    // Example 6: Convenience constructors
+    println!("\n\n⚡ Example 6: Convenience constructors");
     println!("{}", "-".repeat(80));
     
     let system_msg = Message::system("You are a helpful assistant.");
     let user_msg = Message::user("Hello!");
     let assistant_msg = Message::assistant("Hi! How can I help you?");
     
-    println!("创建消息:");
+    println!("Create messages:");
     println!("  system: {}", system_msg.content_as_text());
     println!("  user: {}", user_msg.content_as_text());
     println!("  assistant: {}", assistant_msg.content_as_text());
 
     println!("\n{}", "=".repeat(80));
-    println!("✅ 多模态内容示例完成！");
+    println!("✅ Multi-modal content example completed!");
     println!("{}", "=".repeat(80));
 
-    println!("\n📚 总结:");
-    println!("   1. 纯文本: Message::text(role, \"text\")");
-    println!("   2. 多模态: Message::new(role, vec![MessageBlock::text(...), MessageBlock::image_url(...)])");
-    println!("   3. Base64 图片: MessageBlock::image_base64(media_type, data)");
-    println!("   4. 图片 URL: MessageBlock::image_url(url)");
-    println!("   5. 便捷函数: Message::system(), Message::user(), Message::assistant()");
+    println!("\n📚 Summary:");
+    println!("   1. Text-only: Message::text(role, \"text\")");
+    println!("   2. Multi-modal: Message::new(role, vec![MessageBlock::text(...), MessageBlock::image_url(...)])");
+    println!("   3. Base64 image: MessageBlock::image_base64(media_type, data)");
+    println!("   4. Image URL: MessageBlock::image_url(url)");
+    println!("   5. Convenience: Message::system(), Message::user(), Message::assistant()");
 
     Ok(())
 }
-

@@ -1,13 +1,13 @@
-//! Volcengine (火山引擎) streaming example
+//! Volcengine streaming example
 //!
-//! 测试 Volcengine Ark API 的流式响应
+//! Tests streaming responses from the Volcengine Ark API.
 //!
-//! 使用方法:
+//! Usage:
 //! ```bash
 //! cargo run --example volcengine_streaming --features streaming -- <api_key> <endpoint>
 //! ```
 //!
-//! 示例:
+//! Example:
 //! ```bash
 //! cargo run --example volcengine_streaming --features streaming -- \
 //!   xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
@@ -44,11 +44,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Endpoint: {}", endpoint);
 
     let request = ChatRequest {
-        model: endpoint.to_string(), // Volcengine 使用 endpoint ID 作为 model
+        model: endpoint.to_string(), // Volcengine uses endpoint ID as model
         messages: vec![Message {
             role: Role::User,
             content: vec![MessageBlock::Text {
-                text: "用一句话介绍一下你自己".to_string(),
+                text: "Introduce yourself in one sentence".to_string(),
             }],
             name: None,
             tool_calls: None,
@@ -85,24 +85,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(chunk) => {
                     chunk_count += 1;
 
-                    // 调试：打印完整的 chunk 结构
+                    // Debug: print the full chunk structure
                     if chunk_count <= 3 {
                         println!("\n[DEBUG] Chunk #{}: {:?}", chunk_count, chunk);
                     }
 
-                    // 尝试获取内容
+                    // Try to extract content
                     if let Some(content) = chunk.get_content() {
                         print!("{}", content);
                         total_content.push_str(content);
                     } else {
-                        // 如果 get_content() 为空，检查原始数据
+                        // If get_content() is empty, inspect raw data
                         if !chunk.choices.is_empty() {
                             let choice = &chunk.choices[0];
                             println!("\n[DEBUG] Choice delta: {:?}", choice.delta);
                         }
                     }
 
-                    // 检查是否有 finish_reason
+                    // Check finish_reason
                     if let Some(choice) = chunk.choices.first() {
                         if let Some(reason) = &choice.finish_reason {
                             println!("\n\n[Finish reason: {}]", reason);

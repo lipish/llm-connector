@@ -30,7 +30,7 @@ fn test_message_serialization() {
 
     let json = serde_json::to_value(&message).unwrap();
     assert_eq!(json["role"], "user");
-    // content 现在是数组格式
+    // content is now in array format
     assert!(json["content"].is_array());
     assert_eq!(json["content"][0]["type"], "text");
     assert_eq!(json["content"][0]["text"], "Hello");
@@ -38,7 +38,7 @@ fn test_message_serialization() {
 
 #[test]
 fn test_message_deserialization() {
-    // 测试数组格式的反序列化
+    // Test deserialization for array-format content
     let json = r#"{"role":"user","content":[{"type":"text","text":"Hello"}]}"#;
     let message: Message = serde_json::from_str(json).unwrap();
 

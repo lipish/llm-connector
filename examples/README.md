@@ -1,55 +1,55 @@
 # LLM Connector Examples
 
-这个目录包含了 `llm-connector` 库的精选使用示例。
+This directory contains curated usage examples for the `llm-connector` library.
 
-## 📚 示例列表
+## 📚 Example List
 
-### 基础示例 (7 个)
+### Basic Examples (7)
 
-| 示例文件 | 描述 | 运行命令 |
+| Example File | Description | Run Command |
 |---------|------|----------|
-| `openai_basic.rs` | OpenAI 基础聊天示例 | `cargo run --example openai_basic` |
-| `aliyun_basic.rs` | 阿里云通义千问基础示例 | `cargo run --example aliyun_basic` |
-| `zhipu_basic.rs` | 智谱 GLM 基础示例 | `cargo run --example zhipu_basic` |
-| `tencent_basic.rs` | 腾讯混元基础示例 | `cargo run --example tencent_basic` |
-| `ollama_basic.rs` | Ollama 本地模型基础示例 | `cargo run --example ollama_basic` |
-| `anthropic_streaming.rs` | Anthropic 流式响应示例 | `cargo run --example anthropic_streaming --features streaming` |
-| `volcengine_streaming.rs` | Volcengine 流式响应示例（支持推理模型） | `cargo run --example volcengine_streaming --features streaming -- <api-key> <endpoint>` |
+| `openai_basic.rs` | OpenAI basic chat example | `cargo run --example openai_basic` |
+| `aliyun_basic.rs` | Aliyun Qwen basic example | `cargo run --example aliyun_basic` |
+| `zhipu_basic.rs` | Zhipu GLM basic example | `cargo run --example zhipu_basic` |
+| `tencent_basic.rs` | Tencent Hunyuan basic example | `cargo run --example tencent_basic` |
+| `ollama_basic.rs` | Ollama local model basic example | `cargo run --example ollama_basic` |
+| `anthropic_streaming.rs` | Anthropic streaming response example | `cargo run --example anthropic_streaming --features streaming` |
+| `volcengine_streaming.rs` | Volcengine streaming example (reasoning models supported) | `cargo run --example volcengine_streaming --features streaming -- <api-key> <endpoint>` |
 
-### 特殊功能 (4 个)
+### Special Features (4)
 
-| 示例文件 | 描述 | 运行命令 |
+| Example File | Description | Run Command |
 |---------|------|----------|
-| `multimodal_basic.rs` | 多模态内容示例（文本+图片） | `cargo run --example multimodal_basic` |
-| `ollama_model_management.rs` | Ollama 模型管理（CRUD） | `cargo run --example ollama_model_management` |
-| `ollama_streaming.rs` | Ollama 流式响应示例 | `cargo run --example ollama_streaming --features streaming` |
-| `aliyun_thinking.rs` | Aliyun thinking 功能示例 | `cargo run --example aliyun_thinking` |
+| `multimodal_basic.rs` | Multi-modal content example (text + image) | `cargo run --example multimodal_basic` |
+| `ollama_model_management.rs` | Ollama model management (CRUD) | `cargo run --example ollama_model_management` |
+| `ollama_streaming.rs` | Ollama streaming response example | `cargo run --example ollama_streaming --features streaming` |
+| `aliyun_thinking.rs` | Aliyun thinking feature example | `cargo run --example aliyun_thinking` |
 
-### 工具调用 (2 个)
+### Tool Calling (2)
 
-| 示例文件 | 描述 | 运行命令 |
+| Example File | Description | Run Command |
 |---------|------|----------|
-| `zhipu_tools.rs` | 智谱 GLM 工具调用基础示例 | `cargo run --example zhipu_tools` |
-| `zhipu_multiround_tools.rs` | 智谱 GLM 多轮工具调用示例 | `cargo run --example zhipu_multiround_tools` |
+| `zhipu_tools.rs` | Zhipu GLM tool calling basic example | `cargo run --example zhipu_tools` |
+| `zhipu_multiround_tools.rs` | Zhipu GLM multi-round tool calling example | `cargo run --example zhipu_multiround_tools` |
 
-## 🔧 环境变量设置
+## 🔧 Environment Variables
 
 ### OpenAI
 ```bash
 export OPENAI_API_KEY="your-openai-api-key"
 ```
 
-### 阿里云DashScope
+### Aliyun DashScope
 ```bash
 export DASHSCOPE_API_KEY="your-dashscope-api-key"
 ```
 
-### 智谱GLM
+### Zhipu GLM
 ```bash
 export ZHIPU_API_KEY="your-zhipu-api-key"
 ```
 
-### 腾讯混元
+### Tencent Hunyuan
 ```bash
 export TENCENT_API_KEY="your-tencent-api-key"
 ```
@@ -61,65 +61,65 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 
 ### Ollama
 ```bash
-# Ollama默认运行在 localhost:11434，无需API密钥
-# 可选：指定模型
+# Ollama runs on localhost:11434 by default; no API key required
+# Optional: specify a model
 export OLLAMA_MODEL="llama2"
 ```
 
-### Volcengine (火山引擎)
+### Volcengine
 ```bash
 export VOLCENGINE_API_KEY="your-volcengine-api-key"
-export VOLCENGINE_ENDPOINT="ep-20250118155555-xxxxx"  # 推理接入点 ID
+export VOLCENGINE_ENDPOINT="ep-20250118155555-xxxxx"  # Reasoning endpoint ID
 ```
 
-## 📋 功能特性
+## 📋 Features
 
-### 支持的 Provider
+### Supported Providers
 
-- **OpenAI** - GPT 系列模型
-- **阿里云 DashScope** - 通义千问系列
-- **智谱 GLM** - GLM 系列模型
-- **腾讯混元** - 混元系列模型
-- **Anthropic** - Claude 系列模型
-- **Ollama** - 本地开源模型
-- **Volcengine (火山引擎)** - 豆包系列模型（包括推理模型 Doubao-Seed-Code）
+- **OpenAI** - GPT models
+- **Aliyun DashScope** - Qwen models
+- **Zhipu GLM** - GLM models
+- **Tencent Hunyuan** - Hunyuan models
+- **Anthropic** - Claude models
+- **Ollama** - local open-source models
+- **Volcengine** - Doubao models (including reasoning models such as Doubao-Seed-Code)
 
-### 核心功能
+### Core Capabilities
 
-- ✅ 统一的聊天接口
-- ✅ 流式响应支持
-- ✅ 多模态内容（文本 + 图片）
-- ✅ 工具调用（Function Calling）
-- ✅ 模型列表获取
-- ✅ Token 使用统计
-- ✅ 错误处理和重试
+- ✅ Unified chat API
+- ✅ Streaming response support
+- ✅ Multi-modal content (text + image)
+- ✅ Tool calling (Function Calling)
+- ✅ Model listing
+- ✅ Token usage statistics
+- ✅ Error handling and retries
 
-## 🎯 快速开始
+## 🎯 Quick Start
 
-1. **从基础示例开始**：
+1. **Start with a basic example**:
    ```bash
    cargo run --example ollama_basic
    ```
 
-2. **尝试多模态内容**：
+2. **Try multi-modal content**:
    ```bash
    cargo run --example multimodal_basic
    ```
 
-3. **尝试工具调用**：
+3. **Try tool calling**:
    ```bash
    cargo run --example zhipu_tools
    ```
 
-## 💡 提示
+## 💡 Notes
 
-- 大部分示例需要相应的 API 密钥
-- Ollama 示例需要本地运行 Ollama 服务
-- 流式示例需要启用 `streaming` 功能
-- 多模态示例需要支持视觉的模型（如 gpt-4o, claude-3-5-sonnet）
+- Most examples require the corresponding API key
+- Ollama examples require a local Ollama service
+- Streaming examples require enabling the `streaming` feature
+- Multi-modal examples require models with vision support (e.g., gpt-4o, claude-3-5-sonnet)
 
-## 🔗 相关链接
+## 🔗 Links
 
-- [项目主页](https://github.com/lipish/llm-connector)
-- [API文档](https://docs.rs/llm-connector)
+- [Project Homepage](https://github.com/lipish/llm-connector)
+- [API Docs](https://docs.rs/llm-connector)
 - [Crates.io](https://crates.io/crates/llm-connector)

@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.10] - 2026-01-02
+
+### 🚀 New Features
+
+- **Google Gemini provider**
+  - `LlmClient::google(api_key)`
+  - `LlmClient::google_with_config(api_key, base_url, timeout_secs, proxy)`
+  - Example: `examples/google_basic.rs`
+
+### 📝 Documentation
+
+- Updated README with Google Gemini provider usage and notes.
+
+## [0.5.9] - 2026-01-02
+
+### 🔧 Maintenance
+
+- Version bump and release preparation.
+
 ## [0.5.8] - 2026-01-02
 
 ### ⚠️ Breaking Changes
@@ -556,7 +575,7 @@ let message = Message::new(
 ## [Unreleased]
 
 ### Added
-- **Moonshot (月之暗面) Provider**
+- **Moonshot (Moonshot AI) Provider**
   - OpenAI-compatible API
   - `LlmClient::moonshot(api_key)`
   - Models: moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k
@@ -626,7 +645,7 @@ while let Some(chunk) = stream.next().await {
 
 #### 🆕 New Providers
 
-1. **Tencent Hunyuan (腾讯混元)**
+1. **Tencent Hunyuan (Hunyuan) **
    - OpenAI-compatible API
    - `LlmClient::tencent(api_key)`
    - Models: hunyuan-lite, hunyuan-standard, hunyuan-pro, hunyuan-turbo
@@ -722,80 +741,80 @@ let client = LlmClient::tencent("sk-...")?;
 
 ### ✨ New Features
 
-#### **添加火山引擎（Volcengine）专用 Provider**
+#### **Add Dedicated Volcengine Provider**
 
-**火山引擎简介**:
-- 火山引擎是字节跳动旗下的云服务平台
-- 提供大模型服务（火山方舟）
-- 使用 OpenAI 兼容的 API 格式，但端点路径不同
+**Volcengine Overview**:
+- Volcengine is ByteDance's cloud platform
+- Provides LLM services (Ark)
+- Uses an OpenAI-compatible API format, but the endpoint path differs
 
-**新增功能**:
+**New Capabilities**:
 
-1. **创建 VolcengineProtocol 适配器**
-   - 包装 OpenAI protocol，但使用火山引擎的端点路径
-   - 端点: `/api/v3/chat/completions` (而不是 `/v1/chat/completions`)
-   - 完全兼容 OpenAI 请求/响应格式
+1. **Create a VolcengineProtocol adapter**
+   - Wraps the OpenAI protocol but uses Volcengine endpoint paths
+   - Endpoint: `/api/v3/chat/completions` (instead of `/v1/chat/completions`)
+   - Fully compatible with OpenAI request/response format
 
-2. **添加专用 API 方法**
-   - `LlmClient::volcengine()` - 创建火山引擎客户端
-   - `LlmClient::volcengine_with_config()` - 带自定义配置的客户端
+2. **Add dedicated client methods**
+   - `LlmClient::volcengine()` - create a Volcengine client
+   - `LlmClient::volcengine_with_config()` - client with custom configuration
 
-3. **支持推理模型特性**
-   - 支持 `reasoning_content` 字段（思考过程）
-   - 流式响应中先返回思考过程，再返回实际回答
-   - 类似 OpenAI o1 的推理模型
+3. **Support reasoning-model features**
+   - Supports the `reasoning_content` field (thinking process)
+   - In streaming responses, thinking content arrives before the final answer
+   - Similar to OpenAI o1-style reasoning models
 
-**使用示例**:
+**Example**:
 
 ```rust
-// 创建客户端
+// Create client
 let client = LlmClient::volcengine("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")?;
 
-// 创建请求（使用端点 ID）
+// Create request (use endpoint ID)
 let request = ChatRequest {
-    model: "ep-20250118155555-xxxxx".to_string(),  // 端点 ID
+    model: "ep-20250118155555-xxxxx".to_string(),  // endpoint ID
     messages: vec![Message {
         role: Role::User,
-        content: "你好".to_string(),
+        content: "Hello".to_string(),
         ..Default::default()
     }],
     max_tokens: Some(1000),
     ..Default::default()
 };
 
-// 非流式
+// Non-streaming
 let response = client.chat(&request).await?;
 
-// 流式
+// Streaming
 #[cfg(feature = "streaming")]
 {
     let mut stream = client.chat_stream(&request).await?;
     while let Some(chunk) = stream.next().await {
-        // 处理流式响应
+        // Handle streaming response
     }
 }
 ```
 
-**测试结果**:
+**Test Results**:
 
-| 功能 | 状态 | 详情 |
+| Feature | Status | Details |
 |------|------|------|
-| 非流式响应 | ✅ | 完全可用 |
-| 流式响应 | ✅ | 完全可用 |
-| reasoning_content | ✅ | 支持推理过程 |
-| llm-connector 兼容性 | ✅ | 完全兼容 |
+| Non-streaming response | ✅ | Fully working |
+| Streaming response | ✅ | Fully working |
+| reasoning_content | ✅ | Thinking process supported |
+| llm-connector compatibility | ✅ | Fully compatible |
 
-**新增文件**:
-- `src/providers/volcengine.rs` - 火山引擎专用 Provider
-- `examples/test_volcengine.rs` - 测试示例
-- `tests/test_volcengine_raw.sh` - 原始 API 测试
-- `tests/test_volcengine_streaming_raw.sh` - 流式响应测试
-- `docs/VOLCENGINE_GUIDE.md` - 完整使用指南
+**New Files**:
+- `src/providers/volcengine.rs` - Volcengine dedicated provider
+- `examples/test_volcengine.rs` - Test example
+- `tests/test_volcengine_raw.sh` - Raw API test
+- `tests/test_volcengine_streaming_raw.sh` - Streaming API test
+- `docs/VOLCENGINE_GUIDE.md` - Full usage guide
 
-**重要说明**:
-- 火山引擎使用端点 ID（`ep-xxxxxx`）而不是模型名称
-- 端点 ID 需要在火山引擎控制台创建和获取
-- API Key 格式为 UUID 而不是 `sk-` 格式
+**Important Notes**:
+- Volcengine uses endpoint IDs (`ep-xxxxxx`) instead of model names
+- Endpoint IDs must be created and retrieved in the Volcengine console
+- API keys are UUID format, not `sk-` format
 
 ---
 
@@ -803,79 +822,80 @@ let response = client.chat(&request).await?;
 
 ### ✨ New Features
 
-#### **添加 LongCat API 支持**
+#### **Add LongCat API Support**
 
-**LongCat 简介**:
-- LongCat 是一个 AI 服务平台，提供高性能的对话模型
-- 支持 OpenAI 和 Anthropic 两种 API 格式
-- 每日免费额度: 500,000 Tokens
+**LongCat Overview**:
+- LongCat is an AI service platform providing high-performance chat models
+- Supports both OpenAI and Anthropic API formats
+- Daily free quota: 500,000 Tokens
 
-**新增功能**:
+**What’s Added**:
 
-1. **LongCat OpenAI 格式支持** - ✅ 完全可用
-   - 使用 `LlmClient::openai_compatible()` 方法
-   - 端点: `https://api.longcat.chat/openai`
-   - 支持非流式和流式响应
-   - 完全兼容 llm-connector
+1. **LongCat OpenAI Format Support** - ✅ Fully Available
+   - Use `LlmClient::openai_compatible()` method
+   - Endpoint: `https://api.longcat.chat/openai`
+   - Supports non-streaming and streaming responses
+   - Fully compatible with llm-connector
+   - Works seamlessly with llm-connector
+ 
+ 2. **LongCat Anthropic Format Support** - ✅ Non-streaming Available
+    - Create `LongCatAnthropicProtocol` adapter
+    - Uses `Authorization: Bearer` auth (instead of standard Anthropic `x-api-key`)
+    - Add `LlmClient::longcat_anthropic()` method
+    - Add `LlmClient::longcat_anthropic_with_config()` method
+    - Supports non-streaming responses
+    - ⚠️ Streaming not supported yet (Anthropic event format needs a dedicated parser)
 
-2. **LongCat Anthropic 格式支持** - ✅ 非流式可用
-   - 创建 `LongCatAnthropicProtocol` 适配器
-   - 使用 `Authorization: Bearer` 认证（而不是标准 Anthropic 的 `x-api-key`）
-   - 添加 `LlmClient::longcat_anthropic()` 方法
-   - 添加 `LlmClient::longcat_anthropic_with_config()` 方法
-   - 支持非流式响应
-   - ⚠️ 流式响应暂不支持（Anthropic 事件格式需要专门解析器）
-
-**使用示例**:
+**Example Usage**:
 
 ```rust
-// 方式 1: OpenAI 格式（推荐，流式和非流式都可用）
+// Method 1: OpenAI format (recommended, streaming and non-streaming)
 let client = LlmClient::openai_compatible(
     "ak_...",
     "https://api.longcat.chat/openai",
     "longcat"
 )?;
 
-// 方式 2: Anthropic 格式（仅非流式）
+// Method 2: Anthropic format (non-streaming only)
 let client = LlmClient::longcat_anthropic("ak_...")?;
 ```
 
-**测试结果**:
+**Test Results**:
 
-| 测试项 | OpenAI 格式 | Anthropic 格式 |
+| Test Item | OpenAI Format | Anthropic Format |
 |--------|------------|---------------|
-| 非流式响应 | ✅ 成功 | ✅ 成功 |
-| 流式响应 | ✅ 成功 | ⚠️ 暂不支持 |
-| llm-connector 兼容性 | ✅ 完全兼容 | ✅ 非流式兼容 |
+| Non-streaming response | ✅ Success | ✅ Success |
+| Streaming response | ✅ Success | ⚠️ Not supported yet |
+| llm-connector compatibility | ✅ Fully compatible | ✅ Non-streaming compatible |
 
-**新增文件**:
-- `src/providers/longcat.rs` - LongCat Anthropic 适配器
-- `examples/test_longcat_openai.rs` - OpenAI 格式测试
-- `examples/test_longcat_anthropic.rs` - Anthropic 格式测试
-- `tests/test_longcat_anthropic_raw.sh` - Anthropic 原始 API 测试
-- `tests/test_longcat_anthropic_streaming_raw.sh` - 流式响应格式测试
-- `docs/LONGCAT_TESTING_REPORT.md` - 完整测试报告
+**New Files**:
+- `src/providers/longcat.rs` - LongCat Anthropic adapter
+- `examples/test_longcat_openai.rs` - OpenAI format test
+- `examples/test_longcat_anthropic.rs` - Anthropic format test
+- `tests/test_longcat_anthropic_raw.sh` - Anthropic raw API test
+- `tests/test_longcat_anthropic_streaming_raw.sh` - Streaming format test
+- `docs/LONGCAT_TESTING_REPORT.md` - Full testing report
 
-**推荐使用方式**:
-- 流式: `LlmClient::openai_compatible("ak_...", "https://api.longcat.chat/openai", "longcat")`
-- 非流式: `LlmClient::longcat_anthropic("ak_...")` 或 OpenAI 格式
+**Recommended Usage**:
+- Streaming: `LlmClient::openai_compatible("ak_...", "https://api.longcat.chat/openai", "longcat")`
+- Non-streaming: `LlmClient::longcat_anthropic("ak_...")` or the OpenAI format
 
-### 🐛 Bug Fixes
+ ### 🐛 Bug Fixes
+ 
+#### **Fix Missing Methods in AliyunProviderImpl**
+ 
+**Issue**: Tests call `provider.protocol()` and `provider.client()`, but these methods did not exist.
+ 
+**Fix**:
+- Add `protocol()` to return a reference to the protocol instance
+- Add `client()` to return a reference to the HTTP client
+- Fix `models()` error messages to match test expectations
+- Fix calls to non-existent methods in the `as_ollama()` doctest
 
-#### **修复 AliyunProviderImpl 缺失方法**
-
-**问题**: 测试代码调用 `provider.protocol()` 和 `provider.client()` 方法，但这些方法不存在
-
-**修复**:
-- 添加 `protocol()` 方法返回协议实例引用
-- 添加 `client()` 方法返回 HTTP 客户端引用
-- 修复 `models()` 错误信息以匹配测试期望
-- 修复 `as_ollama()` doctest 中不存在的方法调用
-
-### 📝 Documentation
-
-- 添加 `docs/LONGCAT_TESTING_REPORT.md` - LongCat API 完整测试报告
-- 更新 `src/client.rs` - 添加 LongCat 使用示例
+ ### 📝 Documentation
+ 
+- Add `docs/LONGCAT_TESTING_REPORT.md` - Full LongCat API testing report
+- Update `src/client.rs` - Add LongCat usage examples
 
 ---
 
@@ -883,96 +903,46 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 
 ### 🐛 Bug Fixes
 
-#### **修复 Aliyun 响应解析和流式响应问题**
+#### **Fix Aliyun Response Parsing and Streaming**
 
-**问题 1: ChatResponse 结构不一致**
+**Issue 1: Inconsistent ChatResponse structure**
 
-**问题描述**:
-- ❌ Aliyun 的 `choices` 数组为空
-- ❌ `content` 字段有数据，但不是从 `choices[0]` 提取的
-- ❌ 缺少 `usage` 信息
-- ❌ 与 OpenAI 实现不一致，违反设计意图
+**Symptoms**:
+- `choices` was empty
+- `content` was populated but not derived from `choices[0]`
+- `usage` information was missing
 
-**根本原因**:
-- 使用 `..Default::default()` 导致 `choices` 为空数组
-- 直接设置 `content` 字段，而不是从 `choices[0].message.content` 提取
-- 没有提取 `usage` 和 `finish_reason` 信息
+**Fix**:
+- Update Aliyun response structs (`src/providers/aliyun.rs`) to include `usage`, `request_id`, and `finish_reason`
+- Rebuild `choices` properly and derive convenience `content` from `choices[0].message.content`
 
-**修复内容**:
+**Issue 2: Streaming responses returned no content**
 
-1. **更新响应数据结构** (`src/providers/aliyun.rs`)
-   - 添加 `AliyunUsage` 结构体
-   - 添加 `usage` 和 `request_id` 字段到 `AliyunResponse`
-   - 添加 `finish_reason` 字段到 `AliyunChoice`
+**Root cause**:
+- Missing `X-DashScope-SSE: enable` header
+- Missing `incremental_output: true` parameter
+- Default SSE parsing did not match Aliyun's streaming format
 
-2. **修复 parse_response 方法**
-   - 构建完整的 `choices` 数组，包含 `Choice` 对象
-   - 从 `choices[0].message.content` 提取 `content` 作为便利字段
-   - 提取 `usage` 信息（`input_tokens`, `output_tokens`, `total_tokens`）
-   - 提取 `request_id` 到 `response.id`
-   - 提取 `finish_reason`
+**Fix**:
+- Add streaming parameters and required headers
+- Implement custom stream parsing and convert to unified `StreamingResponse`
 
-**问题 2: 流式响应无法工作**
-
-**问题描述**:
-- ❌ 流式请求没有收到任何内容 chunks
-- ❌ 只收到最后一个空的 final chunk
-- ❌ 流式功能完全无法使用
-
-**根本原因**:
-- 缺少 `X-DashScope-SSE: enable` 头部
-- 缺少 `incremental_output: true` 参数
-- 使用默认的 SSE 解析，无法正确处理 Aliyun 的特殊格式
-
-**修复内容**:
-
-1. **添加流式参数**
-   - 添加 `incremental_output` 字段到 `AliyunParameters`
-   - 在 `build_request` 中根据 `stream` 参数设置 `incremental_output`
-
-2. **创建自定义 Provider 实现**
-   - 创建 `AliyunProviderImpl` 结构体
-   - 实现 `Provider` trait，包含 `chat`, `chat_stream`, `models` 方法
-   - 在 `chat_stream` 中添加 `X-DashScope-SSE: enable` 头部
-
-3. **实现自定义流式解析**
-   - 实现 `parse_stream_response` 方法
-   - 解析 Aliyun SSE 格式（`id:`, `event:`, `data:` 行）
-   - 处理 `finish_reason: "null"` (字符串) vs `"stop"`
-   - 转换为 `StreamingResponse` 格式
-
-**验证结果**:
-
-非流式响应:
-- ✅ `choices` 数组长度: 1
-- ✅ `choices[0].message.content == content`
-- ✅ 包含 `usage` 信息
-- ✅ 包含 `finish_reason`
-- ✅ 符合 OpenAI 标准格式
-
-流式响应:
-- ✅ 总流式块数: 10
-- ✅ 包含内容的块数: 9
-- ✅ 完整内容正常接收
-- ✅ 流式响应正常工作
-
-**影响范围**:
-- ✅ 完全向后兼容（`content` 字段继续工作）
-- ✅ 增强功能（现在可以访问 `choices` 数组和 `usage` 信息）
-- ✅ 修复流式响应（从完全不工作到正常工作）
+**Result**:
+- Non-streaming and streaming both work as expected
+- Backward compatible (existing `content` field still works)
 
 ### 🧪 Testing
 
-**新增测试**:
-1. `examples/test_aliyun_streaming.rs` - 流式响应测试
-2. `examples/verify_aliyun_choices.rs` - choices 数组验证
-3. `tests/test_aliyun_streaming_format.sh` - API 原始响应测试
+**New Tests**:
+1. `examples/test_aliyun_streaming.rs` - Streaming response test
+2. `examples/verify_aliyun_choices.rs` - choices array verification
+3. `tests/test_aliyun_streaming_format.sh` - API raw response test
 
 ### 📝 Documentation
-
-- 添加 `docs/ALIYUN_FIXES_SUMMARY.md` - Aliyun 修复总结
-- 添加 `docs/CHATRESPONSE_DESIGN_ANALYSIS.md` - ChatResponse 设计分析
-- 添加 `docs/ALIYUN_RESPONSE_VERIFICATION.md` - Aliyun 响应验证报告
+ 
+ - Add `docs/ALIYUN_FIXES_SUMMARY.md` - Aliyun fixes summary
+ - Add `docs/CHATRESPONSE_DESIGN_ANALYSIS.md` - ChatResponse design analysis
+ - Add `docs/ALIYUN_RESPONSE_VERIFICATION.md` - Aliyun response verification report
 
 ---
 
@@ -980,106 +950,101 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 
 ### 🐛 Bug Fixes
 
-#### **修复重复 Content-Type 头部导致 Aliyun 等 Provider 无法使用**
+#### **Fix Duplicate Content-Type Header Causing Provider Failures**
 
-**问题描述**:
-- ❌ Aliyun Provider 完全无法使用
-- ❌ 错误信息: `Content-Type/Accept application/json,application/json is not supported`
-- ❌ 原因: `auth_headers()` 和 `HttpClient::post().json()` 都设置了 `Content-Type`
-- ❌ 导致 HTTP 头部重复: `Content-Type: application/json, application/json`
+**Problem**:
+- Some providers (e.g., Aliyun) failed because `Content-Type` was set twice:
+  - Once by `Protocol::auth_headers()`
+  - Once by `.json(body)` in the HTTP client
 
-**根本原因**:
-1. `Protocol::auth_headers()` 返回 `Content-Type: application/json`
-2. `HttpClient::post()` 使用 `.json(body)` 也会自动设置 `Content-Type: application/json`
-3. 两个头部值被合并，导致重复
-4. 阿里云 API（以及其他严格的 API）不接受重复的头部值
+**Fix**:
+- Remove manual `Content-Type` from auth headers / provider header builders where `.json()` already sets it
+- Apply the same cleanup across multiple providers to avoid duplicate header values
 
-**修复内容**:
+**Affected Providers**:
+- ✅ **Aliyun (DashScope)** - Fix failure to use
+- ✅ **Zhipu (GLM)** - Fix potential issue
+- ✅ **Anthropic (Vertex AI, Bedrock)** - Fix potential issue
+- ✅ **Ollama** - Fix potential issue
+- ✅ **OpenAI (Azure, Compatible)** - Fix potential issue
 
-1. **Aliyun Provider** (`src/providers/aliyun.rs`)
-   - 从 `auth_headers()` 中移除 `Content-Type` 设置
-   - 添加注释说明 `.json()` 已自动设置
+**Testing Verification**:
+- ✅ Compile successfully
+- ✅ Add `examples/test_aliyun_basic.rs` to verify fix
+- ✅ All providers no longer set duplicate `Content-Type`
 
-2. **Zhipu Provider** (`src/providers/zhipu.rs`)
-   - 从 `auth_headers()` 中移除 `Content-Type` 设置
-   - 避免潜在的重复头部问题
+**Fix Statistics**:
+- Fixed files: 5
+- Fixed providers: 6
+- Removed duplicate settings: 9
+- Added comments: 9
 
-3. **Anthropic Provider** (`src/providers/anthropic.rs`)
-   - Vertex AI: 移除 `.with_header("Content-Type", ...)`
-   - Bedrock: 移除 `.with_header("Content-Type", ...)`
+**Impact**:
+- ✅ Fix Aliyun provider failure to use
+- ✅ Fix potential compatibility issues in other providers
+- ✅ Improve HTTP header setting consistency
+- ✅ Fully backward compatible, no user code changes needed
 
-4. **Ollama Provider** (`src/providers/ollama.rs`)
-   - `new()`: 移除 `.with_header("Content-Type", ...)`
-   - `with_config()`: 移除 `.with_header("Content-Type", ...)`
+- ✅ **Ollama** - Fix potential issue
+- ✅ **OpenAI (Azure, Compatible)** - Fix potential issue
 
-5. **OpenAI Provider** (`src/providers/openai.rs`)
-   - Azure OpenAI: 移除 `.with_header("Content-Type", ...)`
-   - OpenAI Compatible: 移除 `.with_header("Content-Type", ...)`
+**Testing Verification**:
+- ✅ Compile successfully
+- ✅ Add `examples/test_aliyun_basic.rs` to verify fix
+- ✅ All providers no longer set duplicate `Content-Type`
 
-**影响的 Provider**:
-- ✅ **Aliyun (DashScope)** - 修复无法使用的问题
-- ✅ **Zhipu (GLM)** - 修复潜在问题
-- ✅ **Anthropic (Vertex AI, Bedrock)** - 修复潜在问题
-- ✅ **Ollama** - 修复潜在问题
-- ✅ **OpenAI (Azure, Compatible)** - 修复潜在问题
+**Fix Statistics**:
+- Fixed files: 5
+- Fixed providers: 6
+- Removed duplicate settings: 9
+- Added comments: 9
 
-**测试验证**:
-- ✅ 编译成功
-- ✅ 添加 `examples/test_aliyun_basic.rs` 验证修复
-- ✅ 所有 Provider 不再重复设置 Content-Type
-
-**修复统计**:
-- 修复的文件: 5 个
-- 修复的 Provider: 6 个
-- 删除的重复设置: 9 处
-- 添加的注释: 9 处
-
-**影响范围**:
-- ✅ 修复 Aliyun Provider 完全无法使用的严重问题
-- ✅ 修复其他 Provider 的潜在兼容性问题
-- ✅ 提升 HTTP 头部设置的规范性
-- ✅ 完全向后兼容，无需用户修改代码
+**Impact**:
+- ✅ Fix critical Aliyun provider failure to use
+- ✅ Fix potential compatibility issues in other providers
+- ✅ Improve HTTP header setting consistency
+- ✅ Fully backward compatible, no user code changes needed
 
 ### 🧪 Testing
 
-#### **添加智谱流式 tool_calls 验证测试**
+#### **Add Zhipu Streaming tool_calls Verification Tests**
 
-**新增测试**:
-1. `tests/test_zhipu_streaming_direct.sh` - 直接测试智谱 API 原始响应
-2. `examples/test_zhipu_flash_streaming_tool_calls.rs` - 测试 llm-connector 解析
-3. `examples/debug_zhipu_streaming_tool_calls.rs` - 详细调试示例
+**New Tests**:
+1. `tests/test_zhipu_streaming_direct.sh` - Test Zhipu API raw streaming response
+2. `examples/test_zhipu_flash_streaming_tool_calls.rs` - Test llm-connector parsing
+3. `examples/debug_zhipu_streaming_tool_calls.rs` - Detailed debug example
 
-**验证结果**:
-- ✅ 智谱 API 在流式模式下返回 tool_calls
-- ✅ llm-connector 可以正确解析 tool_calls
-- ✅ 证明 llm-connector 0.4.15 没有 bug，功能正常
+**Verification Results**:
+- ✅ Zhipu API returns tool_calls in streaming mode
+- ✅ llm-connector parses tool_calls correctly
+- ✅ Confirms llm-connector 0.4.15 works as expected
 
 ### 📝 Documentation
 
-- 添加 `docs/FIX_DUPLICATE_CONTENT_TYPE_HEADER.md` - 重复头部问题修复文档
-- 添加 `docs/ZHIPU_STREAMING_TOOL_CALLS_VERIFICATION.md` - 智谱流式验证报告
+- Add `docs/FIX_DUPLICATE_CONTENT_TYPE_HEADER.md` - Duplicate header fix documentation
+- Add `docs/ZHIPU_STREAMING_TOOL_CALLS_VERIFICATION.md` - Zhipu streaming verification report
 
 ---
 
 ## [0.4.15] - 2025-10-18
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
-#### **修复示例代码编译错误和警告**
+#### **Fix Example Compilation Errors and Warnings**
 
-**修复内容**:
-1. **移除不存在的方法调用** (`examples/test_openai_tool_streaming.rs`)
-   - 移除了对不存在的 `LlmClient::openrouter()` 方法的调用
-   - 改为使用 `LlmClient::openai()`
-
-2. **修复类型错误** (`examples/test_openai_tool_streaming.rs`)
-   - 修复 tool_calls 引用类型问题
-   - 将 `&tool_calls_buffer[0]` 改为 `tool_calls_buffer[0].clone()`
-
-3. **消除未使用导入警告** (7 个示例文件)
-   - 将 streaming 相关的导入移到 `#[cfg(feature = "streaming")]` 内
-   - 避免在非 streaming 模式下产生未使用导入警告
-   - 影响文件：
+**Fix**:
+1. **Remove calls to non-existent methods** (`examples/test_openai_tool_streaming.rs`)
+   - Remove calls to `LlmClient::openrouter()` (non-existent)
+   - Use `LlmClient::openai()` instead
+ 
+2. **Fix type errors** (`examples/test_openai_tool_streaming.rs`)
+   - Fix tool_calls reference type issues
+   - Replace `&tool_calls_buffer[0]` with `tool_calls_buffer[0].clone()`
+ 
+3. **Reduce unused import warnings** (7 example files)
+   - Move streaming imports under `#[cfg(feature = "streaming")]`
+   - Avoid unused import warnings when streaming is disabled
+   - Affected files:
      - `test_zhipu_tool_messages_detailed.rs`
      - `test_deepseek_tools.rs`
      - `test_openai_tool_streaming.rs`
@@ -1088,109 +1053,106 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
      - `zhipu_tools_streaming.rs`
      - `test_all_providers_tool_streaming.rs`
 
-4. **消除未使用字段警告** (`examples/test_all_providers_tool_streaming.rs`)
-   - 添加 `#[allow(dead_code)]` 到 `TestResult` 结构体
+4. **Reduce unused field warnings** (`examples/test_all_providers_tool_streaming.rs`)
+   - Add `#[allow(dead_code)]` to `TestResult`
+ 
+5. **Fix clippy warnings**
+   - Fix doc comment empty-line warnings
+   - Replace `len() > 0` with `!is_empty()`
 
-5. **修复 clippy 警告**
-   - 修复 doc comments 空行警告
-   - 修复长度比较警告（`len() > 0` → `!is_empty()`）
+### Documentation
+ 
+- Add `docs/EXAMPLES_AND_TESTS_REVIEW.md` - Examples and tests review report
+- Add `docs/RELEASE_v0.4.14.md` - v0.4.14 release summary
 
-### 📝 Documentation
+**Verification**:
+- All examples compile
+- All tests pass
+- No build errors
+- Significantly fewer warnings
 
-- 添加 `docs/EXAMPLES_AND_TESTS_REVIEW.md` - Examples 和 Tests 审查报告
-- 添加 `docs/RELEASE_v0.4.14.md` - v0.4.14 发布总结
-
-**测试验证**:
-- ✅ 所有示例都能正常编译
-- ✅ 所有测试都能通过
-- ✅ 无编译错误
-- ✅ 大幅减少编译警告
-
-**影响范围**:
-- 修复示例代码的编译问题
-- 提升代码质量
-- 完全向后兼容
+**Impact**:
+- Fix example compilation issues
+- Improve code quality
+- Fully backward compatible
 
 ---
 
 ## [0.4.14] - 2025-10-18
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
-#### **修复 OpenAI 协议工具调用支持 + 移除智谱 GLM 流式强制切换**
+#### **Fix OpenAI Tool Calling Support + Remove Zhipu GLM Streaming Forced Fallback**
 
-**问题 1: OpenAI 协议缺少工具调用支持**
+**Issue 1: OpenAI protocol missing tool calling support**
 
-**问题描述**:
-- ❌ `OpenAIRequest` 缺少 `tools` 和 `tool_choice` 字段，无法传递工具定义
-- ❌ `OpenAIMessage` 缺少 `tool_calls`, `tool_call_id`, `name` 字段
-- ❌ `OpenAIResponseMessage` 缺少 `tool_calls` 字段，无法解析工具调用响应
-- ❌ 导致所有使用 OpenAI 协议的服务（DeepSeek, Moonshot 等）完全无法使用工具调用
+**Symptoms**:
+- Missing fields in request/message/response for tool calling
+- Tool calling did not work for providers built on the OpenAI protocol
 
-**修复内容**:
-1. **OpenAIRequest 添加工具字段** (`src/protocols/openai.rs`)
+**Fix**:
+1. **Add tool fields to OpenAIRequest** (`src/protocols/openai.rs`)
    ```rust
    pub struct OpenAIRequest {
-       // ... 其他字段
-       pub tools: Option<Vec<serde_json::Value>>,      // ✅ 新增
-       pub tool_choice: Option<serde_json::Value>,     // ✅ 新增
+       // ... other fields
+       pub tools: Option<Vec<serde_json::Value>>,      // ✅ added
+       pub tool_choice: Option<serde_json::Value>,     // ✅ added
    }
    ```
 
-2. **OpenAIMessage 添加工具字段** (`src/protocols/openai.rs`)
+2. **Add tool fields to OpenAIMessage** (`src/protocols/openai.rs`)
    ```rust
    pub struct OpenAIMessage {
        pub role: String,
        pub content: String,
-       pub tool_calls: Option<Vec<serde_json::Value>>,  // ✅ 新增
-       pub tool_call_id: Option<String>,                // ✅ 新增
-       pub name: Option<String>,                        // ✅ 新增
+       pub tool_calls: Option<Vec<serde_json::Value>>,  // ✅ added
+       pub tool_call_id: Option<String>,                // ✅ added
+       pub name: Option<String>,                        // ✅ added
    }
    ```
 
-3. **OpenAIResponseMessage 添加工具字段** (`src/protocols/openai.rs`)
+3. **Add tool fields to OpenAIResponseMessage** (`src/protocols/openai.rs`)
    ```rust
    pub struct OpenAIResponseMessage {
-       pub content: Option<String>,                     // ✅ 改为 Option
-       pub tool_calls: Option<Vec<serde_json::Value>>,  // ✅ 新增
+       pub content: Option<String>,                     // ✅ changed to Option
+       pub tool_calls: Option<Vec<serde_json::Value>>,  // ✅ added
    }
    ```
 
-4. **build_request 完整映射工具调用** (`src/protocols/openai.rs:48-106`)
-   - 正确映射 `tools` 字段
-   - 正确映射 `tool_choice` 字段
-   - 正确映射消息中的 `tool_calls`, `tool_call_id`, `name` 字段
+4. **Map tool calling fields in build_request** (`src/protocols/openai.rs:48-106`)
+   - Map `tools`
+   - Map `tool_choice`
+   - Map message fields `tool_calls`, `tool_call_id`, `name`
 
-5. **parse_response 正确解析工具调用** (`src/protocols/openai.rs:116-149`)
-   - 从响应中提取 `tool_calls`
-   - 转换为统一的 `ToolCall` 类型
+5. **Parse tool calls in parse_response** (`src/protocols/openai.rs:116-149`)
+   - Extract `tool_calls` from the response
+   - Convert to the unified `ToolCall` type
 
-**问题 2: 智谱 GLM 流式响应被强制切换**
+**Issue 2: Zhipu GLM streaming was forced to fall back**
 
-**问题描述**:
-- ❌ `src/core/traits.rs` 中存在硬编码逻辑，检测到 `Role::Tool` 消息时强制切换为非流式
-- ❌ GLM-4.5 正常可返回 91 个流式块，但包含工具结果时被强制切换为 1 个块
-- ❌ 这是一个临时修复（workaround），现在已不再需要
+**Symptoms**:
+- Hard-coded logic in `src/core/traits.rs` forced non-streaming when `Role::Tool` messages were present
+- ❌ GLM-4.5 should return many streaming chunks, but tool results caused a forced fallback to a single chunk
+- ❌ This was a temporary workaround and is no longer needed
 
-**修复内容**:
-- **移除硬编码修复逻辑** (`src/core/traits.rs:155-173`)
-  - 删除了检测 `Role::Tool` 和 `zhipu` 的特殊处理
-  - 智谱 GLM 现在可以在包含工具调用结果时正常使用流式响应
+**Fix**:
+- Remove the hard-coded workaround (`src/core/traits.rs:155-173`)
+- Zhipu GLM streaming now works when tool results are included
 
-**测试验证**:
-- ✅ OpenAI 协议完整支持工具调用（tools, tool_choice, tool_calls）
-- ✅ DeepSeek 现在可以正常使用工具调用
-- ✅ 所有 OpenAI 兼容服务（Moonshot, Together AI 等）都可以使用工具调用
-- ✅ 智谱 GLM 在包含 Role::Tool 时可以使用流式响应
-- ✅ 所有核心库测试通过（27 个测试）
+**Verification**:
+- ✅ OpenAI protocol fully supports tool calling (tools, tool_choice, tool_calls)
+- ✅ DeepSeek tool calling works
+- ✅ All OpenAI-compatible services can use tool calling
+- ✅ Zhipu GLM streaming works with Role::Tool
+- ✅ All core library tests pass (27 tests)
 
-**新增示例**:
-- `examples/verify_tool_fix.rs` - 验证工具调用修复效果
+**New Example**:
+- `examples/verify_tool_fix.rs` - Verify tool calling fix
 
-**影响范围**:
-- 修复所有使用 OpenAI 协议的服务的工具调用功能
-- 移除智谱 GLM 的流式响应限制
-- 完全向后兼容
+**Impact**:
+- Fix tool calling for all OpenAI-protocol based services
+- Remove Zhipu GLM streaming limitation
+- Fully backward compatible
 
 ---
 
@@ -1198,44 +1160,43 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 
 ### 🐛 Bug Fixes
 
-#### **修复智谱 GLM 多轮工具调用支持**
+#### **Fix Zhipu GLM Multi-round Tool Calling Support**
 
-**问题描述**:
-- ❌ `ZhipuMessage` 缺少 `tool_call_id` 字段，无法在 Tool 消息中关联工具调用
-- ❌ `ZhipuMessage` 缺少 `name` 字段，无法传递工具名称
-- ❌ 导致多轮 Function Calling 对话失败（第二轮无法正确传递工具执行结果）
+**Summary**:
+- Add missing `tool_call_id` and `name` fields for tool messages
+- Ensure multi-round function calling flows work correctly
 
-**修复内容**:
-1. **ZhipuMessage 结构完善** (`src/providers/zhipu.rs:272-282`)
+**Details**:
+1. **ZhipuMessage struct updates** (`src/providers/zhipu.rs:272-282`)
    ```rust
    pub struct ZhipuMessage {
        pub role: String,
        pub content: String,
        pub tool_calls: Option<Vec<serde_json::Value>>,
-       pub tool_call_id: Option<String>,  // ✅ 新增
-       pub name: Option<String>,          // ✅ 新增
+       pub tool_call_id: Option<String>,  // ✅ added
+       pub name: Option<String>,          // ✅ added
    }
    ```
 
-2. **build_request 映射补充** (`src/providers/zhipu.rs:77-96`)
-   - 正确映射 `tool_call_id` 字段
-   - 正确映射 `name` 字段
+2. **build_request mapping updates** (`src/providers/zhipu.rs:77-96`)
+   - Map `tool_call_id` correctly
+   - Map `name` correctly
 
-**测试验证**:
-- ✅ 单轮工具调用：User 提问 → LLM 返回 tool_calls
-- ✅ 多轮工具调用：Tool 结果 → LLM 返回文本响应
-- ✅ 三轮对话：User 追问 → LLM 正确触发新的 tool_calls
-- ✅ Tool 消息序列化：`role="tool"`, `tool_call_id`, `name` 全部正确
+**Verification**:
+- ✅ Single-round: User prompt → tool_calls returned
+- ✅ Multi-round: Tool result → text response returned
+- ✅ Three-round: Follow-up triggers new tool_calls
+- ✅ Tool message serialization is correct (`role="tool"`, `tool_call_id`, `name`)
 
-**新增示例**:
-- `examples/zhipu_multiround_tools.rs` - 多轮工具调用演示
-- `examples/zhipu_tools_edge_cases.rs` - 边缘情况测试
-- `examples/verify_tool_message_serialization.rs` - 序列化验证
+**New Examples**:
+- `examples/zhipu_multiround_tools.rs` - Multi-round tool calling demo
+- `examples/zhipu_tools_edge_cases.rs` - Edge case tests
+- `examples/verify_tool_message_serialization.rs` - Serialization verification
 
-**影响范围**:
-- 修复智谱 GLM 的多轮工具调用功能
-- 完全符合 OpenAI Function Calling 规范
-- 完全向后兼容
+**Impact**:
+- Fix multi-round tool calling for Zhipu GLM
+- Align with OpenAI Function Calling conventions
+- Backward compatible
 
 ---
 
@@ -1243,48 +1204,42 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 
 ### 🐛 Bug Fixes
 
-#### **修复智谱 GLM 流式响应和工具调用支持**
+#### **Fix Zhipu GLM Streaming Responses and Tool Calling Support**
 
-**流式响应问题**:
-- ❌ 问题：智谱 API 使用单换行分隔 SSE（`data: {...}\n`），导致默认解析器失败
-- ❌ 问题：`StreamingResponse.content` 字段未填充，`get_content()` 返回空字符串
-- ❌ 问题：`ZhipuRequest` 缺少 `stream` 参数，API 不知道要返回流式响应
+**Summary**:
+- Implement a Zhipu-specific streaming parser for single-newline SSE
+- Ensure `content` is populated correctly for streaming chunks
+- Add missing request fields (`stream`, `tools`, `tool_choice`) and response parsing for tool_calls
 
-**工具调用问题**:
-- ❌ 问题：`ZhipuRequest` 缺少 `tools` 和 `tool_choice` 字段
-- ❌ 问题：`ZhipuMessage` 不支持 `tool_calls` 响应
-- ❌ 问题：流式和非流式请求都无法传递工具参数
-
-**修复内容**:
-1. **流式解析器** (`src/providers/zhipu.rs:126-201`)
-   - 实现智谱专用 `parse_stream_response()`
-   - 支持单换行分隔的 SSE 格式
-   - 自动填充 `content` 字段（从 `delta.content` 复制）
+**Details**:
+1. **Streaming parser** (`src/providers/zhipu.rs:126-201`)
+   - Implement Zhipu-specific `parse_stream_response()`
+   - Support single-newline SSE
+   - Populate `content` from `delta.content`
    
-2. **请求参数** (`src/providers/zhipu.rs:216-234`)
-   - 添加 `stream: Option<bool>` 字段
-   - 添加 `tools: Option<Vec<Tool>>` 字段
-   - 添加 `tool_choice: Option<ToolChoice>` 字段
+2. **Request fields** (`src/providers/zhipu.rs:216-234`)
+   - Add `stream: Option<bool>`
+   - Add `tools: Option<Vec<Tool>>`
+   - Add `tool_choice: Option<ToolChoice>`
    
-3. **响应解析** (`src/providers/zhipu.rs:240-264`)
-   - `ZhipuMessage.content` 使用 `#[serde(default)]`（工具调用时可为空）
-   - `ZhipuMessage.tool_calls` 支持工具调用响应
-   - `ZhipuResponse` 包含完整元数据（id, created, usage）
-   - `ZhipuChoice` 支持 `finish_reason`（识别 `tool_calls` 结束）
+3. **Response parsing** (`src/providers/zhipu.rs:240-264`)
+   - Use `#[serde(default)]` for `ZhipuMessage.content` (may be empty for tool calls)
+   - Support `ZhipuMessage.tool_calls`
+   - Ensure `ZhipuResponse` includes id/created/usage
+   - Support `finish_reason` in `ZhipuChoice`
 
-**测试验证**:
-- ✅ 流式响应：124 个数据块，642 字符输出
-- ✅ 非流式工具调用：`finish_reason: "tool_calls"`，正确解析参数
-- ✅ 流式工具调用：`finish_reason: "tool_calls"`，正确解析参数
+**Verification**:
+- Streaming: chunks and output received correctly
+- Tool calling works in both non-streaming and streaming modes
 
-**影响范围**:
-- 仅影响智谱 GLM provider
-- 完全向后兼容
-- 修复后与 OpenAI 协议对齐
+**Impact**:
+- Only affects the Zhipu GLM provider
+- Backward compatible
+- Aligns behavior with the OpenAI protocol
 
-**新增示例**:
-- `examples/zhipu_tools.rs` - 工具调用（非流式）
-- `examples/zhipu_tools_streaming.rs` - 工具调用（流式）
+**New Examples**:
+- `examples/zhipu_tools.rs` - Tool calling (non-streaming)
+- `examples/zhipu_tools_streaming.rs` - Tool calling (streaming)
 
 ---
 
@@ -1292,38 +1247,36 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 
 ### 🐛 Bug Fixes
 
-**修复智谱流式响应解析问题（初步修复）**
-- 实现 `ZhipuProtocol::parse_stream_response()` 专用流式解析器
-- 支持单换行分隔的 SSE 格式
-- 正确处理 `data:` 前缀（带或不带空格）
+**Initial fix for Zhipu streaming response parsing**
+- Implement dedicated `ZhipuProtocol::parse_stream_response()`
+- Support single-newline SSE format
+- Handle `data:` prefix with or without spaces
 
 ---
 
 ## [Unreleased]
 
-### 🐛 **BUGFIX: 修复智谱流式响应解析问题**
+### 🐛 **BUGFIX: Fix Zhipu Streaming Response Parsing**
 
-#### **问题描述**
-智谱 API 使用单换行分隔 SSE 事件（`data: {...}\n`），而不是标准的双换行（`data: {...}\n\n`），导致默认 SSE 解析器无法正确解析流式响应，产生 0 个数据块。
+**Problem**:
+Zhipu API uses single-newline SSE events (`data: {...}\n`) rather than the standard double-newline format. This caused the default SSE parser to produce zero chunks.
 
-#### **修复内容**
-- **新增**: `ZhipuProtocol::parse_stream_response()` 专用流式解析器
-  - 支持单换行分隔的 SSE 格式
-  - 正确处理 `data:` 前缀（带或不带空格）
-  - 跳过 `[DONE]` 标记和空 payload
-  - 提供详细的错误信息（包含原始 JSON）
+**Fix**:
+- Add a dedicated `ZhipuProtocol::parse_stream_response()` parser
+- Support single-newline SSE
+- Handle `data:` prefix with or without spaces
+- Skip `[DONE]` and empty payloads
+- Provide detailed error messages including raw JSON
 
-#### **测试改进**
-- 更新 `examples/zhipu_streaming.rs`
-  - 添加数据块计数器
-  - 显示解析器类型提示
-  - 使用 `glm-4-flash` 模型（更快响应）
-  - 添加零数据块警告
+**Test Improvements**:
+- Update `examples/zhipu_streaming.rs` with chunk counters and parser type hints
+  - Use `glm-4-flash` for faster responses
+  - Add a warning when zero chunks are produced
 
-#### **影响**
-- ✅ **修复**: 智谱流式 API 现在可以正常工作
-- ✅ **兼容性**: 不影响其他 Provider 的流式功能
-- ✅ **调试性**: 解析失败时显示原始 JSON
+#### **Impact**
+- ✅ **Fix**: Zhipu streaming API works correctly
+- ✅ **Compatibility**: Does not affect other providers' streaming
+- ✅ **Debuggability**: Show raw JSON on parse failures
 
 ---
 

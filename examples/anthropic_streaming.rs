@@ -1,6 +1,6 @@
-//! Anthropic 流式响应示例
-//!
-//! 展示如何使用增强的 Anthropic 流式响应功能
+//! Anthropic Streaming Response Example
+
+//! Demonstrates how to use enhanced Anthropic streaming response functionality
 
 #[cfg(feature = "streaming")]
 use llm_connector::{LlmClient, types::{ChatRequest, Message}};
@@ -10,24 +10,24 @@ use futures_util::StreamExt;
 #[cfg(feature = "streaming")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🤖 Anthropic 流式响应示例\n");
+    println!("🤖 Anthropic Streaming Response Example\n");
 
-    // 需要 Anthropic API key
+    // Need Anthropic API key
     let api_key = std::env::var("ANTHROPIC_API_KEY")
         .unwrap_or_else(|_| {
-            println!("❌ 请设置 ANTHROPIC_API_KEY 环境变量");
+            println!("❌ Please set the ANTHROPIC_API_KEY environment variable");
             std::process::exit(1);
         });
 
-    // 创建 Anthropic 客户端
+    // Create Anthropic client
     let client = LlmClient::anthropic(&api_key).unwrap();
 
-    // 1. 普通聊天请求
-    println!("💬 普通聊天请求:");
+    // 1. Regular chat request
+    println!("💬 Regular Chat Request:");
     let request = ChatRequest {
         model: "claude-3-5-sonnet-20241022".to_string(),
         messages: vec![
-            Message::user("请简单介绍一下流式响应的优势。")
+            Message::user("Please briefly introduce the advantages of streaming responses.")
         ],
         max_tokens: Some(200),
         ..Default::default()
@@ -35,16 +35,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("   Claude 回复: {}\n", response.choices[0].message.content_as_text());
+            println!("   Claude's reply: {}\n", response.choices[0].message.content_as_text());
         }
         Err(e) => {
-            println!("   ❌ 聊天错误: {}\n", e);
+            println!("   ❌ Chat error: {}\n", e);
         }
     }
 
-    // 2. 流式聊天请求
-    println!("🌊 流式聊天请求:");
-    println!("   Claude 正在流式回复...");
+    // 2. Streaming chat request
+    println!("🌊 Streaming Chat Request:");
+    println!("   Claude is streaming a response...");
 
     match client.chat_stream(&request).await {
         Ok(mut stream) => {
@@ -54,48 +54,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(streaming_response) => {
                         if let Some(content) = streaming_response.get_content() {
                             print!("{}", content);
-                            // 强制刷新输出缓冲区，以便实时显示
+                            // Force flush output buffer for real-time display
                             use std::io::{self, Write};
                             io::stdout().flush().unwrap();
                         }
 
-                        // 检查是否完成
+                        // Check if completed
                         if let Some(finish_reason) = streaming_response.choices.first()
                             .and_then(|c| c.finish_reason.as_ref()) {
                             if finish_reason == "stop" {
-                                println!("\n\n   ✅ 流式响应完成！");
+                                println!("\n\n   ✅ Streaming response completed!");
                                 if let Some(usage) = streaming_response.usage {
-                                    println!("   📊 使用统计:");
-                                    println!("     输入令牌: {}", usage.prompt_tokens);
-                                    println!("     输出令牌: {}", usage.completion_tokens);
-                                    println!("     总令牌: {}", usage.total_tokens);
+                                    println!("   📊 Usage Statistics:");
+                                    println!("     Input tokens: {}", usage.prompt_tokens);
+                                    println!("     Output tokens: {}", usage.completion_tokens);
+                                    println!("     Total tokens: {}", usage.total_tokens);
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        println!("\n   ❌ 流式响应错误: {}", e);
+                        println!("\n   ❌ Streaming response error: {}", e);
                         break;
                     }
                 }
             }
         }
         Err(e) => {
-            println!("   ❌ 流式请求错误: {}", e);
+            println!("   ❌ Streaming request error: {}", e);
         }
     }
 
-    println!("\n✅ 示例完成！");
-    println!("\n💡 提示:");
-    println!("   - 流式响应提供更好的用户体验，可以实时显示生成内容");
-    println!("   - 特别适合长文本生成和交互式应用");
-    println!("   - 新的 Anthropic 流式实现正确处理了复杂的事件状态");
+    println!("\n✅ Example completed!");
+    println!("\n💡 Tips:");
+    println!("   - Streaming responses provide better user experience with real-time content display");
+    println!("   - Especially suitable for long text generation and interactive applications");
+    println!("   - The new Anthropic streaming implementation correctly handles complex event states");
 
     Ok(())
 }
 
 #[cfg(not(feature = "streaming"))]
 fn main() {
-    println!("❌ 需要启用 'streaming' 功能才能运行此示例");
-    println!("   请使用: cargo run --example anthropic_streaming --features streaming");
+    println!("❌ The 'streaming' feature needs to be enabled to run this example");
+    println!("   Please use: cargo run --example anthropic_streaming --features streaming");
 }
