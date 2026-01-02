@@ -29,14 +29,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.5.4"
+llm-connector = "0.5.8"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.5.4", features = ["streaming"] }
+llm-connector = { version = "0.5.8", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -175,7 +175,7 @@ llm-connector supports 11+ LLM providers with a unified interface:
 | **Aliyun** | `LlmClient::aliyun("sk-...")` | Chat, Streaming, Qwen models |
 | **Zhipu** | `LlmClient::zhipu("key")` | Chat, Streaming, Tools, GLM models |
 | **Ollama** | `LlmClient::ollama()` | Chat, Streaming, Local models, Model management |
-| **Tencent** | `LlmClient::tencent("key")` | Chat, Streaming, Hunyuan models |
+| **Tencent** | `LlmClient::tencent("id", "key")` | Chat, Streaming, Hunyuan models (Native V3) |
 | **Volcengine** | `LlmClient::volcengine("key")` | Chat, Streaming, Reasoning (Doubao-Seed-Code) |
 | **DeepSeek** | `LlmClient::deepseek("sk-...")` | Chat, Streaming, Reasoning (R1) |
 | **Moonshot** | `LlmClient::moonshot("sk-...")` | Chat, Streaming, Long context |
@@ -183,7 +183,7 @@ llm-connector supports 11+ LLM providers with a unified interface:
 
 For detailed provider documentation and advanced configuration, see:
 - [Detailed Protocol Information](#supported-protocols) below
-- [Provider Guides](docs/guides/) for provider-specific features
+- [Provider Guides](docs/PROVIDERS.md) for provider-specific features
 
 ## Function Calling / Tools
 
@@ -286,7 +286,7 @@ For complete examples, see:
 - `examples/zhipu_multiround_tools.rs` - Multi-round conversations with tools
 - `examples/test_aliyun_streaming_tools.rs` - Streaming tool calls
 
-**Technical Details**: See [docs/STREAMING_TOOL_CALLS.md](docs/STREAMING_TOOL_CALLS.md) for implementation details.
+**Technical Details**: See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for implementation details.
 
 ## Streaming
 
@@ -296,7 +296,7 @@ llm-connector provides unified streaming support across all providers with the `
 
 ```toml
 [dependencies]
-llm-connector = { version = "0.5.4", features = ["streaming"] }
+llm-connector = { version = "0.5.8", features = ["streaming"] }
 ```
 
 ### Basic Streaming
@@ -442,12 +442,13 @@ let client = LlmClient::ollama_with_config(
 OpenAI-compatible API for Tencent Cloud.
 
 ```rust
-// Default
-let client = LlmClient::tencent("sk-...")?;
+// Default (Native API v3)
+let client = LlmClient::tencent("secret-id", "secret-key")?;
 
 // With custom configuration
 let client = LlmClient::tencent_with_config(
-    "sk-...",
+    "secret-id",
+    "secret-key",
     None,      // base_url (uses default)
     Some(60),  // timeout in seconds
     None       // proxy
@@ -1135,7 +1136,14 @@ Model not found
 
 ## Recent Changes
 
-### v0.5.4 (Latest)
+### v0.5.8 (Latest)
+
+**Tencent Native API v3**
+- Replaced OpenAI-compatible wrapper with native Tencent Cloud API v3 (`TC3-HMAC-SHA256`)
+- Improved security with proper signature authentication
+- Breaking Change: `tencent()` now accepts `(secret_id, secret_key)`
+
+### v0.5.4
 
 **Streaming Tool Calls Fix**
 - Fixed: Incremental accumulation and deduplication logic for streaming tool_calls
@@ -1229,6 +1237,7 @@ cargo run --example list_providers
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+Please check [RULES.md](RULES.md) for project rules and [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
 
 ## License
 
