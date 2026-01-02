@@ -2,16 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.8] - 2025-12-11
+## [0.5.8] - 2026-01-02
 
-### 🚀 New Features
+### ⚠️ Breaking Changes
 
-#### Google Gemini Support
-- **Added**: Native support for Google Gemini API
-  - Implemented `GoogleProvider`
-  - Added `LlmClient::google()` and `LlmClient::google_with_config()`
-  - Supports chat completion with `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-3-pro-preview`, etc.
-  - Added `examples/google_basic.rs`
+#### Tencent Hunyuan Native API v3
+- **BREAKING**: Replaced OpenAI-compatible wrapper with native Tencent Cloud API v3 using `TC3-HMAC-SHA256` signature.
+- **Affected**: `LlmClient::tencent()` and `tencent()` provider functions.
+- **New Signature**: `tencent(secret_id, secret_key)` (previously `tencent(api_key)`).
+- **Rationale**: Support native signature verification for better security and stability.
+
+### ✨ Improvements
+
+- **Security**: Hardcoded API keys removed from documentation and code.
+- **Documentation**: Updated Tencent guide with native API usage.
+
 
 ## [0.5.7] - 2025-11-23
 

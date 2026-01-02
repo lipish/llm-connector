@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 /// HTTP Client
-/// 
+///
 /// Encapsulates all HTTP communication details, including authentication, timeout, proxy configuration, etc.
 #[derive(Clone)]
 pub struct HttpClient {
@@ -27,10 +27,12 @@ impl HttpClient {
     /// If you need to use a proxy, use `with_config()` and explicitly set the proxy parameter.
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(60))  // Increased from 30 to 60 seconds
-            .no_proxy()  // Disable system proxy by default to avoid timeout issues
+            .timeout(Duration::from_secs(60)) // Increased from 30 to 60 seconds
+            .no_proxy() // Disable system proxy by default to avoid timeout issues
             .build()
-            .map_err(|e| LlmConnectorError::ConfigError(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| {
+                LlmConnectorError::ConfigError(format!("Failed to create HTTP client: {}", e))
+            })?;
 
         Ok(Self {
             client,
@@ -38,7 +40,7 @@ impl HttpClient {
             headers: HashMap::new(),
         })
     }
-    
+
     /// Create HTTP client with custom configuration
     ///
     /// # Parameters
@@ -63,7 +65,7 @@ impl HttpClient {
         if let Some(timeout) = timeout_secs {
             builder = builder.timeout(Duration::from_secs(timeout));
         } else {
-            builder = builder.timeout(Duration::from_secs(60));  // Increased from 30 to 60 seconds
+            builder = builder.timeout(Duration::from_secs(60)); // Increased from 30 to 60 seconds
         }
 
         // Set proxy or disable system proxy
@@ -76,80 +78,79 @@ impl HttpClient {
             // Disable system proxy to avoid timeout issues
             builder = builder.no_proxy();
         }
-        
-        let client = builder.build()
-            .map_err(|e| LlmConnectorError::ConfigError(format!("Failed to create HTTP client: {}", e)))?;
-            
+
+        let client = builder.build().map_err(|e| {
+            LlmConnectorError::ConfigError(format!("Failed to create HTTP client: {}", e))
+        })?;
+
         Ok(Self {
             client,
             base_url: base_url.trim_end_matches('/').to_string(),
             headers: HashMap::new(),
         })
     }
-    
+
     /// Add request headers
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         self.headers.extend(headers);
         self
     }
-    
+
     /// Add single request header
     pub fn with_header(mut self, key: String, value: String) -> Self {
         self.headers.insert(key, value);
         self
     }
-    
+
     /// Get base URL
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
-    
+
     /// Send GET request
     pub async fn get(&self, url: &str) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.get(url);
-        
+
         // Add all configured request headers
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }
-        
-        request.send().await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    LlmConnectorError::TimeoutError(format!("GET request timeout: {}", e))
-                } else if e.is_connect() {
-                    LlmConnectorError::ConnectionError(format!("GET connection failed: {}", e))
-                } else {
-                    LlmConnectorError::NetworkError(format!("GET request failed: {}", e))
-                }
-            })
+
+        request.send().await.map_err(|e| {
+            if e.is_timeout() {
+                LlmConnectorError::TimeoutError(format!("GET request timeout: {}", e))
+            } else if e.is_connect() {
+                LlmConnectorError::ConnectionError(format!("GET connection failed: {}", e))
+            } else {
+                LlmConnectorError::NetworkError(format!("GET request failed: {}", e))
+            }
+        })
     }
-    
+
     /// Send POST request
     pub async fn post<T: Serialize>(
-        &self, 
-        url: &str, 
-        body: &T
+        &self,
+        url: &str,
+        body: &T,
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
-        
+
         // Add all configured request headers
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }
-        
-        request.send().await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    LlmConnectorError::TimeoutError(format!("POST request timeout: {}", e))
-                } else if e.is_connect() {
-                    LlmConnectorError::ConnectionError(format!("POST connection failed: {}", e))
-                } else {
-                    LlmConnectorError::NetworkError(format!("POST request failed: {}", e))
-                }
-            })
+
+        request.send().await.map_err(|e| {
+            if e.is_timeout() {
+                LlmConnectorError::TimeoutError(format!("POST request timeout: {}", e))
+            } else if e.is_connect() {
+                LlmConnectorError::ConnectionError(format!("POST connection failed: {}", e))
+            } else {
+                LlmConnectorError::NetworkError(format!("POST request failed: {}", e))
+            }
+        })
     }
-    
+
     /// Send streaming POST request
     ///
     /// Note: Streaming requests use the same timeout as configured in the client.
@@ -185,7 +186,7 @@ impl HttpClient {
                 }
             })
     }
-    
+
     /// Send POST request with custom headers
     pub async fn post_with_custom_headers<T: Serialize>(
         &self,
@@ -194,27 +195,26 @@ impl HttpClient {
         custom_headers: &HashMap<String, String>,
     ) -> Result<reqwest::Response, LlmConnectorError> {
         let mut request = self.client.post(url).json(body);
-        
+
         // Add custom headers first
         for (key, value) in custom_headers {
             request = request.header(key, value);
         }
-        
+
         // Then add configured headers (may override custom headers)
         for (key, value) in &self.headers {
             request = request.header(key, value);
         }
-        
-        request.send().await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    LlmConnectorError::TimeoutError(format!("POST request timeout: {}", e))
-                } else if e.is_connect() {
-                    LlmConnectorError::ConnectionError(format!("POST connection failed: {}", e))
-                } else {
-                    LlmConnectorError::NetworkError(format!("POST request failed: {}", e))
-                }
-            })
+
+        request.send().await.map_err(|e| {
+            if e.is_timeout() {
+                LlmConnectorError::TimeoutError(format!("POST request timeout: {}", e))
+            } else if e.is_connect() {
+                LlmConnectorError::ConnectionError(format!("POST connection failed: {}", e))
+            } else {
+                LlmConnectorError::NetworkError(format!("POST request failed: {}", e))
+            }
+        })
     }
 }
 

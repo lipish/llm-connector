@@ -80,9 +80,9 @@ pub use volcengine::{
     volcengine_with_config,
 };
 
+#[cfg(feature = "tencent")]
 pub use tencent::{
     TencentProvider,
-    TencentProtocol,
     tencent,
     tencent_with_config,
 };

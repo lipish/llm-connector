@@ -314,32 +314,36 @@ impl LlmClient {
 
     /// Create Tencent Hunyuan client
     ///
-    /// Tencent Hunyuan uses OpenAI compatible API format
+    /// Tencent Hunyuan uses Native API v3 (TC3-HMAC-SHA256)
     ///
     /// # Parameters
-    /// - `api_key`: Tencent Hunyuan API key (format: sk-...)
+    /// - `secret_id`: Tencent Cloud SecretID
+    /// - `secret_key`: Tencent Cloud SecretKey
     ///
     /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::tencent("sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50").unwrap();
+    /// let client = LlmClient::tencent("AKID...", "SecretKey...").unwrap();
     /// ```
-    pub fn tencent(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::tencent(api_key)?;
+    #[cfg(feature = "tencent")]
+    pub fn tencent(secret_id: &str, secret_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::tencent(secret_id, secret_key)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create Tencent Hunyuan client with custom configuration
+    #[cfg(feature = "tencent")]
     pub fn tencent_with_config(
-        api_key: &str,
-        base_url: Option<&str>,
+        secret_id: &str,
+        secret_key: &str,
+        _base_url: Option<&str>,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::tencent_with_config(
-            api_key,
-            base_url,
+            secret_id,
+            secret_key,
             timeout_secs,
             proxy,
         )?;
