@@ -454,9 +454,31 @@ let client = LlmClient::tencent_with_config(
     Some(60),  // timeout in seconds
     None       // proxy
 )?;
+
+// Streaming example
+#[cfg(feature = "streaming")]
+{
+    use futures_util::StreamExt;
+
+    let request = ChatRequest {
+        model: "hunyuan-standard".to_string(),
+        messages: vec![Message::user("Write a short poem about the ocean.")],
+        stream: Some(true),
+        ..Default::default()
+    };
+
+    let mut stream = client.chat_stream(&request).await?;
+    while let Some(chunk) = stream.next().await {
+        if let Some(content) = chunk?.get_content() {
+            print!("{}", content);
+        }
+    }
+}
 ```
 
 **Models**: hunyuan-lite, hunyuan-standard, hunyuan-pro, hunyuan-turbo
+
+See `examples/tencent_native_streaming.rs` for a runnable end-to-end streaming example.
 
 ### 7. Volcengine
 OpenAI-compatible API with custom endpoint paths. Supports both standard chat models and reasoning models (Doubao-Seed-Code).

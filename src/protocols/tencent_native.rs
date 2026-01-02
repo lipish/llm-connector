@@ -13,6 +13,10 @@ use chrono::Utc;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "streaming")]
+use crate::types::ChatStream;
+#[cfg(feature = "streaming")]
+use futures_util::StreamExt;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -196,6 +200,85 @@ impl Protocol for TencentNativeProtocol {
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
         LlmConnectorError::from_status_code(status, body.to_string())
     }
+
+    #[cfg(feature = "streaming")]
+    async fn parse_stream_response(&self, response: reqwest::Response) -> Result<ChatStream, LlmConnectorError> {
+        use crate::sse::sse_events;
+        use crate::types::{StreamingResponse, StreamingChoice, Delta};
+
+        let event_stream = sse_events(response);
+
+        let stream = event_stream.map(|event_result| {
+            match event_result {
+                Ok(json_str) => {
+                    // Skip [DONE]
+                    if json_str.trim() == "[DONE]" {
+                        return None;
+                    }
+
+                    // Parse Tencent-specific PascalCase JSON
+                    match serde_json::from_str::<TencentStreamingResponse>(&json_str) {
+                        Ok(tencent_resp) => {
+                            let content = tencent_resp.choices.first()
+                                .and_then(|c| c.delta.content.clone())
+                                .unwrap_or_default();
+                            
+                            let role = tencent_resp.choices.first()
+                                .and_then(|c| c.delta.role.clone())
+                                .map(|r| match r.as_str() {
+                                    "user" => Role::User,
+                                    "assistant" => Role::Assistant,
+                                    "system" => Role::System,
+                                    _ => Role::Assistant,
+                                });
+
+                             let finish_reason = tencent_resp.choices.first()
+                                .and_then(|c| c.finish_reason.clone());
+
+                            // Convert to unified StreamingResponse
+                            Some(Ok(StreamingResponse {
+                                id: tencent_resp.id.unwrap_or_default(),
+                                object: "chat.completion.chunk".to_string(),
+                                created: tencent_resp.created.unwrap_or_else(|| Utc::now().timestamp()) as u64,
+                                model: "hunyuan".to_string(),
+                                choices: vec![StreamingChoice {
+                                    index: 0,
+                                    delta: Delta {
+                                        role,
+                                        content: Some(content.clone()),
+                                        tool_calls: None,
+                                        reasoning_content: None,
+                                        reasoning: None,
+                                        thought: None,
+                                        thinking: None,
+                                    },
+                                    finish_reason,
+                                    logprobs: None,
+                                }],
+                                content, // Convenience field
+                                usage: tencent_resp.usage.map(|u| Usage {
+                                    prompt_tokens: u.prompt_tokens as u32,
+                                    completion_tokens: u.completion_tokens as u32,
+                                    total_tokens: u.total_tokens as u32,
+                                    prompt_cache_hit_tokens: None,
+                                    prompt_cache_miss_tokens: None,
+                                    prompt_tokens_details: None,
+                                    completion_tokens_details: None,
+                                }),
+                                reasoning_content: None,
+                                system_fingerprint: None,
+                            }))
+                        },
+                        Err(e) => Some(Err(LlmConnectorError::ParseError(format!("Failed to parse Tencent stream chunk: {} | Original: {}", e, json_str)))),
+                    }
+                },
+                Err(e) => Some(Err(e)),
+            }
+        })
+        .filter_map(|x| std::future::ready(x));
+
+        Ok(Box::pin(stream))
+    }
 }
 
 
@@ -266,4 +349,56 @@ pub struct TencentUsage {
     pub completion_tokens: i64,
     #[serde(rename = "TotalTokens")]
     pub total_tokens: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TencentStreamingResponse {
+    #[serde(rename = "Note")]
+    pub note: Option<String>,
+    #[serde(rename = "Id")]
+    pub id: Option<String>,
+    #[serde(rename = "Created")]
+    pub created: Option<i64>,
+    #[serde(rename = "Choices")]
+    pub choices: Vec<TencentStreamingChoice>,
+    #[serde(rename = "Usage")]
+    pub usage: Option<TencentUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TencentStreamingChoice {
+    #[serde(rename = "Delta")]
+    pub delta: TencentStreamingDelta,
+    #[serde(rename = "FinishReason")]
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TencentStreamingDelta {
+    #[serde(rename = "Role")]
+    pub role: Option<String>,
+    #[serde(rename = "Content")]
+    pub content: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_streaming_response() {
+        let json_1 = r#"{"Note":"Example","Id":"123","Created":1234567890,"Choices":[{"Delta":{"Role":"assistant","Content":"Hello"},"FinishReason":""}]}"#;
+        let resp_1: TencentStreamingResponse = serde_json::from_str(json_1).unwrap();
+        assert_eq!(resp_1.choices[0].delta.content.as_deref(), Some("Hello"));
+        assert_eq!(resp_1.choices[0].delta.role.as_deref(), Some("assistant"));
+
+        let json_2 = r#"{"Id":"123","Created":1234567890,"Choices":[{"Delta":{"Content":" world"},"FinishReason":""}]}"#;
+        let resp_2: TencentStreamingResponse = serde_json::from_str(json_2).unwrap();
+        assert_eq!(resp_2.choices[0].delta.content.as_deref(), Some(" world"));
+
+        let json_3 = r#"{"Id":"123","Created":1234567890,"Choices":[{"Delta":{"Content":""},"FinishReason":"stop"}],"Usage":{"PromptTokens":10,"CompletionTokens":20,"TotalTokens":30}}"#;
+        let resp_3: TencentStreamingResponse = serde_json::from_str(json_3).unwrap();
+        assert_eq!(resp_3.usage.unwrap().total_tokens, 30);
+        assert_eq!(resp_3.choices[0].finish_reason.as_deref(), Some("stop"));
+    }
 }

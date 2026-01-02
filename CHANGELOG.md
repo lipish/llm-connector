@@ -11,6 +11,12 @@ All notable changes to this project will be documented in this file.
   - `LlmClient::google_with_config(api_key, base_url, timeout_secs, proxy)`
   - Example: `examples/google_basic.rs`
 
+### 🐛 Bug Fixes
+
+- **Tencent Hunyuan Streaming**
+  - Implemented `chat_stream` for Tencent Native API v3.
+  - Added strict streaming response parsing for Hunyuan's format.
+
 ### 📝 Documentation
 
 - Updated README with Google Gemini provider usage and notes.

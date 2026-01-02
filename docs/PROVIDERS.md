@@ -91,7 +91,7 @@ let client = LlmClient::zhipu_openai_compatible("your-api-key")?;
 
 ## Tencent Hunyuan (Hunyuan)
 
-Native support for Tencent Cloud API v3 (TC3-HMAC-SHA256).
+Native support for Tencent Cloud API v3 (TC3-HMAC-SHA256), including Streaming support.
 
 ### Usage
 ```rust

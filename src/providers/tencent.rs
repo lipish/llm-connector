@@ -89,9 +89,34 @@ impl crate::core::Provider for TencentProviderImpl {
     }
 
     #[cfg(feature = "streaming")]
-    async fn chat_stream(&self, _request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        // TODO: Implement streaming signature and handling
-        Err(LlmConnectorError::UnsupportedOperation("Streaming not yet implemented for Tencent Native V3".to_string()))
+    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
+        let mut streaming_request = request.clone();
+        streaming_request.stream = Some(true);
+
+        let protocol_request = self.protocol.build_request(&streaming_request)?;
+        let url = self.protocol.chat_endpoint(self.client.base_url());
+
+        // Serialize body to string for signing
+        // Note: usage of serde_json::to_string MUST match reqwest .json() serialization
+        let body = serde_json::to_string(&protocol_request)
+            .map_err(|e| LlmConnectorError::InvalidRequest(format!("Serialize error: {}", e)))?;
+
+        // Sign request
+        let headers = self.sign_request(&body)?;
+
+        // Send request with headers
+        let client_with_auth = self.client.clone().with_headers(headers.into_iter().collect());
+        
+        let response = client_with_auth.stream(&url, &protocol_request).await?;
+        let status = response.status();
+
+        if !status.is_success() {
+             let text = response.text().await
+                .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+             return Err(self.protocol.map_error(status.as_u16(), &text));
+        }
+
+        self.protocol.parse_stream_response(response).await
     }
 
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
