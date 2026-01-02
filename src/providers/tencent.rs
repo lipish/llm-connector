@@ -1,121 +1,152 @@
-//! Tencent Hunyuan（Tencent Hunyuan）serviceProviderimplementation
+//! Tencent Cloud Hunyuan Service Provider Implementation
 //!
-//! Tencent Hunyuan uses OpenAI compatible API format，fully compatible with standard OpenAI protocol。
+//! This module provides the Tencent Cloud Hunyuan service implementation using the Native API v3 (TC3-HMAC-SHA256).
+//! Reference: https://cloud.tencent.com/document/api/1729/101837
 
-use crate::core::{ConfigurableProtocol, ProviderBuilder};
-use crate::protocols::OpenAIProtocol;
+#![cfg(feature = "tencent")]
+
+use crate::core::{HttpClient, Protocol};
 use crate::error::LlmConnectorError;
+use crate::protocols::tencent_native::TencentNativeProtocol;
+use crate::types::{ChatRequest, ChatResponse};
+#[cfg(feature = "streaming")]
+use crate::types::ChatStream;
+use async_trait::async_trait;
+use chrono::Utc;
 
-/// Tencent Hunyuanprotocoladapter
-///
-/// Use ConfigurableProtocol wrap OpenAI protocol
-pub type TencentProtocol = ConfigurableProtocol<OpenAIProtocol>;
+/// Tencent Cloud Service Provider Type
+pub type TencentProvider = TencentProviderImpl;
 
-/// Tencent HunyuanserviceProvidertype
-pub type TencentProvider = crate::core::GenericProvider<TencentProtocol>;
+/// Tencent Provider Implementation
+pub struct TencentProviderImpl {
+    protocol: TencentNativeProtocol,
+    client: HttpClient,
+}
 
-/// CreateTencent HunyuanserviceProvider
+impl TencentProviderImpl {
+    pub fn protocol(&self) -> &TencentNativeProtocol {
+        &self.protocol
+    }
+
+    pub fn client(&self) -> &HttpClient {
+        &self.client
+    }
+
+    fn sign_request(&self, payload: &str) -> Result<Vec<(String, String)>, LlmConnectorError> {
+        // Current UTC time
+        let now = Utc::now();
+        let timestamp = now.timestamp();
+        let date = now.format("%Y-%m-%d").to_string();
+        let host = "hunyuan.tencentcloudapi.com";
+
+        self.protocol.calculate_signature(host, payload, timestamp, &date)
+            .map(|auth| {
+                vec![
+                    ("Authorization".to_string(), auth),
+                    ("X-TC-Action".to_string(), "ChatCompletions".to_string()),
+                    ("X-TC-Version".to_string(), "2023-09-01".to_string()),
+                    ("X-TC-Timestamp".to_string(), timestamp.to_string()),
+                    ("X-TC-Region".to_string(), "ap-guangzhou".to_string()), // TODO: Make configurable
+                ]
+            })
+    }
+}
+
+#[async_trait]
+impl crate::core::Provider for TencentProviderImpl {
+    fn name(&self) -> &str {
+        "tencent"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
+        let protocol_request = self.protocol.build_request(request)?;
+        let url = self.protocol.chat_endpoint(self.client.base_url());
+
+        // Serialize body to string for signing
+        let body = serde_json::to_string(&protocol_request)
+            .map_err(|e| LlmConnectorError::InvalidRequest(format!("Serialize error: {}", e)))?;
+
+        // Sign request
+        let headers = self.sign_request(&body)?;
+
+        // Send request with headers
+        let client_with_auth = self.client.clone().with_headers(headers.into_iter().collect());
+        
+        let response = client_with_auth.post(&url, &protocol_request).await?;
+        let status = response.status();
+        let text = response.text().await
+            .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+
+        if !status.is_success() {
+             return Err(self.protocol.map_error(status.as_u16(), &text));
+        }
+
+        self.protocol.parse_response(&text)
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn chat_stream(&self, _request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        // TODO: Implement streaming signature and handling
+        Err(LlmConnectorError::UnsupportedOperation("Streaming not yet implemented for Tencent Native V3".to_string()))
+    }
+
+    async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
+        Ok(vec!["hunyuan-lite".to_string(), "hunyuan-standard".to_string(), "hunyuan-pro".to_string()])
+    }
+}
+
+/// Create Tencent Cloud Hunyuan Service Provider
 ///
 /// # Parameters
-/// - `api_key`: Tencent Hunyuan API key (format: sk-...)
+/// - `secret_id`: Tencent Cloud SecretID
+/// - `secret_key`: Tencent Cloud SecretKey
 ///
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::tencent;
 ///
-/// let provider = tencent("sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50").unwrap();
+/// let provider = tencent("AKID...", "Processing...").unwrap();
 /// ```
-pub fn tencent(api_key: &str) -> Result<TencentProvider, LlmConnectorError> {
-    tencent_with_config(api_key, None, None, None)
+pub fn tencent(secret_id: &str, secret_key: &str) -> Result<TencentProvider, LlmConnectorError> {
+    tencent_with_config(secret_id, secret_key, None, None)
 }
 
-/// CreatewithcustomconfigurationTencent HunyuanserviceProvider
-///
-/// # Parameters
-/// - `api_key`: API key
-/// - `base_url`: customBase URL (optional，defaultasTencent Hunyuanendpoint)
-/// - `timeout_secs`: Timeout (seconds) (optional)
-/// - `proxy`: proxy URL (optional)
-///
-/// # Example
-/// ```rust,no_run
-/// use llm_connector::providers::tencent_with_config;
-///
-/// let provider = tencent_with_config(
-///     "sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50",
-///     None, // Usedefault URL
-///     Some(60), // 60 seconds timeout
-///     None
-/// ).unwrap();
-/// ```
+/// Create Tencent Provider with custom configuration
 pub fn tencent_with_config(
-    api_key: &str,
-    base_url: Option<&str>,
+    secret_id: &str,
+    secret_key: &str,
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<TencentProvider, LlmConnectorError> {
-    // Create configuration-driven protocol
-    let protocol = ConfigurableProtocol::openai_compatible(
-        OpenAIProtocol::new(api_key),
-        "tencent"
-    );
+    let protocol = TencentNativeProtocol::new(secret_id, secret_key);
+    
+    // Official endpoint for Hunyuan
+    let base_url = "https://hunyuan.tencentcloudapi.com";
+    
+    let client = HttpClient::with_config(
+        base_url,
+        timeout_secs,
+        proxy,
+    )?;
 
-    // Use Builder Build
-    let mut builder = ProviderBuilder::new(
+    Ok(TencentProviderImpl {
         protocol,
-        base_url.unwrap_or("https://api.hunyuan.cloud.tencent.com")
-    );
-
-    if let Some(timeout) = timeout_secs {
-        builder = builder.timeout(timeout);
-    }
-
-    if let Some(proxy_url) = proxy {
-        builder = builder.proxy(proxy_url);
-    }
-
-    builder.build()
+        client,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Protocol;
 
     #[test]
-    fn test_tencent() {
-        let provider = tencent("sk-test-key");
+    fn test_tencent_creation() {
+        let provider = tencent("AKID_TEST", "KEY_TEST");
         assert!(provider.is_ok());
-    }
-
-    #[test]
-    fn test_tencent_with_config() {
-        let provider = tencent_with_config(
-            "sk-test-key",
-            Some("https://custom.url"),
-            Some(60),
-            None
-        );
-        assert!(provider.is_ok());
-    }
-
-    #[test]
-    fn test_tencent_protocol_endpoint() {
-        let protocol = ConfigurableProtocol::openai_compatible(
-            OpenAIProtocol::new("sk-test-key"),
-            "tencent"
-        );
-        let endpoint = protocol.chat_endpoint("https://api.hunyuan.cloud.tencent.com");
-        assert_eq!(endpoint, "https://api.hunyuan.cloud.tencent.com/v1/chat/completions");
-    }
-
-    #[test]
-    fn test_tencent_protocol_name() {
-        let protocol = ConfigurableProtocol::openai_compatible(
-            OpenAIProtocol::new("sk-test-key"),
-            "tencent"
-        );
-        assert_eq!(protocol.name(), "tencent");
     }
 }
 

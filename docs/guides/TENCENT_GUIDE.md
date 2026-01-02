@@ -12,10 +12,9 @@
 
 ### 兼容性
 
-腾讯云混元使用 **OpenAI 兼容的 API 格式**：
-- 端点: `https://api.hunyuan.cloud.tencent.com/v1`
-- 认证: `Authorization: Bearer YOUR_API_KEY`
-- 格式: 与 OpenAI API 完全兼容
+- 端点: `https://hunyuan.tencentcloudapi.com`
+- 认证: `TC3-HMAC-SHA256` 签名
+- 格式: 腾讯云 API v3 原生格式
 
 ### 可用模型
 
@@ -52,15 +51,12 @@ use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 创建客户端（推荐方式）
-    let client = LlmClient::tencent("sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50")?;
-
-    // 或者使用 openai_compatible 方法
-    // let client = LlmClient::openai_compatible(
-    //     "sk-YMiR2Q7LNWVKVWKivkfPn49geQXT27OZXumFkSS3Ef6FlQ50",
-    //     "https://api.hunyuan.cloud.tencent.com",
-    //     "tencent"
-    // )?;
+    // 创建客户端（原生 API v3 方式）
+    // 参数: SecretID, SecretKey
+    let client = LlmClient::tencent(
+        "AKID...", 
+        "YourSecretKey..."
+    )?;
     
     // 创建请求
     let request = ChatRequest {
@@ -133,27 +129,7 @@ cargo run --example test_tencent --features streaming
 **推荐方式**:
 ```rust
 // ✅ 推荐：使用专用的 tencent() 方法
-let client = LlmClient::tencent(api_key)?;
-```
-
-**备选方式**:
-```rust
-// ✅ 也可以：使用 openai_compatible() 方法
-let client = LlmClient::openai_compatible(
-    api_key,
-    "https://api.hunyuan.cloud.tencent.com",  // 不包含 /v1
-    "tencent"
-)?;
-```
-
-**错误示例**:
-```rust
-// ❌ 错误：包含 /v1 会导致 404
-let client = LlmClient::openai_compatible(
-    api_key,
-    "https://api.hunyuan.cloud.tencent.com/v1",  // 错误
-    "tencent"
-)?;
+let client = LlmClient::tencent(secret_id, secret_key)?;
 ```
 
 ### 2. API Key 格式
@@ -326,15 +302,14 @@ let client = LlmClient::tencent_with_config(
 腾讯云混元使用 OpenAI 兼容的 API 格式，可以通过专用的 `LlmClient::tencent()` 方法轻松接入。
 
 **关键点**:
-1. ✅ 使用 OpenAI 兼容格式
-2. ✅ 专用方法: `LlmClient::tencent(api_key)`
-3. ✅ 支持流式和非流式响应
-4. ✅ 多种模型可选（lite, standard, pro, turbo）
-5. ✅ 完全兼容 llm-connector
+1. ✅ 使用腾讯云原生 API v3 (TC3-HMAC-SHA256)
+2. ✅ 专用方法: `LlmClient::tencent(secret_id, secret_key)`
+3. ✅ 自动处理签名逻辑
+4. ✅ 更高的安全性和稳定性
 
 **推荐使用方式**:
 ```rust
-let client = LlmClient::tencent("sk-...")?;
+let client = LlmClient::tencent("AKID...", "Key...")?;
 ```
 
 ---

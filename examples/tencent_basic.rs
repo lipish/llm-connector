@@ -12,21 +12,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "tencent")]
     {
-        // 腾讯云混元 API Key (OpenAI 兼容格式)
-        let api_key = std::env::var("TENCENT_API_KEY")
-            .expect("请设置环境变量 TENCENT_API_KEY (格式: sk-...)");
+        // 腾讯云混元 Secret credentials
+        let secret_id = std::env::var("TENCENT_SECRET_ID")
+            .expect("请设置环境变量 TENCENT_SECRET_ID");
+        let secret_key = std::env::var("TENCENT_SECRET_KEY")
+            .expect("请设置环境变量 TENCENT_SECRET_KEY");
 
-        let client = LlmClient::tencent(&api_key)?;
+        let client = LlmClient::tencent(&secret_id, &secret_key)?;
 
         let model = std::env::var("HUNYUAN_MODEL").unwrap_or_else(|_| "hunyuan-lite".to_string());
         let request = ChatRequest {
-            model,
+            model: model.clone(),
             messages: vec![Message::user("请简要介绍一下腾讯混元大模型的特点，使用原生API调用。")],
             max_tokens: Some(256),
             ..Default::default()
         };
 
-        println!("🚀 腾讯混元 OpenAI 兼容 API 非流式连接测试 (model={})\n", request.model);
+        println!("🚀 腾讯混元 Native API v3 测试 (model={})\n", request.model);
 
         match client.chat(&request).await {
             Ok(resp) => {
@@ -42,6 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("\n💡 请检查：");
                 println!("  1. TENCENT_SECRET_ID 和 TENCENT_SECRET_KEY 是否正确");
                 println!("  2. 账户是否有混元大模型的访问权限");
+                println!("  3. 网络连接是否正常");
                 println!("  3. 网络连接是否正常");
             }
         }

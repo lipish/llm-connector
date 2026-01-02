@@ -81,7 +81,6 @@ pub use volcengine::{
 
 pub use tencent::{
     TencentProvider,
-    TencentProtocol,
     tencent,
     tencent_with_config,
 };
