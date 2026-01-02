@@ -79,6 +79,7 @@ pub use volcengine::{
     volcengine_with_config,
 };
 
+#[cfg(feature = "tencent")]
 pub use tencent::{
     TencentProvider,
     tencent,

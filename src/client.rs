@@ -326,12 +326,14 @@ impl LlmClient {
     ///
     /// let client = LlmClient::tencent("AKID...", "SecretKey...").unwrap();
     /// ```
+    #[cfg(feature = "tencent")]
     pub fn tencent(secret_id: &str, secret_key: &str) -> Result<Self, LlmConnectorError> {
         let provider = crate::providers::tencent(secret_id, secret_key)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create Tencent Hunyuan client with custom configuration
+    #[cfg(feature = "tencent")]
     pub fn tencent_with_config(
         secret_id: &str,
         secret_key: &str,
