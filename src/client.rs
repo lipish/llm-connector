@@ -548,6 +548,26 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
+    /// Create Google client
+    ///
+    /// # Parameters
+    /// - `api_key`: Google API key
+    pub fn google(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::google(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// Create Google client with custom configuration
+    pub fn google_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::google_with_config(api_key, base_url, timeout_secs, proxy)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     /// Get provider name
     pub fn provider_name(&self) -> &str {
         self.provider.name()
@@ -565,6 +585,7 @@ impl LlmClient {
             "longcat_anthropic",
             "azure_openai",
             "openai_compatible",
+            "google",
         ]
     }
 
@@ -738,6 +759,13 @@ impl LlmClient {
         self.provider
             .as_any()
             .downcast_ref::<crate::providers::ZhipuProvider>()
+    }
+
+    /// Try to convert client to GoogleProvider
+    pub fn as_google(&self) -> Option<&crate::providers::GoogleProvider> {
+        self.provider
+            .as_any()
+            .downcast_ref::<crate::providers::GoogleProvider>()
     }
 }
 

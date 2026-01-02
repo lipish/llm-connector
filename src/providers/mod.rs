@@ -12,6 +12,7 @@ pub mod volcengine;
 pub mod tencent;
 pub mod moonshot;
 pub mod deepseek;
+pub mod google;
 
 // Re-export service Provider types and functions
 pub use openai::{
@@ -98,4 +99,10 @@ pub use deepseek::{
     DeepSeekProtocol,
     deepseek,
     deepseek_with_config,
+};
+
+pub use google::{
+    GoogleProvider,
+    google,
+    google_with_config,
 };
