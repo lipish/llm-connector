@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.8] - 2026-01-02
+
+### ⚠️ Breaking Changes
+
+#### Tencent Hunyuan Native API v3
+- **BREAKING**: Replaced OpenAI-compatible wrapper with native Tencent Cloud API v3 using `TC3-HMAC-SHA256` signature.
+- **Affected**: `LlmClient::tencent()` and `tencent()` provider functions.
+- **New Signature**: `tencent(secret_id, secret_key)` (previously `tencent(api_key)`).
+- **Rationale**: Support native signature verification for better security and stability.
+
+### ✨ Improvements
+
+- **Security**: Hardcoded API keys removed from documentation and code.
+- **Documentation**: Updated Tencent guide with native API usage.
+
+
 ## [0.5.7] - 2025-11-23
 
 ### 🚀 New Features
