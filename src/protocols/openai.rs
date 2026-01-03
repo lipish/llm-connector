@@ -38,11 +38,11 @@ impl Protocol for OpenAIProtocol {
     }
     
     fn chat_endpoint(&self, base_url: &str) -> String {
-        format!("{}/v1/chat/completions", base_url.trim_end_matches('/'))
+        format!("{}/chat/completions", base_url.trim_end_matches('/'))
     }
     
     fn models_endpoint(&self, base_url: &str) -> Option<String> {
-        Some(format!("{}/v1/models", base_url.trim_end_matches('/')))
+        Some(format!("{}/models", base_url.trim_end_matches('/')))
     }
     
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {

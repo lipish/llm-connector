@@ -16,6 +16,7 @@
 | **LongCat** | longcat | `LongCatAnthropicProvider` | OpenAI/Anthropic |
 | **DeepSeek** | deepseek | `DeepSeekProvider` | OpenAI Compatible |
 | **Moonshot** | moonshot | `MoonshotProvider` | OpenAI Compatible |
+| **Google Gemini** | google | `GoogleProvider` | Native |
 
 ---
 

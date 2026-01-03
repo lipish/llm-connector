@@ -107,7 +107,7 @@ mod tests {
             "deepseek"
         );
         let endpoint = protocol.chat_endpoint("https://api.deepseek.com");
-        assert_eq!(endpoint, "https://api.deepseek.com/v1/chat/completions");
+        assert_eq!(endpoint, "https://api.deepseek.com/chat/completions");
     }
     
     #[test]

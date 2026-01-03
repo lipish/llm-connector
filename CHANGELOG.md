@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.13] - 2026-01-03
+
+### 🔧 Breaking Changes
+
+- **OpenAI-compatible providers**: Removed automatic `/v1` path appending
+  - `OpenAIProtocol` endpoints now only append `/chat/completions` and `/models`
+  - `ConfigurableProtocol::openai_compatible` templates no longer include `/v1`
+  - `openai_with_config` defaults to `https://api.openai.com/v1` only when no base_url provided
+  - Base URLs are now respected verbatim for all OpenAI-compatible providers
+
+### 📝 Documentation
+
+- Updated provider tests to reflect new endpoint URL behavior
+
 ## [0.5.11] - 2026-01-02
 
 ### 🚀 New Features
@@ -15,6 +29,22 @@ All notable changes to this project will be documented in this file.
 
 - Updated README with Tencent Native streaming usage.
 - Updated provider docs to mention Tencent streaming support.
+
+## [0.5.12] - 2026-01-03
+
+### 🚀 New Features
+
+- **Google Gemini Streaming**
+  - Implemented `chat_stream` for Google Gemini via SSE (`streamGenerateContent`).
+  - Added example: `examples/google_streaming.rs`
+
+### 🔧 Improvements
+
+- Updated Google authentication to use `x-goog-api-key` header (per official docs).
+
+### 📝 Documentation
+
+- Updated README with Google Gemini streaming usage and runnable example.
 
 ## [0.5.10] - 2026-01-02
 

@@ -13,11 +13,19 @@ use std::any::Any;
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 
+#[cfg(feature = "streaming")]
+use crate::sse::sse_events;
+
+#[cfg(feature = "streaming")]
+use crate::types::{Delta, StreamingChoice, StreamingResponse};
+
+#[cfg(feature = "streaming")]
+use futures_util::StreamExt;
+
 /// Google Gemini Service Provider
 #[derive(Clone, Debug)]
 pub struct GoogleProvider {
     client: HttpClient,
-    api_key: String,
 }
 
 impl GoogleProvider {
@@ -34,11 +42,11 @@ impl GoogleProvider {
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
         let base_url = base_url.unwrap_or("https://generativelanguage.googleapis.com/v1beta");
-        let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
+        let client = HttpClient::with_config(base_url, timeout_secs, proxy)?
+            .with_header("x-goog-api-key".to_string(), api_key.to_string());
         
         Ok(Self {
             client,
-            api_key: api_key.to_string(),
         })
     }
 }
@@ -51,10 +59,9 @@ impl Provider for GoogleProvider {
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         let url = format!(
-            "{}/models/{}:generateContent?key={}", 
+            "{}/models/{}:generateContent", 
             self.client.base_url(), 
-            request.model,
-            self.api_key
+            request.model
         );
 
         let google_request = GoogleRequest::from(request);
@@ -82,10 +89,9 @@ impl Provider for GoogleProvider {
     #[cfg(feature = "streaming")]
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         let url = format!(
-            "{}/models/{}:streamGenerateContent?key={}&alt=sse", 
+            "{}/models/{}:streamGenerateContent?alt=sse", 
             self.client.base_url(), 
-            request.model,
-            self.api_key
+            request.model
         );
 
         let google_request = GoogleRequest::from(request);
@@ -101,32 +107,107 @@ impl Provider for GoogleProvider {
             ));
         }
 
-        // Google SSE format might need custom parsing
-        // But let's try the generic SSE parser first, or implement a custom one if needed.
-        // Google SSE events usually have "data: <json>"
-        // The generic parser expects standard SSE.
-        
-        // We might need to transform the stream.
-        // For now, let's use the generic one and see if we need to adapt.
-        // Wait, Google's SSE data is a GoogleResponse object.
-        // We need to map it to ChatResponseChunk.
-        
-        // Since GenericProvider uses `protocol.parse_stream_response`, and we are implementing Provider directly,
-        // we need to handle the stream transformation here.
-        
-        // We can use `crate::sse::sse_to_streaming_response` but we need to provide a mapper function?
-        // `sse_to_streaming_response` takes `reqwest::Response` and returns `ChatStream`.
-        // But it assumes OpenAI format by default?
-        // Let's check `src/sse.rs`.
-        
-        // If `sse_to_streaming_response` is hardcoded for OpenAI, we need to write our own.
-        
-        // Let's check `src/sse.rs` first.
-        Err(LlmConnectorError::UnsupportedOperation("Streaming not yet implemented for Google".to_string()))
+        // Gemini streaming returns SSE events where each `data:` payload is a JSON object
+        // similar to the non-streaming response schema.
+        let model = request.model.clone();
+
+        // Track whether we already emitted the role in the first chunk.
+        let stream = sse_events(response)
+            .scan(false, move |sent_role, event_result| {
+                let model = model.clone();
+
+                let mapped: Result<Option<StreamingResponse>, LlmConnectorError> = match event_result {
+                    Ok(json_str) => {
+                        if json_str.trim().is_empty() {
+                            Ok(None)
+                        } else {
+                            let google_resp: GoogleResponse = match serde_json::from_str(&json_str) {
+                                Ok(v) => v,
+                                Err(e) => return std::future::ready(Some(Err(LlmConnectorError::JsonError(e)))),
+                            };
+
+                            // Extract incremental text (if present)
+                            let (content, finish_reason) = google_resp
+                                .candidates
+                                .as_ref()
+                                .and_then(|c| c.first())
+                                .map(|candidate| {
+                                    let text = candidate
+                                        .content
+                                        .as_ref()
+                                        .and_then(|c| c.parts.first())
+                                        .map(|p| p.text.clone())
+                                        .unwrap_or_default();
+                                    (text, candidate.finish_reason.clone())
+                                })
+                                .unwrap_or_default();
+
+                            // Some events may contain only metadata; skip empty content unless finish_reason/usage exists.
+                            let usage = google_resp.usage_metadata.map(|u| Usage {
+                                prompt_tokens: u.prompt_token_count.unwrap_or(0),
+                                completion_tokens: u.candidates_token_count.unwrap_or(0) + u.thoughts_token_count.unwrap_or(0),
+                                total_tokens: u.total_token_count.unwrap_or(0),
+                                prompt_cache_hit_tokens: None,
+                                prompt_cache_miss_tokens: None,
+                                prompt_tokens_details: None,
+                                completion_tokens_details: None,
+                            });
+
+                            if content.is_empty() && finish_reason.is_none() && usage.is_none() {
+                                Ok(None)
+                            } else {
+                                let role = if !*sent_role {
+                                    *sent_role = true;
+                                    Some(Role::Assistant)
+                                } else {
+                                    None
+                                };
+
+                                Ok(Some(StreamingResponse {
+                                    id: "google".to_string(),
+                                    object: "chat.completion.chunk".to_string(),
+                                    created: chrono::Utc::now().timestamp() as u64,
+                                    model: model.clone(),
+                                    choices: vec![StreamingChoice {
+                                        index: 0,
+                                        delta: Delta {
+                                            role,
+                                            content: if content.is_empty() { None } else { Some(content.clone()) },
+                                            tool_calls: None,
+                                            reasoning_content: None,
+                                            reasoning: None,
+                                            thought: None,
+                                            thinking: None,
+                                        },
+                                        finish_reason,
+                                        logprobs: None,
+                                    }],
+                                    content,
+                                    usage,
+                                    reasoning_content: None,
+                                    system_fingerprint: None,
+                                }))
+                            }
+                        }
+                    }
+                    Err(e) => Err(e),
+                };
+
+                std::future::ready(Some(mapped))
+            })
+            .filter_map(|x| async move {
+                match x {
+                    Ok(Some(v)) => Some(Ok(v)),
+                    Ok(None) => None,
+                    Err(e) => Some(Err(e)),
+                }
+            });
+
+        Ok(Box::pin(stream))
     }
 
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
-        let url = format!("{}/models?key={}", self.client.base_url(), self.api_key);
+        let url = format!("{}/models", self.client.base_url());
         
         let response = self.client.get(&url).await?;
         let status = response.status();

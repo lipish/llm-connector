@@ -152,8 +152,8 @@ impl<P: Protocol> ConfigurableProtocol<P> {
             ProtocolConfig {
                 name: name.to_string(),
                 endpoints: EndpointConfig {
-                    chat_template: "{base_url}/v1/chat/completions".to_string(),
-                    models_template: Some("{base_url}/v1/models".to_string()),
+                    chat_template: "{base_url}/chat/completions".to_string(),
+                    models_template: Some("{base_url}/models".to_string()),
                 },
                 auth: AuthConfig::Bearer,
                 extra_headers: vec![],
@@ -304,7 +304,7 @@ mod tests {
         assert_eq!(protocol.name(), "custom");
         assert_eq!(
             protocol.chat_endpoint("https://api.example.com"),
-            "https://api.example.com/v1/chat/completions"
+            "https://api.example.com/chat/completions"
         );
     }
 

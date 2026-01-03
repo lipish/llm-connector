@@ -75,7 +75,7 @@ pub fn openai_with_config(
     
     // CreateHTTP Client
     let client = HttpClient::with_config(
-        base_url.unwrap_or("https://api.openai.com"),
+        base_url.unwrap_or("https://api.openai.com/v1"),
         timeout_secs,
         proxy,
     )?;

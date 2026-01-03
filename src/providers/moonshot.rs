@@ -106,7 +106,7 @@ mod tests {
             "moonshot"
         );
         let endpoint = protocol.chat_endpoint("https://api.moonshot.cn");
-        assert_eq!(endpoint, "https://api.moonshot.cn/v1/chat/completions");
+        assert_eq!(endpoint, "https://api.moonshot.cn/chat/completions");
     }
     
     #[test]

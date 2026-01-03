@@ -29,14 +29,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "0.5.11"
+llm-connector = "0.5.13"
 tokio = { version = "1", features = ["full"] }
 ```
 
 Optional features:
 ```toml
 # Streaming support
-llm-connector = { version = "0.5.11", features = ["streaming"] }
+llm-connector = { version = "0.5.13", features = ["streaming"] }
 ```
 
 ### Basic Usage
@@ -297,7 +297,7 @@ llm-connector provides unified streaming support across all providers with the `
 
 ```toml
 [dependencies]
-llm-connector = { version = "0.5.11", features = ["streaming"] }
+llm-connector = { version = "0.5.12", features = ["streaming"] }
 ```
 
 ### Basic Streaming
@@ -637,11 +637,29 @@ let client = LlmClient::google_with_config(
 **Features**:
 - Native Google API implementation
 - Chat completion support
+- Streaming chat completion support
 - Token usage tracking
 
 **Notes**:
-- Streaming is not yet supported for the Google provider (`chat_stream` returns an unsupported operation).
 - See `examples/google_basic.rs` for a runnable end-to-end example.
+- Streaming example: `examples/google_streaming.rs`
+
+**Streaming**:
+
+Run the streaming example:
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+export GEMINI_MODEL="gemini-2.5-flash"
+cargo run --example google_streaming --features streaming
+```
+
+Supported environment variables in `google_streaming` example:
+- `GEMINI_API_KEY`: Google AI Studio API key
+- `GEMINI_MODEL`: model name (e.g. `gemini-2.5-flash`)
+- `GEMINI_PROMPT`: override the prompt text
+- `GEMINI_MAX_TOKENS`: override `max_tokens` (e.g. `4096`)
+- `GEMINI_TIMEOUT_SECS`: per-chunk timeout used by the example
 
 ## Ollama Model Management
 

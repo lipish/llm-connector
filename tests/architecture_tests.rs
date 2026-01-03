@@ -15,9 +15,12 @@ use llm_connector::providers::{validate_anthropic_key, validate_zhipu_key};
         assert_eq!(openai_protocol.api_key(), "sk-test");
         assert_eq!(
             openai_protocol.chat_endpoint("https://api.openai.com"),
-            "https://api.openai.com/v1/chat/completions"
+            "https://api.openai.com/chat/completions"
         );
-        assert!(openai_protocol.models_endpoint("https://api.openai.com").is_some());
+        assert_eq!(
+            openai_protocol.models_endpoint("https://api.openai.com"),
+            Some("https://api.openai.com/models".to_string())
+        );
 
         // Test Aliyun protocol creation
         let aliyun_protocol = AliyunProtocol::new("sk-test");
