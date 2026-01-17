@@ -1,12 +1,9 @@
-use llm_connector::{LlmClient, ChatRequest, Message};
-use std::io::Write;
 #[cfg(feature = "streaming")]
 use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(not(feature = "tencent"))]
-    {
+    if cfg!(not(feature = "tencent")) {
         println!("❌ This example requires enabling the 'tencent' feature");
         println!("Please run: cargo run --example tencent_native_streaming --features tencent");
         return Ok(());
@@ -32,7 +29,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..Default::default()
         };
 
-        println!("🚀 Tencent Hunyuan Native API v3 Streaming Test (model={})\n", request.model);
+        println!(
+            "🚀 Tencent Hunyuan Native API v3 Streaming Test (model={})\n",
+            request.model
+        );
 
         #[cfg(feature = "streaming")]
         {
@@ -57,10 +57,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             println!("\n\n✅ Full response received.");
         }
-        
+
         #[cfg(not(feature = "streaming"))]
         {
-             println!("❌ Streaming feature is not enabled. Please enable 'streaming' feature.");
+            println!("❌ Streaming feature is not enabled. Please enable 'streaming' feature.");
         }
     }
 

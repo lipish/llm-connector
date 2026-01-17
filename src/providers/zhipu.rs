@@ -2,12 +2,19 @@
 //!
 //! This module provides complete Zhipu GLM service implementation, supporting native format and OpenAI compatible format.
 
-use crate::core::{GenericProvider, HttpClient, Protocol};
-use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Role, Tool, ToolChoice, Choice, Message as TypeMessage};
-
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use {
+    crate::{
+        core::{GenericProvider, HttpClient, Protocol},
+        error::LlmConnectorError,
+        types::{
+            ChatRequest, ChatResponse, Choice, ImageSource, Message as TypeMessage, MessageBlock,
+            Role, Tool, ToolChoice,
+        },
+    },
+    serde::{Deserialize, Serialize},
+    serde_json::{Value, json},
+    std::collections::HashMap,
+};
 
 /// Extract reasoning content from Zhipu response
 ///
@@ -20,16 +27,16 @@ use std::collections::HashMap;
 ///
 /// # Returns
 /// - `(reasoning_content, final_content)`: Reasoning content and final answer
-fn extract_zhipu_reasoning_content(content: &str) -> (Option<String>, String) {
+fn extract_zhipu_reasoning_content(content: &Value) -> (Option<String>, String) {
     // Check if contains reasoning markers
-    if content.contains("###Thinking") && content.contains("###Response") {
+    if let Value::String(c) = content
+        && c.contains("###Thinking")
+        && c.contains("###Response")
+    {
         // Separate reasoning content and answer
-        let parts: Vec<&str> = content.split("###Response").collect();
+        let parts: Vec<&str> = c.split("###Response").collect();
         if parts.len() >= 2 {
-            let thinking = parts[0]
-                .replace("###Thinking", "")
-                .trim()
-                .to_string();
+            let thinking = parts[0].replace("###Thinking", "").trim().to_string();
             let response = parts[1..].join("###Response").trim().to_string();
 
             if !thinking.is_empty() {
@@ -39,7 +46,7 @@ fn extract_zhipu_reasoning_content(content: &str) -> (Option<String>, String) {
     }
 
     // If no reasoning markers, return original content
-    (None, content.to_string())
+    (None, content.as_str().unwrap_or("").into())
 }
 
 /// Zhipu streaming response processing stage
@@ -84,7 +91,11 @@ impl ZhipuStreamState {
                 // Detect if contains ###Thinking marker
                 if self.buffer.contains("###Thinking") {
                     // Remove marker and enter reasoning stage
-                    self.buffer = self.buffer.replace("###Thinking", "").trim_start().to_string();
+                    self.buffer = self
+                        .buffer
+                        .replace("###Thinking", "")
+                        .trim_start()
+                        .to_string();
                     self.phase = ZhipuStreamPhase::InThinking;
 
                     // Check if immediately contains ###Response (complete reasoning in one chunk)
@@ -233,9 +244,35 @@ impl Protocol for ZhipuProtocol {
                     Role::Tool => "tool".to_string(),
                 },
                 // Zhipu uses plain text format
-                content: msg.content_as_text(),
+                content: json![
+                    msg.content
+                        .iter()
+                        .map(|i| match i {
+                            MessageBlock::Text { text } => json![{
+                                "type": "text",
+                                "text": text
+                            }],
+                            MessageBlock::Image { source } =>  json![{
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": match source {
+                                        ImageSource::Base64 {media_type, data } => format!("data:{};base64,{}", media_type, data),
+                                        ImageSource::Url {url} => url.to_owned()
+                                    }
+                                }
+                            }],
+                            MessageBlock::ImageUrl { image_url } => json![{
+                                "type": "image_url",
+                                "image_url": {"url": image_url.url}
+                            }],
+                        })
+                        .collect::<Vec<_>>()
+                ],
                 tool_calls: msg.tool_calls.as_ref().map(|calls| {
-                    calls.iter().map(|c| serde_json::to_value(c).unwrap_or_default()).collect()
+                    calls
+                        .iter()
+                        .map(|c| serde_json::to_value(c).unwrap_or_default())
+                        .collect()
                 }),
                 tool_call_id: msg.tool_call_id.clone(),
                 name: msg.name.clone(),
@@ -276,9 +313,10 @@ impl Protocol for ZhipuProtocol {
                     },
                     content: vec![crate::types::MessageBlock::text(&final_content)],
                     tool_calls: first_choice.message.tool_calls.as_ref().map(|calls| {
-                        calls.iter().filter_map(|v| {
-                            serde_json::from_value(v.clone()).ok()
-                        }).collect()
+                        calls
+                            .iter()
+                            .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                            .collect()
                     }),
                     ..Default::default()
                 };
@@ -376,46 +414,44 @@ impl Protocol for ZhipuProtocol {
 
         // Convert JSON string stream to StreamingResponse stream
         // Use state machine to handle Zhipu ###Thinking and ###Response markers
-        let response_stream = events_stream.scan(
-            ZhipuStreamState::new(),
-            |state, result| {
-                let processed = result.and_then(|json_str| {
-                    let mut response = serde_json::from_str::<StreamingResponse>(&json_str).map_err(|e| {
+        let response_stream = events_stream.scan(ZhipuStreamState::new(), |state, result| {
+            let processed = result.and_then(|json_str| {
+                let mut response =
+                    serde_json::from_str::<StreamingResponse>(&json_str).map_err(|e| {
                         LlmConnectorError::ParseError(format!(
                             "Failed to parse Zhipu streaming response: {}. JSON: {}",
                             e, json_str
                         ))
                     })?;
 
-                    // Process reasoning content markers
-                    if let Some(first_choice) = response.choices.first_mut() {
-                        if let Some(ref delta_content) = first_choice.delta.content {
-                            // Use state machine to process content
-                            let (reasoning_delta, content_delta) = state.process(delta_content);
+                // Process reasoning content markers
+                if let Some(first_choice) = response.choices.first_mut() {
+                    if let Some(ref delta_content) = first_choice.delta.content {
+                        // Use state machine to process content
+                        let (reasoning_delta, content_delta) = state.process(delta_content);
 
-                            // Update delta
-                            if let Some(reasoning) = reasoning_delta {
-                                first_choice.delta.reasoning_content = Some(reasoning);
-                            }
+                        // Update delta
+                        if let Some(reasoning) = reasoning_delta {
+                            first_choice.delta.reasoning_content = Some(reasoning);
+                        }
 
-                            if let Some(content) = content_delta {
-                                first_choice.delta.content = Some(content.clone());
-                                // Also update response.content
-                                response.content = content;
-                            } else {
-                                // If no content delta, clear delta.content
-                                first_choice.delta.content = None;
-                                response.content = String::new();
-                            }
+                        if let Some(content) = content_delta {
+                            first_choice.delta.content = Some(content.clone());
+                            // Also update response.content
+                            response.content = content;
+                        } else {
+                            // If no content delta, clear delta.content
+                            first_choice.delta.content = None;
+                            response.content = String::new();
                         }
                     }
+                }
 
-                    Ok(response)
-                });
+                Ok(response)
+            });
 
-                std::future::ready(Some(processed))
-            }
-        );
+            std::future::ready(Some(processed))
+        });
 
         Ok(Box::pin(response_stream))
     }
@@ -444,7 +480,7 @@ pub struct ZhipuRequest {
 pub struct ZhipuMessage {
     pub role: String,
     #[serde(default)]
-    pub content: String,
+    pub content: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -691,27 +727,32 @@ mod tests {
     #[test]
     fn test_extract_zhipu_reasoning_content() {
         // Test case with reasoning content
-        let content_with_thinking = "###Thinking\nthis_is_reasoning_process\nanalysis_step_1\nanalysis_step_2\n###Response\nthis_is_final_answer";
-        let (reasoning, answer) = extract_zhipu_reasoning_content(content_with_thinking);
+        let content_with_thinking = Value::String(
+            "###Thinking\nthis_is_reasoning_process\nanalysis_step_1\nanalysis_step_2\n###Response\nthis_is_final_answer".into(),
+        );
+        let (reasoning, answer) = extract_zhipu_reasoning_content(&content_with_thinking);
         assert!(reasoning.is_some());
-        assert_eq!(reasoning.unwrap(), "this_is_reasoning_process\nanalysis_step_1\nanalysis_step_2");
+        assert_eq!(
+            reasoning.unwrap(),
+            "this_is_reasoning_process\nanalysis_step_1\nanalysis_step_2"
+        );
         assert_eq!(answer, "this_is_final_answer");
 
         // Test case without reasoning content
-        let content_without_thinking = "this_is_a_normal_answer";
-        let (reasoning, answer) = extract_zhipu_reasoning_content(content_without_thinking);
+        let content_without_thinking = Value::String("this_is_a_normal_answer".into());
+        let (reasoning, answer) = extract_zhipu_reasoning_content(&content_without_thinking);
         assert!(reasoning.is_none());
         assert_eq!(answer, "this_is_a_normal_answer");
 
         // Test case with only Thinking, no Response
-        let content_only_thinking = "###Thinking\nthis_is_reasoning_process";
-        let (reasoning, answer) = extract_zhipu_reasoning_content(content_only_thinking);
+        let content_only_thinking = Value::String("###Thinking\nthis_is_reasoning_process".into());
+        let (reasoning, answer) = extract_zhipu_reasoning_content(&content_only_thinking);
         assert!(reasoning.is_none());
         assert_eq!(answer, "###Thinking\nthis_is_reasoning_process");
 
         // Test case with empty reasoning content
-        let content_empty_thinking = "###Thinking\n\n###Response\nanswer";
-        let (reasoning, answer) = extract_zhipu_reasoning_content(content_empty_thinking);
+        let content_empty_thinking = Value::String("###Thinking\n\n###Response\nanswer".into());
+        let (reasoning, answer) = extract_zhipu_reasoning_content(&content_empty_thinking);
         assert!(reasoning.is_none());
         assert_eq!(answer, "###Thinking\n\n###Response\nanswer");
     }
@@ -766,7 +807,8 @@ mod tests {
         // Test complete reasoning in one chunk
         let mut state = ZhipuStreamState::new();
 
-        let (reasoning, content) = state.process("###Thinking\nReasoning process\n###Response\nanswer");
+        let (reasoning, content) =
+            state.process("###Thinking\nReasoning process\n###Response\nanswer");
         assert_eq!(reasoning, Some("Reasoning process".to_string()));
         assert_eq!(content, Some("answer".to_string()));
     }
