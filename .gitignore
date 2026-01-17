@@ -9,3 +9,4 @@ target
 CLAUDE.md
 .zed/
 .augment/
+Cargo.lock

@@ -3,106 +3,113 @@
 //! This module provides SSE parsing for streaming responses from LLM providers.
 //! All major commercial LLM providers (OpenAI, Anthropic, DeepSeek, etc.) use SSE for streaming.
 
-use crate::error::LlmConnectorError;
-use futures_util::{Stream, StreamExt};
-use std::pin::Pin;
+#[cfg(feature = "streaming")]
+use {
+    crate::error::LlmConnectorError,
+    futures_util::{Stream, StreamExt},
+    std::pin::Pin,
+};
 
 /// Parse Server-Sent Events (SSE) from an HTTP response and yield one JSON string per event.
 /// This function handles the SSE format where events are separated by double newlines.
+#[cfg(feature = "streaming")]
 #[inline]
 pub fn sse_events(
-        response: reqwest::Response,
-    ) -> Pin<Box<dyn Stream<Item = Result<String, LlmConnectorError>> + Send>> {
-        let stream = response.bytes_stream();
+    response: reqwest::Response,
+) -> Pin<Box<dyn Stream<Item = Result<String, LlmConnectorError>> + Send>> {
+    let stream = response.bytes_stream();
 
-        let events_stream = stream
-            .scan(String::new(), move |buffer, chunk_result| {
-                let mut out: Vec<Result<String, LlmConnectorError>> = Vec::new();
-                match chunk_result {
-                    Ok(chunk) => {
-                        let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
-                        buffer.push_str(&chunk_str);
+    let events_stream = stream
+        .scan(String::new(), move |buffer, chunk_result| {
+            let mut out: Vec<Result<String, LlmConnectorError>> = Vec::new();
+            match chunk_result {
+                Ok(chunk) => {
+                    let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
+                    buffer.push_str(&chunk_str);
 
-                        // Extract all complete SSE events separated by double-newline
-                        while let Some(boundary_idx) = buffer.find("\n\n") {
-                            let event_str: String = buffer.drain(..boundary_idx + 2).collect();
+                    // Extract all complete SSE events separated by double-newline
+                    while let Some(boundary_idx) = buffer.find("\n\n") {
+                        let event_str: String = buffer.drain(..boundary_idx + 2).collect();
 
-                            // Aggregate all `data:` lines
-                            let mut data_lines: Vec<String> = Vec::new();
-                            for raw_line in event_str.split('\n') {
-                                // Trim trailing CR (already normalized), and leading/trailing spaces
-                                let line = raw_line.trim_end();
-                                if let Some(rest) = line
-                                    .strip_prefix("data: ")
-                                    .or_else(|| line.strip_prefix("data:"))
-                                {
-                                    let payload = rest.trim_start();
-                                    // Skip final marker
-                                    if payload.trim() == "[DONE]" {
-                                        // ignore terminal marker
-                                        continue;
-                                    }
-                                    // Collect payload line (may span multiple `data:` lines)
-                                    if !payload.is_empty() {
-                                        data_lines.push(payload.to_string());
-                                    }
+                        // Aggregate all `data:` lines
+                        let mut data_lines: Vec<String> = Vec::new();
+                        for raw_line in event_str.split('\n') {
+                            // Trim trailing CR (already normalized), and leading/trailing spaces
+                            let line = raw_line.trim_end();
+                            if let Some(rest) = line
+                                .strip_prefix("data: ")
+                                .or_else(|| line.strip_prefix("data:"))
+                            {
+                                let payload = rest.trim_start();
+                                // Skip final marker
+                                if payload.trim() == "[DONE]" {
+                                    // ignore terminal marker
+                                    continue;
+                                }
+                                // Collect payload line (may span multiple `data:` lines)
+                                if !payload.is_empty() {
+                                    data_lines.push(payload.to_string());
                                 }
                             }
+                        }
 
-                            if !data_lines.is_empty() {
-                                // Per SSE spec, multiple data lines are joined with `\n`
-                                out.push(Ok(data_lines.join("\n")));
-                            }
+                        if !data_lines.is_empty() {
+                            // Per SSE spec, multiple data lines are joined with `\n`
+                            out.push(Ok(data_lines.join("\n")));
                         }
                     }
-                    Err(e) => {
-                        out.push(Err(LlmConnectorError::NetworkError(
-                            e.to_string(),
-                        )));
-                    }
                 }
-                std::future::ready(Some(out))
-            })
-            .flat_map(futures_util::stream::iter);
+                Err(e) => {
+                    out.push(Err(LlmConnectorError::NetworkError(e.to_string())));
+                }
+            }
+            std::future::ready(Some(out))
+        })
+        .flat_map(futures_util::stream::iter);
 
-        Box::pin(events_stream)
-    }
+    Box::pin(events_stream)
+}
 
 /// Parse line-delimited JSON events (non-SSE) from an HTTP response.
 /// Each line is treated as a standalone JSON payload.
+#[cfg(feature = "streaming")]
 #[inline]
 pub fn json_lines_events(
-        response: reqwest::Response,
-    ) -> Pin<Box<dyn Stream<Item = Result<String, LlmConnectorError>> + Send>> {
-        let stream = response.bytes_stream();
+    response: reqwest::Response,
+) -> Pin<Box<dyn Stream<Item = Result<String, LlmConnectorError>> + Send>> {
+    let stream = response.bytes_stream();
 
-        let events_stream = stream
-            .scan(String::new(), move |buffer, chunk_result| {
-                let mut out: Vec<Result<String, LlmConnectorError>> = Vec::new();
-                match chunk_result {
-                    Ok(chunk) => {
-                        let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
-                        buffer.push_str(&chunk_str);
+    let events_stream = stream
+        .scan(String::new(), move |buffer, chunk_result| {
+            let mut out: Vec<Result<String, LlmConnectorError>> = Vec::new();
+            match chunk_result {
+                Ok(chunk) => {
+                    let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
+                    buffer.push_str(&chunk_str);
 
-                        // Extract complete lines
-                        while let Some(boundary_idx) = buffer.find('\n') {
-                            let line: String = buffer.drain(..boundary_idx + 1).collect();
-                            let trimmed = line.trim();
-                            if trimmed.is_empty() { continue; }
-                            if trimmed == "[DONE]" { continue; }
-                            out.push(Ok(trimmed.to_string()));
+                    // Extract complete lines
+                    while let Some(boundary_idx) = buffer.find('\n') {
+                        let line: String = buffer.drain(..boundary_idx + 1).collect();
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() {
+                            continue;
                         }
-                    }
-                    Err(e) => {
-                        out.push(Err(LlmConnectorError::NetworkError(e.to_string())));
+                        if trimmed == "[DONE]" {
+                            continue;
+                        }
+                        out.push(Ok(trimmed.to_string()));
                     }
                 }
-                std::future::ready(Some(out))
-            })
-            .flat_map(futures_util::stream::iter);
+                Err(e) => {
+                    out.push(Err(LlmConnectorError::NetworkError(e.to_string())));
+                }
+            }
+            std::future::ready(Some(out))
+        })
+        .flat_map(futures_util::stream::iter);
 
-        Box::pin(events_stream)
-    }
+    Box::pin(events_stream)
+}
 
 /// Convert SSE string stream to StreamingResponse stream
 ///
@@ -110,9 +117,7 @@ pub fn json_lines_events(
 /// In OpenAI's streaming API, tool_calls are sent incrementally across multiple chunks,
 /// and need to be accumulated by index.
 #[cfg(feature = "streaming")]
-pub fn sse_to_streaming_response(
-    response: reqwest::Response,
-) -> crate::types::ChatStream {
+pub fn sse_to_streaming_response(response: reqwest::Response) -> crate::types::ChatStream {
     use crate::types::{StreamingResponse, ToolCall};
     use futures_util::StreamExt;
     use std::collections::HashMap;
@@ -126,9 +131,12 @@ pub fn sse_to_streaming_response(
             let processed = result.and_then(|json_str| {
                 // Try to parse as StreamingResponse
                 let mut streaming_response = serde_json::from_str::<StreamingResponse>(&json_str)
-                    .map_err(|e| crate::error::LlmConnectorError::ParseError(
-                        format!("Failed to parse streaming response: {}", e)
-                    ))?;
+                    .map_err(|e| {
+                    crate::error::LlmConnectorError::ParseError(format!(
+                        "Failed to parse streaming response: {}",
+                        e
+                    ))
+                })?;
 
                 // 🔧 Fix: Populate the convenience `content` field from choices[0].delta
                 // This is critical for Volcengine and other OpenAI-compatible providers
@@ -141,7 +149,10 @@ pub fn sse_to_streaming_response(
                 // 5. delta.thinking (Anthropic)
                 if streaming_response.content.is_empty() {
                     if let Some(choice) = streaming_response.choices.first() {
-                        let content_to_use = choice.delta.content.as_ref()
+                        let content_to_use = choice
+                            .delta
+                            .content
+                            .as_ref()
                             .filter(|s| !s.is_empty())
                             .or_else(|| choice.delta.reasoning_content.as_ref())
                             .or_else(|| choice.delta.reasoning.as_ref())
@@ -188,7 +199,7 @@ pub fn sse_to_streaming_response(
             });
 
             std::future::ready(Some(processed))
-        }
+        },
     );
 
     Box::pin(response_stream)
@@ -222,7 +233,10 @@ mod tests {
         // Simulate the content population logic
         if response.content.is_empty() {
             if let Some(choice) = response.choices.first() {
-                let content_to_use = choice.delta.content.as_ref()
+                let content_to_use = choice
+                    .delta
+                    .content
+                    .as_ref()
                     .filter(|s| !s.is_empty())
                     .or_else(|| choice.delta.reasoning_content.as_ref())
                     .or_else(|| choice.delta.reasoning.as_ref())
@@ -259,7 +273,10 @@ mod tests {
         // Simulate the content population logic
         if response.content.is_empty() {
             if let Some(choice) = response.choices.first() {
-                let content_to_use = choice.delta.content.as_ref()
+                let content_to_use = choice
+                    .delta
+                    .content
+                    .as_ref()
                     .filter(|s| !s.is_empty())
                     .or_else(|| choice.delta.reasoning_content.as_ref())
                     .or_else(|| choice.delta.reasoning.as_ref())
@@ -296,7 +313,10 @@ mod tests {
         // Simulate the content population logic
         if response.content.is_empty() {
             if let Some(choice) = response.choices.first() {
-                let content_to_use = choice.delta.content.as_ref()
+                let content_to_use = choice
+                    .delta
+                    .content
+                    .as_ref()
                     .filter(|s| !s.is_empty())
                     .or_else(|| choice.delta.reasoning_content.as_ref())
                     .or_else(|| choice.delta.reasoning.as_ref())
