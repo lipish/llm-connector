@@ -19,11 +19,11 @@ Supports **12+ providers**: OpenAI, Anthropic, Google, Aliyun, Zhipu, Ollama, Te
 
 ```toml
 [dependencies]
-llm-connector = "0.5.14"
+llm-connector = "0.5.15"
 tokio = { version = "1", features = ["full"] }
 
 # With streaming support
-llm-connector = { version = "0.5.14", features = ["streaming"] }
+llm-connector = { version = "0.5.15", features = ["streaming"] }
 ```
 
 ## Quick Start

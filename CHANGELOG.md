@@ -2,17 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.14] - 2026-02-14
-
-### 🚀 New Features
-
-- **Xiaomi MiMo Provider**
-  - Added support for Xiaomi MiMo API (OpenAI-compatible)
-  - New provider functions: `xiaomi()`, `xiaomi_with_config()`
-  - New client methods: `LlmClient::xiaomi()`, `LlmClient::xiaomi_with_config()`
-  - Base URL: `https://api.xiaomimimo.com/v1`
-  - Supported model: `mimo-v2-flash`
-  - Added example: `examples/xiaomi_basic.rs`
+## [0.5.15] - 2026-02-14
 
 ### 📝 Documentation
 
@@ -28,6 +18,18 @@ All notable changes to this project will be documented in this file.
   - Added Google Gemini detailed configuration
   - Added Ollama Model Management section
   - Added environment variables reference table
+
+## [0.5.14] - 2026-02-14
+
+### 🚀 New Features
+
+- **Xiaomi MiMo Provider**
+  - Added support for Xiaomi MiMo API (OpenAI-compatible)
+  - New provider functions: `xiaomi()`, `xiaomi_with_config()`
+  - New client methods: `LlmClient::xiaomi()`, `LlmClient::xiaomi_with_config()`
+  - Base URL: `https://api.xiaomimimo.com/v1`
+  - Supported model: `mimo-v2-flash`
+  - Added example: `examples/xiaomi_basic.rs`
 
 ## [0.5.13] - 2026-01-03
 
