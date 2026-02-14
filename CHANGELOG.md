@@ -14,6 +14,21 @@ All notable changes to this project will be documented in this file.
   - Supported model: `mimo-v2-flash`
   - Added example: `examples/xiaomi_basic.rs`
 
+### 📝 Documentation
+
+- **README Refactoring** - Simplified from 1316 lines to ~220 lines
+  - Moved detailed content to dedicated docs/ files with links
+  - Cleaner structure with quick reference table
+- **New Documentation Files**
+  - `docs/STREAMING.md` - Comprehensive streaming guide
+  - `docs/TOOLS.md` - Function calling / tools guide
+  - `docs/MULTIMODAL.md` - Multi-modal content guide
+- **Updated docs/PROVIDERS.md**
+  - Added Xiaomi MiMo provider section
+  - Added Google Gemini detailed configuration
+  - Added Ollama Model Management section
+  - Added environment variables reference table
+
 ## [0.5.13] - 2026-01-03
 
 ### 🔧 Breaking Changes
