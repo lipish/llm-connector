@@ -796,6 +796,39 @@ impl LlmClient {
             .downcast_ref::<crate::providers::ZhipuProvider>()
     }
 
+    /// Create a mock client for testing (no real API calls)
+    ///
+    /// # Parameters
+    /// - `content`: The content string the mock will always return
+    ///
+    /// # Example
+    /// ```rust
+    /// use llm_connector::{LlmClient, ChatRequest, Message};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = LlmClient::mock("Hello from mock!");
+    ///
+    ///     let request = ChatRequest::new("any-model")
+    ///         .add_message(Message::user("Hi"));
+    ///
+    ///     let response = client.chat(&request).await?;
+    ///     assert_eq!(response.content, "Hello from mock!");
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn mock(content: impl Into<String>) -> Self {
+        let provider = crate::providers::mock::MockProvider::new(content);
+        Self::from_provider(Arc::new(provider))
+    }
+
+    /// Try to convert client to MockProvider (for test assertions)
+    pub fn as_mock(&self) -> Option<&crate::providers::mock::MockProvider> {
+        self.provider
+            .as_any()
+            .downcast_ref::<crate::providers::mock::MockProvider>()
+    }
+
     /// Try to convert client to GoogleProvider
     pub fn as_google(&self) -> Option<&crate::providers::GoogleProvider> {
         self.provider

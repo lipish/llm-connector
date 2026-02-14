@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.17] - 2026-02-14
+
+### 🚀 New Features
+
+- **Mock Client for Testing**
+  - New `MockProvider` for unit testing without real API calls
+  - `MockProviderBuilder` with fluent API for fine-grained control
+  - `LlmClient::mock("content")` one-liner for simple cases
+  - Sequential response mode for multi-turn test scenarios
+  - Error simulation support for testing error handling paths
+  - Request tracking via `as_mock().request_count()` / `get_requests()`
+  - Tool call simulation via `MockProviderBuilder::with_tool_calls()`
+
 ## [0.5.16] - 2026-02-14
 
 ### 🚀 New Features

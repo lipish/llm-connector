@@ -14,6 +14,7 @@ pub mod moonshot;
 pub mod deepseek;
 pub mod google;
 pub mod xiaomi;
+pub mod mock;
 
 // Re-export service Provider types and functions
 pub use openai::{
