@@ -418,6 +418,40 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
+    /// Create Xiaomi MiMo client
+    ///
+    /// Xiaomi MiMo uses OpenAI-compatible API format
+    ///
+    /// # Parameters
+    /// - `api_key`: Xiaomi MiMo API key
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::xiaomi("your-api-key").unwrap();
+    /// ```
+    pub fn xiaomi(api_key: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::xiaomi(api_key)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// Create Xiaomi MiMo client with custom configuration
+    pub fn xiaomi_with_config(
+        api_key: &str,
+        base_url: Option<&str>,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::xiaomi_with_config(
+            api_key,
+            base_url,
+            timeout_secs,
+            proxy,
+        )?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     // ============================================================================
     // Advanced Constructors - Custom Configuration
     // ============================================================================
@@ -586,6 +620,7 @@ impl LlmClient {
             "azure_openai",
             "openai_compatible",
             "google",
+            "xiaomi",
         ]
     }
 

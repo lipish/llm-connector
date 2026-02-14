@@ -13,6 +13,7 @@ pub mod tencent;
 pub mod moonshot;
 pub mod deepseek;
 pub mod google;
+pub mod xiaomi;
 
 // Re-export service Provider types and functions
 pub use openai::{
@@ -105,4 +106,11 @@ pub use google::{
     GoogleProvider,
     google,
     google_with_config,
+};
+
+pub use xiaomi::{
+    XiaomiProvider,
+    XiaomiProtocol,
+    xiaomi,
+    xiaomi_with_config,
 };
