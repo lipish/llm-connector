@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.16] - 2026-02-14
+
+### 🚀 New Features
+
+- **Enhanced Tool Calling (P0)**
+  - `ChatResponse`: Added `tool_calls()`, `is_tool_call()`, `finish_reason()` convenience methods
+  - `ToolCall`: Added `parse_arguments<T>()` for typed deserialization, `arguments_value()` for generic JSON
+  - `Message`: Added `assistant_with_tool_calls()` constructor for multi-turn tool use
+  - `Tool`: Added `Tool::function()` convenience constructor
+
+- **Structured Outputs (P1)**
+  - `ResponseFormat`: Extended to support `json_schema` mode (OpenAI Structured Outputs)
+  - New `JsonSchemaSpec` type with `name`, `description`, `schema`, `strict` fields
+  - Convenience constructors: `ResponseFormat::text()`, `json_object()`, `json_schema()`, `json_schema_with_desc()`
+  - OpenAI protocol now correctly passes `response_format` to API requests
+
+- **Error Type Refinement (P2)**
+  - Added `ContextLengthExceeded` error variant
+  - `is_retryable()` now includes `ServerError`, `TimeoutError`, `ConnectionError`
+  - New helper methods: `should_reduce_context()`, `is_auth_error()`, `is_rate_limited()`
+  - Context length detection in OpenAI, Anthropic, Aliyun, Zhipu `map_error` implementations
+
+- **Token Usage (P2)**
+  - `Usage` now derives `Default` for easier construction
+
+### 📝 Documentation
+
+- Updated README with new Tool Calling and Structured Output examples
+- Updated docs/TOOLS.md with convenience API usage
+- Added integration test example: `examples/test_wishlist.rs`
+
 ## [0.5.15] - 2026-02-14
 
 ### 📝 Documentation

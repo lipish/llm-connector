@@ -164,12 +164,25 @@ impl Protocol for AnthropicProtocol {
             .and_then(|m| m.as_str())
             .unwrap_or("Unknown Anthropic error");
 
+        let error_type = error_info.get("type")
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+
+        let msg = format!("Anthropic: {}", message);
+
+        // Detect context length exceeded
+        if error_type == "invalid_request_error"
+            && (message.contains("too long") || message.contains("maximum") || message.contains("context"))
+        {
+            return LlmConnectorError::ContextLengthExceeded(msg);
+        }
+
         match status {
-            400 => LlmConnectorError::InvalidRequest(format!("Anthropic: {}", message)),
-            401 => LlmConnectorError::AuthenticationError(format!("Anthropic: {}", message)),
-            403 => LlmConnectorError::PermissionError(format!("Anthropic: {}", message)),
-            429 => LlmConnectorError::RateLimitError(format!("Anthropic: {}", message)),
-            500..=599 => LlmConnectorError::ServerError(format!("Anthropic: {}", message)),
+            400 => LlmConnectorError::InvalidRequest(msg),
+            401 => LlmConnectorError::AuthenticationError(msg),
+            403 => LlmConnectorError::PermissionError(msg),
+            429 => LlmConnectorError::RateLimitError(msg),
+            500..=599 => LlmConnectorError::ServerError(msg),
             _ => LlmConnectorError::ApiError(format!("Anthropic HTTP {}: {}", status, message)),
         }
     }

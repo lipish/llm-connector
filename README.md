@@ -19,11 +19,11 @@ Supports **12+ providers**: OpenAI, Anthropic, Google, Aliyun, Zhipu, Ollama, Te
 
 ```toml
 [dependencies]
-llm-connector = "0.5.15"
+llm-connector = "0.5.16"
 tokio = { version = "1", features = ["full"] }
 
 # With streaming support
-llm-connector = { version = "0.5.15", features = ["streaming"] }
+llm-connector = { version = "0.5.16", features = ["streaming"] }
 ```
 
 ## Quick Start
@@ -92,29 +92,32 @@ while let Some(chunk) = stream.next().await {
 ## Function Calling / Tools
 
 ```rust
-use llm_connector::{LlmClient, types::*};
+use llm_connector::{LlmClient, ChatRequest, Message, Tool, ToolChoice};
 
-let tools = vec![Tool {
-    tool_type: "function".to_string(),
-    function: Function {
-        name: "get_weather".to_string(),
-        description: Some("Get weather info".to_string()),
-        parameters: serde_json::json!({
-            "type": "object",
-            "properties": { "location": { "type": "string" } },
-            "required": ["location"]
-        }),
-    },
-}];
+let tools = vec![Tool::function(
+    "get_weather",
+    Some("Get weather info".to_string()),
+    serde_json::json!({
+        "type": "object",
+        "properties": { "location": { "type": "string" } },
+        "required": ["location"]
+    }),
+)];
 
-let request = ChatRequest {
-    model: "gpt-4".to_string(),
-    messages: vec![Message::text(Role::User, "What's the weather in Beijing?")],
-    tools: Some(tools),
-    ..Default::default()
-};
+let request = ChatRequest::new("gpt-4")
+    .add_message(Message::user("What's the weather in Beijing?"))
+    .with_tools(tools)
+    .with_tool_choice(ToolChoice::auto());
 
 let response = client.chat(&request).await?;
+
+// Convenience methods for tool call handling
+if response.is_tool_call() {
+    for tc in response.tool_calls() {
+        println!("Call: {} args: {}", tc.function.name, tc.function.arguments);
+        let args: serde_json::Value = tc.parse_arguments()?;
+    }
+}
 ```
 
 📖 **Detailed documentation**: [docs/TOOLS.md](docs/TOOLS.md)
@@ -161,16 +164,44 @@ println!("Answer: {}", response.content);
 
 📖 **Detailed documentation**: [docs/REASONING_MODELS_SUPPORT.md](docs/REASONING_MODELS_SUPPORT.md)
 
+## Structured Output
+
+```rust
+use llm_connector::{ChatRequest, Message, ResponseFormat};
+
+// JSON mode
+let request = ChatRequest::new("gpt-4")
+    .add_message(Message::user("List 3 languages as JSON array"))
+    .with_response_format(ResponseFormat::json_object());
+
+// JSON Schema mode (Structured Outputs)
+let request = ChatRequest::new("gpt-4o")
+    .add_message(Message::user("Extract person info"))
+    .with_response_format(ResponseFormat::json_schema(
+        "person",
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "age": { "type": "integer" }
+            },
+            "required": ["name", "age"]
+        }),
+    ));
+```
+
 ## Error Handling
 
 ```rust
-use llm_connector::error::LlmConnectorError;
+use llm_connector::LlmConnectorError;
 
 match client.chat(&request).await {
     Ok(response) => println!("Response: {}", response.content),
-    Err(LlmConnectorError::AuthenticationError(msg)) => eprintln!("Auth error: {}", msg),
-    Err(LlmConnectorError::RateLimitError(msg)) => eprintln!("Rate limit: {}", msg),
-    Err(e) => eprintln!("Error: {}", e),
+    Err(ref e) if e.is_rate_limited() => eprintln!("Rate limited, retry later"),
+    Err(ref e) if e.should_reduce_context() => eprintln!("Input too long, reduce context"),
+    Err(ref e) if e.is_auth_error() => eprintln!("Auth failed: {}", e),
+    Err(ref e) if e.is_retryable() => eprintln!("Transient error, can retry: {}", e),
+    Err(e) => eprintln!("Fatal error: {}", e),
 }
 ```
 

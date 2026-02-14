@@ -71,6 +71,10 @@ pub enum LlmConnectorError {
     #[error("Unsupported operation: {0}")]
     UnsupportedOperation(String),
 
+    /// Context length exceeded (input too long for model)
+    #[error("Context length exceeded: {0}")]
+    ContextLengthExceeded(String),
+
     /// Generic API error returned by provider
     #[error("API error: {0}")]
     ApiError(String),
@@ -93,7 +97,29 @@ impl LlmConnectorError {
             LlmConnectorError::NetworkError(_)
                 | LlmConnectorError::RateLimitError(_)
                 | LlmConnectorError::ProviderError(_)
+                | LlmConnectorError::ServerError(_)
+                | LlmConnectorError::TimeoutError(_)
+                | LlmConnectorError::ConnectionError(_)
         )
+    }
+
+    /// Check if the error suggests reducing context/input size
+    pub fn should_reduce_context(&self) -> bool {
+        matches!(self, LlmConnectorError::ContextLengthExceeded(_))
+    }
+
+    /// Check if the error is an authentication/permission issue (non-retryable)
+    pub fn is_auth_error(&self) -> bool {
+        matches!(
+            self,
+            LlmConnectorError::AuthenticationError(_)
+                | LlmConnectorError::PermissionError(_)
+        )
+    }
+
+    /// Check if the error is a rate limit issue
+    pub fn is_rate_limited(&self) -> bool {
+        matches!(self, LlmConnectorError::RateLimitError(_))
     }
 
     /// Get the HTTP status code for this error
@@ -116,6 +142,7 @@ impl LlmConnectorError {
             LlmConnectorError::ConnectionError(_) => 502,
             LlmConnectorError::ParseError(_) => 400,
             LlmConnectorError::UnsupportedOperation(_) => 501,
+            LlmConnectorError::ContextLengthExceeded(_) => 400,
             LlmConnectorError::ApiError(_) => 500,
             LlmConnectorError::HttpError(_) => 502,
             LlmConnectorError::MaxRetriesExceeded(_) => 503,
@@ -128,6 +155,7 @@ impl LlmConnectorError {
             401 | 403 => LlmConnectorError::AuthenticationError(message),
             429 => LlmConnectorError::RateLimitError(message),
             400 => LlmConnectorError::InvalidRequest(message),
+            413 => LlmConnectorError::ContextLengthExceeded(message),
             _ if status >= 500 => LlmConnectorError::ProviderError(message),
             _ => LlmConnectorError::NetworkError(message),
         }
@@ -167,10 +195,33 @@ mod tests {
         assert!(LlmConnectorError::NetworkError("test".to_string()).is_retryable());
         assert!(LlmConnectorError::RateLimitError("test".to_string()).is_retryable());
         assert!(LlmConnectorError::ProviderError("test".to_string()).is_retryable());
+        assert!(LlmConnectorError::ServerError("test".to_string()).is_retryable());
+        assert!(LlmConnectorError::TimeoutError("test".to_string()).is_retryable());
+        assert!(LlmConnectorError::ConnectionError("test".to_string()).is_retryable());
 
         assert!(!LlmConnectorError::AuthenticationError("test".to_string()).is_retryable());
         assert!(!LlmConnectorError::InvalidRequest("test".to_string()).is_retryable());
         assert!(!LlmConnectorError::UnsupportedModel("test".to_string()).is_retryable());
+        assert!(!LlmConnectorError::ContextLengthExceeded("test".to_string()).is_retryable());
+    }
+
+    #[test]
+    fn test_should_reduce_context() {
+        assert!(LlmConnectorError::ContextLengthExceeded("test".to_string()).should_reduce_context());
+        assert!(!LlmConnectorError::InvalidRequest("test".to_string()).should_reduce_context());
+    }
+
+    #[test]
+    fn test_is_auth_error() {
+        assert!(LlmConnectorError::AuthenticationError("test".to_string()).is_auth_error());
+        assert!(LlmConnectorError::PermissionError("test".to_string()).is_auth_error());
+        assert!(!LlmConnectorError::RateLimitError("test".to_string()).is_auth_error());
+    }
+
+    #[test]
+    fn test_is_rate_limited() {
+        assert!(LlmConnectorError::RateLimitError("test".to_string()).is_rate_limited());
+        assert!(!LlmConnectorError::NetworkError("test".to_string()).is_rate_limited());
     }
 
     #[test]
@@ -186,6 +237,10 @@ mod tests {
         assert!(matches!(
             LlmConnectorError::from_status_code(400, "test".to_string()),
             LlmConnectorError::InvalidRequest(_)
+        ));
+        assert!(matches!(
+            LlmConnectorError::from_status_code(413, "test".to_string()),
+            LlmConnectorError::ContextLengthExceeded(_)
         ));
     }
 }

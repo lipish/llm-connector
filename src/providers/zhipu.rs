@@ -310,6 +310,14 @@ impl Protocol for ZhipuProtocol {
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
+        // Detect context length exceeded from error body
+        let body_lower = body.to_lowercase();
+        if body_lower.contains("context_length_exceeded")
+            || body_lower.contains("maximum context length")
+            || body_lower.contains("token limit")
+        {
+            return LlmConnectorError::ContextLengthExceeded(format!("Zhipu: {}", body));
+        }
         LlmConnectorError::from_status_code(status, format!("Zhipu API error: {}", body))
     }
 

@@ -416,6 +416,19 @@ impl Message {
         self.tool_calls = Some(tool_calls);
         self
     }
+
+    /// Create an assistant message with tool calls (no text content)
+    ///
+    /// This is used to reconstruct the assistant's tool-calling message
+    /// when building the conversation history for multi-turn tool use.
+    pub fn assistant_with_tool_calls(tool_calls: Vec<ToolCall>) -> Self {
+        Self {
+            role: Role::Assistant,
+            content: Vec::new(),
+            tool_calls: Some(tool_calls),
+            ..Default::default()
+        }
+    }
 }
 
 /// Tool definition
@@ -427,6 +440,29 @@ pub struct Tool {
 
     /// Function definition
     pub function: Function,
+}
+
+impl Tool {
+    /// Create a function tool definition
+    ///
+    /// # Parameters
+    /// - `name`: Function name
+    /// - `description`: Function description (optional)
+    /// - `parameters`: JSON Schema for function parameters
+    pub fn function(
+        name: impl Into<String>,
+        description: Option<String>,
+        parameters: serde_json::Value,
+    ) -> Self {
+        Self {
+            tool_type: "function".to_string(),
+            function: Function {
+                name: name.into(),
+                description,
+                parameters,
+            },
+        }
+    }
 }
 
 /// Function definition for tools
@@ -573,12 +609,128 @@ impl ToolCall {
             && !self.function.name.is_empty()
             // arguments can be empty for functions with no parameters
     }
+
+    /// Parse the arguments JSON string into a typed value
+    ///
+    /// # Example
+    /// ```rust
+    /// use llm_connector::types::ToolCall;
+    /// use serde::Deserialize;
+    ///
+    /// #[derive(Deserialize)]
+    /// struct WeatherArgs {
+    ///     location: String,
+    ///     unit: Option<String>,
+    /// }
+    ///
+    /// let tool_call = ToolCall {
+    ///     function: llm_connector::types::FunctionCall {
+    ///         name: "get_weather".to_string(),
+    ///         arguments: r#"{"location":"Beijing"}"#.to_string(),
+    ///     },
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let args: WeatherArgs = tool_call.parse_arguments().unwrap();
+    /// assert_eq!(args.location, "Beijing");
+    /// ```
+    pub fn parse_arguments<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
+        serde_json::from_str(&self.function.arguments)
+    }
+
+    /// Parse the arguments as a generic serde_json::Value
+    pub fn arguments_value(&self) -> Result<serde_json::Value, serde_json::Error> {
+        if self.function.arguments.is_empty() {
+            Ok(serde_json::Value::Object(serde_json::Map::new()))
+        } else {
+            serde_json::from_str(&self.function.arguments)
+        }
+    }
 }
 
 /// Response format specification
+///
+/// Supports three modes:
+/// - `text`: Default text output
+/// - `json_object`: JSON mode (model outputs valid JSON)
+/// - `json_schema`: Structured Outputs (model outputs JSON conforming to a schema)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseFormat {
-    /// Type of response format ("text" or "json_object")
+    /// Type of response format ("text", "json_object", or "json_schema")
     #[serde(rename = "type")]
     pub format_type: String,
+
+    /// JSON Schema specification (only used when format_type is "json_schema")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub json_schema: Option<JsonSchemaSpec>,
+}
+
+/// JSON Schema specification for Structured Outputs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonSchemaSpec {
+    /// Schema name (required by OpenAI)
+    pub name: String,
+
+    /// Description of the schema (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// The JSON Schema object
+    pub schema: serde_json::Value,
+
+    /// Whether to enable strict schema adherence (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strict: Option<bool>,
+}
+
+impl ResponseFormat {
+    /// Create a text response format
+    pub fn text() -> Self {
+        Self {
+            format_type: "text".to_string(),
+            json_schema: None,
+        }
+    }
+
+    /// Create a JSON object response format
+    pub fn json_object() -> Self {
+        Self {
+            format_type: "json_object".to_string(),
+            json_schema: None,
+        }
+    }
+
+    /// Create a JSON Schema response format (Structured Outputs)
+    ///
+    /// # Parameters
+    /// - `name`: Schema name
+    /// - `schema`: JSON Schema object
+    pub fn json_schema(name: impl Into<String>, schema: serde_json::Value) -> Self {
+        Self {
+            format_type: "json_schema".to_string(),
+            json_schema: Some(JsonSchemaSpec {
+                name: name.into(),
+                description: None,
+                schema,
+                strict: Some(true),
+            }),
+        }
+    }
+
+    /// Create a JSON Schema response format with description
+    pub fn json_schema_with_desc(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        schema: serde_json::Value,
+    ) -> Self {
+        Self {
+            format_type: "json_schema".to_string(),
+            json_schema: Some(JsonSchemaSpec {
+                name: name.into(),
+                description: Some(description.into()),
+                schema,
+                strict: Some(true),
+            }),
+        }
+    }
 }

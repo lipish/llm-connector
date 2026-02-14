@@ -5,53 +5,47 @@ llm-connector supports OpenAI-compatible function calling (tools) with both stre
 ## Basic Usage
 
 ```rust
-use llm_connector::{LlmClient, types::*};
+use llm_connector::{LlmClient, ChatRequest, Message, Tool, ToolChoice};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = LlmClient::zhipu("your-api-key")?;
+    let client = LlmClient::openai("your-api-key")?;
 
-    // Define tools
-    let tools = vec![Tool {
-        tool_type: "function".to_string(),
-        function: Function {
-            name: "get_weather".to_string(),
-            description: Some("Get weather information for a city".to_string()),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "City name, e.g. Beijing, Shanghai"
-                    },
-                    "unit": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],
-                        "description": "Temperature unit"
-                    }
+    // Define tools with convenience constructor
+    let tools = vec![Tool::function(
+        "get_weather",
+        Some("Get weather information for a city".to_string()),
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "City name, e.g. Beijing, Shanghai"
                 },
-                "required": ["location"]
-            }),
-        },
-    }];
+                "unit": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                    "description": "Temperature unit"
+                }
+            },
+            "required": ["location"]
+        }),
+    )];
 
-    let request = ChatRequest {
-        model: "glm-4-plus".to_string(),
-        messages: vec![Message::text(Role::User, "What's the weather in Beijing?")],
-        tools: Some(tools),
-        tool_choice: Some(ToolChoice::auto()),
-        ..Default::default()
-    };
+    let request = ChatRequest::new("gpt-4")
+        .add_message(Message::user("What's the weather in Beijing?"))
+        .with_tools(tools)
+        .with_tool_choice(ToolChoice::auto());
 
     let response = client.chat(&request).await?;
 
-    // Check if tools were called
-    if let Some(choice) = response.choices.first() {
-        if let Some(tool_calls) = &choice.message.tool_calls {
-            for call in tool_calls {
-                println!("Tool: {}", call.function.name);
-                println!("Arguments: {}", call.function.arguments);
-            }
+    // Convenience methods for checking tool calls
+    if response.is_tool_call() {
+        for tc in response.tool_calls() {
+            println!("Tool: {}", tc.function.name);
+            // Parse arguments into typed struct or generic Value
+            let args: serde_json::Value = tc.parse_arguments()?;
+            println!("Arguments: {:?}", args);
         }
     }
 
@@ -103,7 +97,32 @@ When using tools in multi-round conversations, you need to:
 3. Execute the tool and get results
 4. Send the tool results back to continue the conversation
 
-See `examples/zhipu_multiround_tools.rs` for a complete example.
+```rust
+// After receiving tool_calls from step 2:
+let tool_calls = response.tool_calls().to_vec();
+
+// Build follow-up request with tool results
+let mut messages = vec![
+    Message::user("What's the weather in Beijing?"),
+    Message::assistant_with_tool_calls(tool_calls.clone()),
+];
+
+// Add tool results for each call
+for tc in &tool_calls {
+    messages.push(Message::tool(
+        r#"{"temperature": 22, "unit": "celsius"}"#,
+        &tc.id,
+    ));
+}
+
+let follow_up = ChatRequest::new("gpt-4")
+    .with_messages(messages)
+    .with_tools(tools);
+
+let final_response = client.chat(&follow_up).await?;
+```
+
+See `examples/zhipu_multiround_tools.rs` and `examples/test_wishlist.rs` for complete examples.
 
 ## Supported Providers
 

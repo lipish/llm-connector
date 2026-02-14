@@ -102,6 +102,11 @@ impl Protocol for OpenAIProtocol {
             serde_json::to_value(choice).unwrap_or(serde_json::json!("auto"))
         });
 
+        // Convert response_format
+        let response_format = request.response_format.as_ref().map(|rf| {
+            serde_json::to_value(rf).unwrap_or(serde_json::json!({"type": "text"}))
+        });
+
         Ok(OpenAIRequest {
             model: request.model.clone(),
             messages,
@@ -113,6 +118,7 @@ impl Protocol for OpenAIProtocol {
             stream: request.stream,
             tools,
             tool_choice,
+            response_format,
         })
     }
     
@@ -225,12 +231,27 @@ impl Protocol for OpenAIProtocol {
             .and_then(|m| m.as_str())
             .unwrap_or("Unknown OpenAI error");
 
+        // Check error code for context length exceeded
+        let error_code = error_info.get("code")
+            .and_then(|c| c.as_str())
+            .unwrap_or("");
+
+        let msg = format!("OpenAI: {}", message);
+
+        // Detect context length exceeded from error code or message content
+        if error_code == "context_length_exceeded"
+            || message.contains("maximum context length")
+            || message.contains("context_length_exceeded")
+        {
+            return LlmConnectorError::ContextLengthExceeded(msg);
+        }
+
         match status {
-            400 => LlmConnectorError::InvalidRequest(format!("OpenAI: {}", message)),
-            401 => LlmConnectorError::AuthenticationError(format!("OpenAI: {}", message)),
-            403 => LlmConnectorError::PermissionError(format!("OpenAI: {}", message)),
-            429 => LlmConnectorError::RateLimitError(format!("OpenAI: {}", message)),
-            500..=599 => LlmConnectorError::ServerError(format!("OpenAI: {}", message)),
+            400 => LlmConnectorError::InvalidRequest(msg),
+            401 => LlmConnectorError::AuthenticationError(msg),
+            403 => LlmConnectorError::PermissionError(msg),
+            429 => LlmConnectorError::RateLimitError(msg),
+            500..=599 => LlmConnectorError::ServerError(msg),
             _ => LlmConnectorError::ApiError(format!("OpenAI HTTP {}: {}", status, message)),
         }
     }
@@ -264,6 +285,8 @@ pub struct OpenAIRequest {
     pub tools: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Debug)]

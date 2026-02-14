@@ -59,7 +59,7 @@ pub struct Choice {
 }
 
 /// Token usage statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Usage {
     /// Number of tokens in the prompt
     pub prompt_tokens: u32,
@@ -131,6 +131,34 @@ impl ChatResponse {
     /// Returns None if the convenience `content` field is empty
     pub fn get_content(&self) -> Option<&str> {
         if self.content.is_empty() { None } else { Some(&self.content) }
+    }
+
+    /// Check if the response contains tool calls
+    pub fn has_tool_calls(&self) -> bool {
+        self.choices.first()
+            .and_then(|c| c.message.tool_calls.as_ref())
+            .map(|calls| !calls.is_empty())
+            .unwrap_or(false)
+    }
+
+    /// Get tool calls from the first choice (convenience)
+    ///
+    /// Returns an empty slice if no tool calls are present.
+    pub fn tool_calls(&self) -> &[crate::types::ToolCall] {
+        self.choices.first()
+            .and_then(|c| c.message.tool_calls.as_deref())
+            .unwrap_or(&[])
+    }
+
+    /// Get the finish reason of the first choice
+    pub fn finish_reason(&self) -> Option<&str> {
+        self.choices.first()
+            .and_then(|c| c.finish_reason.as_deref())
+    }
+
+    /// Check if the model stopped because it wants to call tools
+    pub fn is_tool_call(&self) -> bool {
+        self.finish_reason() == Some("tool_calls") || self.has_tool_calls()
     }
 
     /// Provider-agnostic post-processor: populate reasoning synonyms into messages

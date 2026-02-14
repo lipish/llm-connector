@@ -264,6 +264,14 @@ impl Protocol for AliyunProtocol {
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
+        // Detect context length exceeded from error body
+        let body_lower = body.to_lowercase();
+        if body_lower.contains("context_length_exceeded")
+            || body_lower.contains("maximum context length")
+            || body_lower.contains("input is too long")
+        {
+            return LlmConnectorError::ContextLengthExceeded(format!("Aliyun: {}", body));
+        }
         LlmConnectorError::from_status_code(status, format!("Aliyun API error: {}", body))
     }
 }

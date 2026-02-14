@@ -128,7 +128,10 @@ pub mod sse;
 pub use client::LlmClient;
 pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
-pub use types::{ChatRequest, ChatResponse, Choice, Message, Usage, Role};
+pub use types::{
+    ChatRequest, ChatResponse, Choice, Message, Usage, Role,
+    Tool, ToolCall, FunctionCall, ToolChoice, ResponseFormat, JsonSchemaSpec,
+};
 
 // Re-export core traits
 pub use core::{Protocol, Provider, GenericProvider, HttpClient};
