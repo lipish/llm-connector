@@ -19,7 +19,7 @@ Supports **12+ providers**: OpenAI, Anthropic, Google, Aliyun, Zhipu, Ollama, Te
 
 ```toml
 [dependencies]
-llm-connector = "0.5.18"
+llm-connector = "0.5.19"
 tokio = { version = "1", features = ["full"] }
 
 # Streaming is included by default since v0.5.18

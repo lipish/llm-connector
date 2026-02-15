@@ -43,6 +43,23 @@ pub struct LlmClient {
 }
 
 impl LlmClient {
+    /// Create a builder for fluent client construction
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    ///
+    /// let client = LlmClient::builder()
+    ///     .openai("sk-...")
+    ///     .base_url("https://api.deepseek.com")
+    ///     .timeout(60)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
+    pub fn builder() -> crate::builder::LlmClientBuilder {
+        crate::builder::LlmClientBuilder::new()
+    }
+
     /// Create client from any Provider
     pub fn from_provider(provider: Arc<dyn Provider>) -> Self {
         Self { provider }

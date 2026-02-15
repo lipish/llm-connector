@@ -113,6 +113,7 @@
 //! ```
 
 // Core modules (V2 Architecture - Default)
+pub mod builder;
 pub mod client;
 pub mod config;
 pub mod core;
