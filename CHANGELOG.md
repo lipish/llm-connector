@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.18] - 2026-02-15
+
+### ⚡ Breaking Changes (minor)
+
+- **Streaming now enabled by default** — `streaming` feature is included in `default` features, so `chat_stream()`, `ChatStream`, `StreamingResponse` etc. are available without extra configuration. Downstream libraries no longer need `features = ["streaming"]`.
+
 ## [0.5.17] - 2026-02-14
 
 ### 🚀 New Features
