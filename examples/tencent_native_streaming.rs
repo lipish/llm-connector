@@ -1,19 +1,15 @@
-use llm_connector::{LlmClient, ChatRequest, Message};
-use std::io::Write;
-#[cfg(feature = "streaming")]
-use futures_util::StreamExt;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(feature = "tencent"))]
     {
         println!("❌ This example requires enabling the 'tencent' feature");
         println!("Please run: cargo run --example tencent_native_streaming --features tencent");
-        return Ok(());
     }
 
     #[cfg(feature = "tencent")]
     {
+        use llm_connector::{LlmClient, ChatRequest, Message};
+
         // Tencent Hunyuan Secret credentials
         let secret_id = std::env::var("TENCENT_SECRET_ID")
             .expect("Please set environment variable TENCENT_SECRET_ID");
@@ -36,6 +32,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         #[cfg(feature = "streaming")]
         {
+            use std::io::Write;
+            use futures_util::StreamExt;
+
             let mut stream = client.chat_stream(&request).await?;
             let mut full_response = String::new();
 

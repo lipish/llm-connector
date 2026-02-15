@@ -10,15 +10,10 @@
 
 #[cfg(feature = "streaming")]
 use futures_util::StreamExt;
-
+#[cfg(feature = "streaming")]
 use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-
 #[cfg(feature = "streaming")]
-use std::time::Instant;
-
-#[cfg(feature = "streaming")]
-use std::time::Duration;
-
+use std::time::{Instant, Duration};
 #[cfg(feature = "streaming")]
 use std::io::Write;
 
