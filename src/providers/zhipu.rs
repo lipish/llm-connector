@@ -4,7 +4,8 @@
 
 use crate::core::{GenericProvider, HttpClient, Protocol};
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Role, Tool, ToolChoice, Choice, Message as TypeMessage};
+use crate::types::{ChatRequest, ChatResponse, Role, Tool, ToolChoice, Choice, Message as TypeMessage, MessageBlock, ImageSource};
+use serde_json::{Value, json};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -225,20 +226,55 @@ impl Protocol for ZhipuProtocol {
         let messages: Vec<ZhipuMessage> = request
             .messages
             .iter()
-            .map(|msg| ZhipuMessage {
-                role: match msg.role {
+            .map(|msg| {
+                let role = match msg.role {
                     Role::System => "system".to_string(),
                     Role::User => "user".to_string(),
                     Role::Assistant => "assistant".to_string(),
                     Role::Tool => "tool".to_string(),
-                },
-                // Zhipu uses plain text format
-                content: msg.content_as_text(),
-                tool_calls: msg.tool_calls.as_ref().map(|calls| {
-                    calls.iter().map(|c| serde_json::to_value(c).unwrap_or_default()).collect()
-                }),
-                tool_call_id: msg.tool_call_id.clone(),
-                name: msg.name.clone(),
+                };
+
+                // Check if message contains image content
+                let has_image = msg.content.iter().any(|block| block.is_image());
+
+                let content = if has_image {
+                    // Multi-modal: build content array with text and image_url blocks
+                    let blocks: Vec<Value> = msg.content.iter().map(|block| {
+                        match block {
+                            MessageBlock::Text { text } => json!({
+                                "type": "text",
+                                "text": text
+                            }),
+                            MessageBlock::Image { source } => json!({
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": match source {
+                                        ImageSource::Base64 { media_type, data } => format!("data:{};base64,{}", media_type, data),
+                                        ImageSource::Url { url } => url.clone(),
+                                    }
+                                }
+                            }),
+                            MessageBlock::ImageUrl { image_url } => json!({
+                                "type": "image_url",
+                                "image_url": { "url": image_url.url }
+                            }),
+                        }
+                    }).collect();
+                    json!(blocks)
+                } else {
+                    // Text only: use plain string
+                    json!(msg.content_as_text())
+                };
+
+                ZhipuMessage {
+                    role,
+                    content,
+                    tool_calls: msg.tool_calls.as_ref().map(|calls| {
+                        calls.iter().map(|c| serde_json::to_value(c).unwrap_or_default()).collect()
+                    }),
+                    tool_call_id: msg.tool_call_id.clone(),
+                    name: msg.name.clone(),
+                }
             })
             .collect();
 
@@ -263,8 +299,12 @@ impl Protocol for ZhipuProtocol {
             if let Some(first_choice) = choices.first() {
                 // Convert ZhipuMessage to TypeMessage
                 // Extract reasoning content (if exists)
+                let content_str = match &first_choice.message.content {
+                    Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                };
                 let (reasoning_content, final_content) =
-                    extract_zhipu_reasoning_content(&first_choice.message.content);
+                    extract_zhipu_reasoning_content(&content_str);
 
                 let type_message = TypeMessage {
                     role: match first_choice.message.role.as_str() {
@@ -452,7 +492,7 @@ pub struct ZhipuRequest {
 pub struct ZhipuMessage {
     pub role: String,
     #[serde(default)]
-    pub content: String,
+    pub content: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -722,6 +762,68 @@ mod tests {
         let (reasoning, answer) = extract_zhipu_reasoning_content(content_empty_thinking);
         assert!(reasoning.is_none());
         assert_eq!(answer, "###Thinking\n\n###Response\nanswer");
+    }
+
+    #[test]
+    fn test_zhipu_build_request_text_only() {
+        use crate::types::Message;
+        let protocol = ZhipuProtocol::new("test-key");
+        let request = ChatRequest {
+            model: "glm-4".to_string(),
+            messages: vec![Message::user("Hello")],
+            ..Default::default()
+        };
+        let zhipu_req = protocol.build_request(&request).unwrap();
+        // Text-only message should produce a plain string content
+        assert_eq!(zhipu_req.messages[0].content, json!("Hello"));
+    }
+
+    #[test]
+    fn test_zhipu_build_request_with_image_url() {
+        use crate::types::Message;
+        let protocol = ZhipuProtocol::new("test-key");
+
+        let mut msg = Message::user("Describe this image");
+        msg.content.push(MessageBlock::image_url("https://example.com/cat.jpg"));
+
+        let request = ChatRequest {
+            model: "glm-4v".to_string(),
+            messages: vec![msg],
+            ..Default::default()
+        };
+        let zhipu_req = protocol.build_request(&request).unwrap();
+        let content = &zhipu_req.messages[0].content;
+
+        // Should be an array with text + image_url blocks
+        assert!(content.is_array());
+        let arr = content.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["type"], "text");
+        assert_eq!(arr[0]["text"], "Describe this image");
+        assert_eq!(arr[1]["type"], "image_url");
+        assert_eq!(arr[1]["image_url"]["url"], "https://example.com/cat.jpg");
+    }
+
+    #[test]
+    fn test_zhipu_build_request_with_base64_image() {
+        use crate::types::Message;
+        let protocol = ZhipuProtocol::new("test-key");
+
+        let mut msg = Message::user("What is this?");
+        msg.content.push(MessageBlock::image_base64("image/jpeg", "abc123"));
+
+        let request = ChatRequest {
+            model: "glm-4v".to_string(),
+            messages: vec![msg],
+            ..Default::default()
+        };
+        let zhipu_req = protocol.build_request(&request).unwrap();
+        let content = &zhipu_req.messages[0].content;
+
+        assert!(content.is_array());
+        let arr = content.as_array().unwrap();
+        assert_eq!(arr[1]["type"], "image_url");
+        assert_eq!(arr[1]["image_url"]["url"], "data:image/jpeg;base64,abc123");
     }
 
     #[cfg(feature = "streaming")]
