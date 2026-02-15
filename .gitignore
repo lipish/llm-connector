@@ -1,5 +1,5 @@
 .DS_Store
-.qoder
+.idea
 examples/core
 keys.yaml
 .github
@@ -9,3 +9,4 @@ target
 CLAUDE.md
 .zed/
 .augment/
+Cargo.toml
