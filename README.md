@@ -19,12 +19,12 @@ Supports **12+ providers**: OpenAI, Anthropic, Google, Aliyun, Zhipu, Ollama, Te
 
 ```toml
 [dependencies]
-llm-connector = "0.5.19"
+llm-connector = "0.6.0"
 tokio = { version = "1", features = ["full"] }
 
-# Streaming is included by default since v0.5.18
+# Streaming is included by default since v0.6.0
 # To disable default features:
-# llm-connector = { version = "0.5.18", default-features = false, features = ["reqwest"] }
+# llm-connector = { version = "0.6.0", default-features = false, features = ["reqwest"] }
 ```
 
 ## Quick Start
@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | **Anthropic** | `LlmClient::anthropic("sk-ant-...")` | Chat, Streaming, Multi-modal |
 | **Google Gemini** | `LlmClient::google("key")` | Chat, Streaming |
 | **Aliyun** | `LlmClient::aliyun("sk-...")` | Chat, Streaming, Qwen models |
-| **Zhipu** | `LlmClient::zhipu("key")` | Chat, Streaming, Tools, GLM models |
+| **Zhipu** | `LlmClient::zhipu("key")` | Chat, Streaming, Tools, Multi-modal, GLM models |
 | **Tencent** | `LlmClient::tencent("id", "key")` | Chat, Streaming, Hunyuan |
 | **Volcengine** | `LlmClient::volcengine("key")` | Chat, Streaming, Reasoning |
 | **DeepSeek** | `LlmClient::deepseek("sk-...")` | Chat, Streaming, Reasoning (R1) |
@@ -65,6 +65,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | **Ollama** | `LlmClient::ollama()` | Chat, Streaming, Local models |
 
 📖 **Detailed documentation**: [docs/PROVIDERS.md](docs/PROVIDERS.md)
+
+## Builder Pattern
+
+```rust
+use llm_connector::LlmClient;
+
+// Simple
+let client = LlmClient::builder()
+    .deepseek("sk-...")
+    .build()?;
+
+// With custom configuration
+let client = LlmClient::builder()
+    .openai("sk-...")
+    .base_url("https://api.deepseek.com")
+    .timeout(60)
+    .proxy("http://proxy:8080")
+    .build()?;
+
+// Ollama (no API key needed)
+let client = LlmClient::builder()
+    .ollama()
+    .base_url("http://192.168.1.100:11434")
+    .build()?;
+```
 
 ## Streaming
 
@@ -219,7 +244,7 @@ println!("Available models: {:?}", models);
 ```bash
 # Basic examples
 cargo run --example openai_basic
-cargo run --example anthropic_streaming --features streaming
+cargo run --example anthropic_streaming
 cargo run --example ollama_basic
 cargo run --example xiaomi_basic
 

@@ -2,13 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.19] - 2026-02-15
+## [0.6.0] - 2026-02-15
 
 ### 🚀 New Features
 
-- **Builder Pattern for LlmClient** — `LlmClient::builder()` provides a fluent API for client construction with optional `base_url()`, `timeout()`, `proxy()` configuration. Supports all providers: OpenAI, Anthropic, Aliyun, Zhipu, Ollama, DeepSeek, Moonshot, Volcengine, Google, Xiaomi, LongCat, Azure OpenAI, Tencent, and generic OpenAI-compatible services.
+- **Builder Pattern for LlmClient** — `LlmClient::builder()` provides a fluent API for client construction with optional `base_url()`, `timeout()`, `proxy()` configuration. Supports all 12+ providers.
+  ```rust
+  let client = LlmClient::builder()
+      .deepseek("sk-...")
+      .timeout(60)
+      .build()?;
+  ```
 
-## [0.5.18] - 2026-02-15
+- **Zhipu Multimodal Support** — Zhipu protocol now supports image URLs and base64 images via `MessageBlock::image_url()` and `MessageBlock::image_base64()`. Works with `glm-4v-flash` and other vision models.
 
 ### ⚡ Breaking Changes (minor)
 
