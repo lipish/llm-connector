@@ -220,7 +220,7 @@ mod tests {
             }
             Err(e) => {
                 println!("✅ Got expected error: {}", e);
-                // Verify it's an authentication error or timeout (if network is restricted)
+                // Verify it's an authentication error, timeout, or connection error (if network is restricted)
                 let error_str = e.to_string();
                 assert!(
                     error_str.contains("auth") ||
@@ -229,8 +229,10 @@ mod tests {
                     error_str.contains("401") ||
                     error_str.contains("API key") ||
                     error_str.contains("timeout") ||  // May timeout if network is restricted
-                    error_str.contains("Timeout"),
-                    "Error should indicate authentication failure or timeout: {}", error_str
+                    error_str.contains("Timeout") ||
+                    error_str.contains("Connection") ||  // May fail to connect if network is restricted
+                    error_str.contains("connection"),
+                    "Error should indicate authentication failure, timeout, or connection error: {}", error_str
                 );
             }
         }
