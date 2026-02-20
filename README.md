@@ -1,4 +1,6 @@
-# llm-connector
+<div align="center">
+
+<h1>llm-connector</h1>
 
 [![crates.io](https://img.shields.io/crates/v/llm-connector.svg)](https://crates.io/crates/llm-connector)
 [![build](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/lipish/llm-connector)
@@ -9,7 +11,9 @@
 
 High-performance Rust library for unifying LLM providers behind one type-safe API.
 
-Installation • Quick Start • Documentation • Providers
+[Installation](#installation) • [Usage](#usage) • [Documentation](#documentation) • [Contributing](#contributing) • [Providers](docs/PROVIDERS.md)
+
+</div>
 
 ## Philosophy
 
