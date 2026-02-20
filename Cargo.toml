@@ -1,7 +1,7 @@
 [package]
 name = "llm-connector"
-version = "0.6.0"
-edition = "2021"
+version = "0.6.1"
+edition = "2024"
 authors = ["lipi"]
 description = "Next-generation Rust library for LLM protocol abstraction with native multi-modal support. Supports 12+ providers (OpenAI, Anthropic, Google, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, Xiaomi) with clean Protocol/Provider separation, type-safe interface, and universal streaming."
 license = "MIT"
@@ -37,12 +37,12 @@ serde_json = "1.0"
 # Core dependencies
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
-thiserror = "1.0"
+thiserror = "2.0"
 rand = "0.8"
 log = "0.4"
 
 # HTTP client (optional)
-reqwest = { version = "0.11", features = ["json", "stream"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"], optional = true }
 tokio = { version = "1.0", features = ["rt"], optional = true }
 futures-util = { version = "0.3", optional = true }
 bytes = { version = "1.0", optional = true }

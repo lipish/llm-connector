@@ -2,9 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-02-20
+
+### 🔧 Build / Compatibility
+
+- Rust 2024 edition (MSRV: Rust 1.85+)
+- Reqwest uses `rustls-tls` by default (better Android cross-compilation compatibility)
+
 ## [0.6.0] - 2026-02-15
 
 ### 🚀 New Features
+
+- **Rust 2024 edition** — MSRV is now Rust 1.85+
 
 - **Builder Pattern for LlmClient** — `LlmClient::builder()` provides a fluent API for client construction with optional `base_url()`, `timeout()`, `proxy()` configuration. Supports all 12+ providers.
   ```rust

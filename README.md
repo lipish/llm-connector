@@ -17,14 +17,16 @@ Supports **12+ providers**: OpenAI, Anthropic, Google, Aliyun, Zhipu, Ollama, Te
 
 ## Installation
 
+**MSRV**: Rust 1.85+ (Rust 2024 edition)
+
 ```toml
 [dependencies]
-llm-connector = "0.6.0"
+llm-connector = "0.6.1"
 tokio = { version = "1", features = ["full"] }
 
 # Streaming is included by default since v0.6.0
 # To disable default features:
-# llm-connector = { version = "0.6.0", default-features = false, features = ["reqwest"] }
+# llm-connector = { version = "0.6.1", default-features = false, features = ["reqwest"] }
 ```
 
 ## Quick Start
