@@ -624,28 +624,25 @@ impl LlmClient {
         self.provider.name()
     }
 
-    pub fn supported_providers() -> Vec<&'static str> {
-        vec![
+    pub fn supported_providers() -> &'static [&'static str] {
+        &[
             "openai",
             "aliyun",
             "anthropic",
             "zhipu",
             "ollama",
-            "tencent",
             "volcengine",
             "longcat_anthropic",
             "azure_openai",
             "openai_compatible",
             "google",
             "xiaomi",
+            #[cfg(feature = "tencent")]
+            "tencent",
         ]
     }
 
-    /// Send chat completion request
-    ///
-    /// # Parameters
-    /// - `request`: Chat request
-    ///
+// ...
     /// # Returns
     /// Chat response
     ///
