@@ -154,13 +154,15 @@ body::before {
 
 /* Normalize navbar horizontal layout across pages (home vs docs sidebar) */
 .VPNavBar .container {
-  max-width: 100% !important;
+  max-width: var(--vp-layout-max-width) !important;
+  margin: 0 auto !important;
+  padding: 0 24px;
 }
 
 .VPNavBar .content {
   width: 100%;
-  padding-left: 24px;
-  padding-right: 24px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* Override sidebar-related offset so search doesn't jump */
