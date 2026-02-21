@@ -85,7 +85,8 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/lipish/llm-connector' }
+      { icon: 'github', link: 'https://github.com/lipish/llm-connector' },
+      { icon: 'twitter', link: 'https://x.com/lipiisme' }
     ],
 
     footer: {
