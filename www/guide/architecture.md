@@ -1,12 +1,12 @@
-# Architecture & Design
+# Architecture
 
 `llm-connector` is designed to provide a unified, type-safe interface for various LLM providers while handling the differences in their underlying protocols.
 
 ## Core Design Principles
 
-1.  **Unified Interface**: A single `LlmClient` struct that can be instantiated with any backend provider.
-2.  **Protocol Abstraction**: Separation between `Provider` (high-level logic) and `Protocol` (request/response formatting).
-3.  **Unified Output**: All providers flow into a `StreamingResponse` unified format, simplifying downstream consumption.
+1. **Unified Interface**: A single `LlmClient` struct that can be instantiated with any backend provider.
+2. **Protocol Abstraction**: Separation between `Provider` (high-level logic) and `Protocol` (request/response formatting).
+3. **Unified Output**: All providers flow into a `StreamingResponse` unified format, simplifying downstream consumption.
 
 ## Unified Output Format
 
@@ -44,6 +44,7 @@ pub enum MessageBlock {
 ## Streaming Architecture
 
 Streaming is handled via `reqwest` and `eventsource-stream`.
+
 - **Parsing**: Each provider has a `parse_stream_response` method.
 - **Normalization**: Provider-specific SSE events are mapped to the unified `StreamingResponse`.
 - **Reasoning**: For reasoning models (DeepSeek R1, Volcengine), `reasoning_content` is extracted from specific fields (e.g., `delta.reasoning_content`) and exposed separately.

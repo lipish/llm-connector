@@ -11,7 +11,7 @@
 
 High-performance Rust library for unifying LLM providers behind one type-safe API.
 
-[Installation](#installation) • [Usage](#usage) • [Documentation](#documentation) • [Contributing](#contributing) • [Providers](docs/PROVIDERS.md)
+[Installation](#installation) • [Usage](#usage) • [Documentation](#documentation) • [Contributing](https://llmconn.com/guide/contributing) • [Providers](https://llmconn.com/guide/providers)
 
 </div>
 
@@ -81,16 +81,16 @@ while let Some(chunk) = stream.next().await {
 
 ## Documentation
 
-- [Providers](docs/PROVIDERS.md)
-- [Streaming](docs/STREAMING.md)
-- [Tools / Function Calling](docs/TOOLS.md)
-- [Multi-modal](docs/MULTIMODAL.md)
-- [Architecture](docs/ARCHITECTURE.md)
+- [Providers](https://llmconn.com/guide/providers)
+- [Streaming](https://llmconn.com/guide/streaming)
+- [Tools / Function Calling](https://llmconn.com/guide/tools)
+- [Multi-modal](https://llmconn.com/guide/multimodal)
+- [Architecture](https://llmconn.com/guide/architecture)
 - [Changelog](CHANGELOG.md)
 
 ## Contributing
 
-Contributions welcome! See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+Contributions welcome! See https://llmconn.com/guide/contributing for guidelines.
 
 ## License
 

@@ -1,4 +1,4 @@
-# Supported Providers
+# Providers
 
 `llm-connector` supports 12+ LLM providers with a unified interface.
 
@@ -69,9 +69,6 @@ use llm_connector::LlmClient;
 let client = LlmClient::aliyun("sk-...")?;
 ```
 
-### Tool Calling
-Aliyun provider supports full tool calling (function calling) capabilities, compatible with OpenAI's format.
-
 ---
 
 ## Zhipu GLM (Zhipu AI)
@@ -103,9 +100,6 @@ use llm_connector::LlmClient;
 let client = LlmClient::tencent("AKID...", "SecretKey...")?;
 ```
 
-> [!NOTE]
-> As of v0.5.8, this uses the native Tencent Protocol. Previous versions used an OpenAI-compatible wrapper.
-
 ---
 
 ## Volcengine
@@ -133,11 +127,6 @@ use llm_connector::LlmClient;
 let client = LlmClient::deepseek("sk-...")?;
 ```
 
-### Reasoning Models
-DeepSeek R1 models output reasoning content. `llm-connector` automatically handles this:
-- Non-streaming: Content is in `response.content` (reasoning usually stripped or separated depending on config)
-- Streaming: `reasoning_content` is extracted from the stream.
-
 ---
 
 ## Moonshot
@@ -162,18 +151,7 @@ Support for Xiaomi's MiMo LLM platform.
 use llm_connector::LlmClient;
 
 let client = LlmClient::xiaomi("sk-...")?;
-
-// With custom config
-let client = LlmClient::xiaomi_with_config(
-    "sk-...",
-    None,        // Use default: https://api.xiaomimimo.com/v1
-    Some(60),    // 60 second timeout
-    None         // No proxy
-)?;
 ```
-
-### Models
-- `mimo-v2-flash` - Fast model for general use
 
 ---
 
@@ -192,36 +170,6 @@ let client = LlmClient::ollama()?;
 let client = LlmClient::ollama_with_base_url("http://192.168.1.100:11434")?;
 ```
 
-### Model Management
-
-Ollama provider supports full CRUD operations for local models:
-
-```rust
-use llm_connector::providers::ollama;
-
-let client = ollama::ollama()?;
-
-// List all local models
-let models = client.list_models().await?;
-for model in &models {
-    println!("{}: {} bytes", model.name, model.size);
-}
-
-// Pull a new model
-let status = client.pull_model("llama3:8b").await?;
-println!("Pull status: {}", status.status);
-
-// Delete a model
-client.delete_model("llama3:8b").await?;
-
-// Copy/rename a model
-client.copy_model("llama3:8b", "my-llama").await?;
-
-// Show model details
-let info = client.show_model("llama3:8b").await?;
-println!("License: {}", info.license.unwrap_or_default());
-```
-
 ---
 
 ## Google Gemini
@@ -233,20 +181,7 @@ Support for Google's Gemini models.
 use llm_connector::LlmClient;
 
 let client = LlmClient::google("your-api-key")?;
-
-// With custom config
-let client = LlmClient::google_with_config(
-    "your-api-key",
-    Some("https://generativelanguage.googleapis.com"),
-    Some(120),  // 120 second timeout
-    None        // No proxy
-)?;
 ```
-
-### Models
-- `gemini-2.0-flash` - Fast and capable
-- `gemini-1.5-pro` - Most capable
-- `gemini-1.5-flash` - Fast responses
 
 ---
 
