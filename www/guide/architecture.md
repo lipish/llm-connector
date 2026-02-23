@@ -62,3 +62,27 @@ ProtocolConfig {
     auth: AuthConfig::Bearer,
 }
 ```
+
+## Per-Request Overrides (Multi-Tenant / Gateway)
+
+For gateway or multi-tenant routing, you can override API key, base URL, and headers **per request** without creating a new client.
+
+```rust
+let client = LlmClient::openai("default-key")?;
+
+// Route this request to a different tenant
+let request = ChatRequest::new("gpt-4")
+    .add_message(Message::user("Hello"))
+    .with_api_key("tenant-specific-key")
+    .with_base_url("https://proxy.example.com/v1")
+    .with_header("X-Trace-Id", "trace-123")
+    .with_header("anthropic-version", "2024-01-01");
+
+let response = client.chat(&request).await?;
+```
+
+- **`api_key`**: Overrides both `Authorization: Bearer` and `x-api-key` (provider will use whichever it expects).
+- **`base_url`**: Uses a different base URL for this request.
+- **`extra_headers`**: Injected headers; values override default provider headers for the same keys.
+
+Supported for providers that use `GenericProvider` (OpenAI, Anthropic, DeepSeek, Moonshot, Volcengine, etc.).

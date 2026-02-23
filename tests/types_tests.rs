@@ -95,6 +95,25 @@ fn test_chat_request_default() {
 }
 
 #[test]
+fn test_chat_request_per_request_overrides() {
+    let request = ChatRequest::new("gpt-4")
+        .add_message(Message::user("Hi"))
+        .with_api_key("sk-override-key")
+        .with_base_url("https://custom.api.example.com")
+        .with_header("X-Trace-Id", "trace-123")
+        .with_header("anthropic-version", "2024-01-01");
+
+    assert_eq!(request.api_key.as_deref(), Some("sk-override-key"));
+    assert_eq!(
+        request.base_url.as_deref(),
+        Some("https://custom.api.example.com")
+    );
+    let headers = request.extra_headers.as_ref().unwrap();
+    assert_eq!(headers.get("X-Trace-Id"), Some(&"trace-123".to_string()));
+    assert_eq!(headers.get("anthropic-version"), Some(&"2024-01-01".to_string()));
+}
+
+#[test]
 fn test_usage_serialization() {
     let usage = Usage {
         prompt_tokens: 10,

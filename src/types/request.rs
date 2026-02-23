@@ -84,6 +84,26 @@ pub struct ChatRequest {
     /// For other providers: May be ignored
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enable_thinking: Option<bool>,
+
+    /// Per-request API key override (for multi-tenant routing)
+    ///
+    /// When set, overrides the client's API key for this request.
+    /// Applied to both `Authorization: Bearer` and `x-api-key` headers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
+
+    /// Per-request base URL override (for multi-tenant routing)
+    ///
+    /// When set, overrides the client's base URL for this request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+
+    /// Per-request custom headers (e.g. `X-Trace-Id`, `anthropic-version`)
+    ///
+    /// When set, these headers are merged with the request. Values here
+    /// override default provider headers for the same keys.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra_headers: Option<HashMap<String, String>>,
 }
 
 impl ChatRequest {
@@ -193,6 +213,32 @@ impl ChatRequest {
     /// For Aliyun: Enables reasoning content for hybrid models
     pub fn with_enable_thinking(mut self, enable: bool) -> Self {
         self.enable_thinking = Some(enable);
+        self
+    }
+
+    /// Override API key for this request (multi-tenant routing)
+    pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
+        self.api_key = Some(api_key.into());
+        self
+    }
+
+    /// Override base URL for this request (multi-tenant routing)
+    pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.base_url = Some(base_url.into());
+        self
+    }
+
+    /// Add a custom header (overrides default provider header for same key)
+    pub fn with_header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.extra_headers
+            .get_or_insert_with(HashMap::new)
+            .insert(key.into(), value.into());
+        self
+    }
+
+    /// Set custom headers (overrides default provider headers for same keys)
+    pub fn with_extra_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.extra_headers = Some(headers);
         self
     }
 }

@@ -5,6 +5,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
+use std::collections::HashMap;
 
 // Reuse existing types, maintain compatibility
 use crate::types::{ChatRequest, ChatResponse};
@@ -88,6 +89,19 @@ pub trait Provider: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
 
+/// Build per-request header overrides from ChatRequest (api_key + extra_headers)
+fn build_request_overrides(request: &ChatRequest) -> HashMap<String, String> {
+    let mut overrides = HashMap::new();
+    if let Some(ref key) = request.api_key {
+        overrides.insert("Authorization".to_string(), format!("Bearer {}", key));
+        overrides.insert("x-api-key".to_string(), key.clone());
+    }
+    if let Some(ref extra) = request.extra_headers {
+        overrides.extend(extra.clone());
+    }
+    overrides
+}
+
 /// Generic provider implementation
 /// 
 /// This struct provides generic implementation for most standard LLM APIs.
@@ -131,24 +145,26 @@ impl<P: Protocol> Provider for GenericProvider<P> {
     }
     
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
-        // Build protocol-specific request
         let protocol_request = self.protocol.build_request(request)?;
-        
-        // GetendpointURL
-        let url = self.protocol.chat_endpoint(self.client.base_url());
-        
-        // Send request
-        let response = self.client.post(&url, &protocol_request).await?;
+        let base_url = request
+            .base_url
+            .as_deref()
+            .unwrap_or_else(|| self.client.base_url());
+        let url = self.protocol.chat_endpoint(base_url);
+        let overrides = build_request_overrides(request);
+
+        let response = if overrides.is_empty() {
+            self.client.post(&url, &protocol_request).await?
+        } else {
+            self.client.post_with_overrides(&url, &protocol_request, &overrides).await?
+        };
         let status = response.status();
         let text = response.text().await
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-            
-        // Check HTTP status
+
         if !status.is_success() {
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }
-        
-        // Parse response
         self.protocol.parse_response(&text)
     }
     
@@ -158,9 +174,18 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         streaming_request.stream = Some(true);
 
         let protocol_request = self.protocol.build_request(&streaming_request)?;
-        let url = self.protocol.chat_endpoint(self.client.base_url());
+        let base_url = request
+            .base_url
+            .as_deref()
+            .unwrap_or_else(|| self.client.base_url());
+        let url = self.protocol.chat_endpoint(base_url);
+        let overrides = build_request_overrides(request);
 
-        let response = self.client.stream(&url, &protocol_request).await?;
+        let response = if overrides.is_empty() {
+            self.client.stream(&url, &protocol_request).await?
+        } else {
+            self.client.stream_with_overrides(&url, &protocol_request, &overrides).await?
+        };
         let status = response.status();
 
         if !status.is_success() {
@@ -168,7 +193,6 @@ impl<P: Protocol> Provider for GenericProvider<P> {
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }
-
         self.protocol.parse_stream_response(response).await
     }
     

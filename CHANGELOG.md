@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-02-23
+
+### Added
+
+- **Per-Request Overrides (Multi-Tenant / Gateway)**
+  - `ChatRequest` now supports `api_key`, `base_url`, and `extra_headers` for per-request overrides
+  - `with_api_key()`, `with_base_url()`, `with_header()`, `with_extra_headers()` builder methods
+  - Supports multi-tenant routing without creating a new client per tenant
+  - Custom headers (e.g. `X-Trace-Id`, `anthropic-version`) override default provider headers
+  - Works with all `GenericProvider`-based providers (OpenAI, Anthropic, DeepSeek, Moonshot, Volcengine, etc.)
+
 ## [0.6.1] - 2026-02-20
 
 ### 🔧 Build / Compatibility

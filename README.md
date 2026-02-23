@@ -28,6 +28,7 @@ High-performance Rust library for unifying LLM providers behind one type-safe AP
 - Function calling / tools (OpenAI-compatible)
 - Multi-modal messages (text + images)
 - Reasoning model normalization
+- Per-request overrides: API key, base URL, and headers for multi-tenant / gateway use
 
 ## Installation
 
@@ -77,6 +78,20 @@ while let Some(chunk) = stream.next().await {
         print!("{}", content);
     }
 }
+```
+
+### Per-Request Overrides (Multi-Tenant / Gateway)
+
+Override API key, base URL, or headers per request without creating a new client:
+
+```rust
+let request = ChatRequest::new("gpt-4")
+    .add_message(Message::user("Hello"))
+    .with_api_key("tenant-key")
+    .with_base_url("https://proxy.example.com/v1")
+    .with_header("X-Trace-Id", "trace-123");
+
+let response = client.chat(&request).await?;
 ```
 
 ## Documentation

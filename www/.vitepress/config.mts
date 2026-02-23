@@ -64,6 +64,13 @@ export default defineConfig({
             { text: 'Migration', link: '/guide/migration' },
             { text: 'Contributing', link: '/guide/contributing' }
           ]
+        },
+        {
+          text: 'API Analysis',
+          items: [
+            { text: 'OpenAI vs Anthropic Comparison & Adaptation', link: '/guide/api-comparison-and-adaptation-plan' },
+            { text: 'OpenAI Responses API Analysis & Plan', link: '/guide/openai-responses-api-analysis-and-plan' }
+          ]
         }
       ],
       '/examples/': [

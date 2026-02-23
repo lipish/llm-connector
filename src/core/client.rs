@@ -216,6 +216,71 @@ impl HttpClient {
             }
         })
     }
+
+    /// Send POST request with header overrides (overrides take precedence over client headers)
+    ///
+    /// Used for per-request API key, base URL, and custom header overrides (e.g. X-Trace-Id).
+    pub async fn post_with_overrides<T: Serialize>(
+        &self,
+        url: &str,
+        body: &T,
+        overrides: &HashMap<String, String>,
+    ) -> Result<reqwest::Response, LlmConnectorError> {
+        let mut request = self.client.post(url).json(body);
+
+        // Base headers first, then overrides (overrides take precedence)
+        for (key, value) in &self.headers {
+            request = request.header(key, value);
+        }
+        for (key, value) in overrides {
+            request = request.header(key, value);
+        }
+
+        request.send().await.map_err(|e| {
+            if e.is_timeout() {
+                LlmConnectorError::TimeoutError(format!("POST request timeout: {}", e))
+            } else if e.is_connect() {
+                LlmConnectorError::ConnectionError(format!("POST connection failed: {}", e))
+            } else {
+                LlmConnectorError::NetworkError(format!("POST request failed: {}", e))
+            }
+        })
+    }
+
+    /// Send streaming POST request with header overrides (overrides take precedence)
+    #[cfg(feature = "streaming")]
+    pub async fn stream_with_overrides<T: Serialize>(
+        &self,
+        url: &str,
+        body: &T,
+        overrides: &HashMap<String, String>,
+    ) -> Result<reqwest::Response, LlmConnectorError> {
+        let mut request = self.client.post(url).json(body);
+
+        request = request.header("Accept", "text/event-stream");
+        request = request.header("Cache-Control", "no-cache");
+        request = request.header("Connection", "keep-alive");
+
+        for (key, value) in &self.headers {
+            request = request.header(key, value);
+        }
+        for (key, value) in overrides {
+            request = request.header(key, value);
+        }
+
+        request.send().await.map_err(|e| {
+            if e.is_timeout() {
+                LlmConnectorError::TimeoutError(format!(
+                    "Stream request timeout: {}. Consider increasing timeout for long-running streams.",
+                    e
+                ))
+            } else if e.is_connect() {
+                LlmConnectorError::ConnectionError(format!("Stream connection failed: {}", e))
+            } else {
+                LlmConnectorError::NetworkError(format!("Stream request failed: {}", e))
+            }
+        })
+    }
 }
 
 impl std::fmt::Debug for HttpClient {
