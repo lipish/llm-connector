@@ -69,15 +69,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .choices
                             .first()
                             .and_then(|c| c.finish_reason.as_ref())
+                            && finish_reason == "stop"
                         {
-                            if finish_reason == "stop" {
-                                println!("\n\n   ✅ Streaming response completed!");
-                                if let Some(usage) = streaming_response.usage {
-                                    println!("   📊 Usage Statistics:");
-                                    println!("     Input tokens: {}", usage.prompt_tokens);
-                                    println!("     Output tokens: {}", usage.completion_tokens);
-                                    println!("     Total tokens: {}", usage.total_tokens);
-                                }
+                            println!("\n\n   ✅ Streaming response completed!");
+                            if let Some(usage) = streaming_response.usage {
+                                println!("   📊 Usage Statistics:");
+                                println!("     Input tokens: {}", usage.prompt_tokens);
+                                println!("     Output tokens: {}", usage.completion_tokens);
+                                println!("     Total tokens: {}", usage.total_tokens);
                             }
                         }
                     }

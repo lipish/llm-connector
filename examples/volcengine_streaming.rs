@@ -102,10 +102,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
 
                     // Check finish_reason
-                    if let Some(choice) = chunk.choices.first() {
-                        if let Some(reason) = &choice.finish_reason {
-                            println!("\n\n[Finish reason: {}]", reason);
-                        }
+                    if let Some(choice) = chunk.choices.first()
+                        && let Some(reason) = &choice.finish_reason
+                    {
+                        println!("\n\n[Finish reason: {}]", reason);
                     }
                 }
                 Err(e) => {

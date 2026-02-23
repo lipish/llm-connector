@@ -299,7 +299,7 @@ impl Protocol for TencentNativeProtocol {
                     Err(e) => Some(Err(e)),
                 }
             })
-            .filter_map(|x| std::future::ready(x));
+            .filter_map(std::future::ready);
 
         Ok(Box::pin(stream))
     }

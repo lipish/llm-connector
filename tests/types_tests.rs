@@ -1,7 +1,6 @@
 //! Tests for type definitions and serialization
 
 use llm_connector::types::{ChatRequest, ChatResponse, Choice, Message, MessageBlock, Role, Usage};
-use serde_json;
 
 #[test]
 fn test_role_serialization() {

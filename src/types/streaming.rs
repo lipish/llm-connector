@@ -14,10 +14,11 @@ use std::pin::Pin;
 // ============================================================================
 
 /// Streaming output format options
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum StreamingFormat {
     /// OpenAI-compatible format (default)
     #[serde(rename = "openai")]
+    #[default]
     OpenAI,
     /// Ollama-compatible format
     #[serde(rename = "ollama")]
@@ -25,10 +26,11 @@ pub enum StreamingFormat {
 }
 
 /// Stream response format options
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum StreamFormat {
     /// Pure JSON string format
     #[serde(rename = "json")]
+    #[default]
     Json,
     /// Server-Sent Events format (data: {...}\n\n)
     #[serde(rename = "sse")]
@@ -36,18 +38,6 @@ pub enum StreamFormat {
     /// Newline-Delimited JSON format ({...}\n)
     #[serde(rename = "ndjson")]
     NDJSON,
-}
-
-impl Default for StreamingFormat {
-    fn default() -> Self {
-        Self::OpenAI
-    }
-}
-
-impl Default for StreamFormat {
-    fn default() -> Self {
-        Self::Json
-    }
 }
 
 /// Universal stream chunk with format abstraction
@@ -148,16 +138,14 @@ impl StreamChunk {
         }
 
         // Try OpenAI format
-        if let Some(choices) = self.data.get("choices").and_then(|c| c.as_array()) {
-            if let Some(choice) = choices.get(0) {
-                if let Some(content) = choice
-                    .get("delta")
-                    .and_then(|d| d.get("content"))
-                    .and_then(|c| c.as_str())
-                {
-                    return Some(content.to_string());
-                }
-            }
+        if let Some(choices) = self.data.get("choices").and_then(|c| c.as_array())
+            && let Some(choice) = choices.first()
+            && let Some(content) = choice
+                .get("delta")
+                .and_then(|d| d.get("content"))
+                .and_then(|c| c.as_str())
+        {
+            return Some(content.to_string());
         }
 
         None
@@ -332,25 +320,25 @@ impl Delta {
         let mut found = std::collections::HashMap::<String, String>::new();
         collect_synonyms(raw, &mut found);
 
-        if self.reasoning_content.is_none() {
-            if let Some(v) = found.get("reasoning_content") {
-                self.reasoning_content = Some(v.clone());
-            }
+        if self.reasoning_content.is_none()
+            && let Some(v) = found.get("reasoning_content")
+        {
+            self.reasoning_content = Some(v.clone());
         }
-        if self.reasoning.is_none() {
-            if let Some(v) = found.get("reasoning") {
-                self.reasoning = Some(v.clone());
-            }
+        if self.reasoning.is_none()
+            && let Some(v) = found.get("reasoning")
+        {
+            self.reasoning = Some(v.clone());
         }
-        if self.thought.is_none() {
-            if let Some(v) = found.get("thought") {
-                self.thought = Some(v.clone());
-            }
+        if self.thought.is_none()
+            && let Some(v) = found.get("thought")
+        {
+            self.thought = Some(v.clone());
         }
-        if self.thinking.is_none() {
-            if let Some(v) = found.get("thinking") {
-                self.thinking = Some(v.clone());
-            }
+        if self.thinking.is_none()
+            && let Some(v) = found.get("thinking")
+        {
+            self.thinking = Some(v.clone());
         }
     }
 }
@@ -361,14 +349,13 @@ impl StreamingResponse {
         for choice in &mut self.choices {
             choice.delta.populate_reasoning_from_json(raw);
         }
-        if self.reasoning_content.is_none() {
-            if let Some(reason) = self
+        if self.reasoning_content.is_none()
+            && let Some(reason) = self
                 .choices
                 .iter()
                 .find_map(|c| c.delta.reasoning_any().map(|s| s.to_string()))
-            {
-                self.reasoning_content = Some(reason);
-            }
+        {
+            self.reasoning_content = Some(reason);
         }
     }
 
@@ -539,7 +526,7 @@ impl OllamaStreamChunk {
         } else {
             openai_chunk
                 .choices
-                .get(0)
+                .first()
                 .and_then(|choice| choice.delta.content.clone())
                 .unwrap_or_default()
         };
@@ -547,18 +534,15 @@ impl OllamaStreamChunk {
         let mut chunk = Self::new(openai_chunk.model.clone(), content, done);
 
         // If this is the final chunk and we have usage data, include it
-        if done {
-            if let Some(usage) = &openai_chunk.usage {
-                chunk.prompt_eval_count = Some(usage.prompt_tokens);
-                chunk.eval_count = Some(usage.completion_tokens);
+        if done && let Some(usage) = &openai_chunk.usage {
+            chunk.prompt_eval_count = Some(usage.prompt_tokens);
+            chunk.eval_count = Some(usage.completion_tokens);
 
-                // Estimate durations
-                chunk.prompt_eval_duration = Some((usage.prompt_tokens as u64) * 1_000_000);
-                chunk.eval_duration = Some((usage.completion_tokens as u64) * 10_000_000);
-                chunk.total_duration = Some(
-                    chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0),
-                );
-            }
+            // Estimate durations
+            chunk.prompt_eval_duration = Some((usage.prompt_tokens as u64) * 1_000_000);
+            chunk.eval_duration = Some((usage.completion_tokens as u64) * 10_000_000);
+            chunk.total_duration =
+                Some(chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0));
         }
 
         chunk

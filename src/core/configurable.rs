@@ -81,6 +81,8 @@ pub struct EndpointConfig {
 /// Authentication Configuration
 ///
 /// Defines how to handle API authentication.
+pub type AuthHeaderGenerator = dyn Fn(&str) -> Vec<(String, String)> + Send + Sync;
+
 #[derive(Clone)]
 pub enum AuthConfig {
     /// Bearer token authentication
@@ -102,7 +104,7 @@ pub enum AuthConfig {
     /// Custom authentication (through closure)
     ///
     /// Closure receives token, returns headers list
-    Custom(Arc<dyn Fn(&str) -> Vec<(String, String)> + Send + Sync>),
+    Custom(Arc<AuthHeaderGenerator>),
 }
 
 impl std::fmt::Debug for AuthConfig {

@@ -103,7 +103,7 @@ async fn test_streaming_tool_calls_accumulation() {
     }"#;
 
     // Accumulate tool_calls
-    let chunks = vec![chunk1, chunk2, chunk3, chunk4, chunk5];
+    let chunks = [chunk1, chunk2, chunk3, chunk4, chunk5];
     let mut accumulated_calls: HashMap<usize, ToolCall> = HashMap::new();
 
     println!("\n=== Test streaming tool_calls accumulation ===\n");
@@ -113,22 +113,22 @@ async fn test_streaming_tool_calls_accumulation() {
 
         println!("Chunk #{}: Parsed successfully", i + 1);
 
-        if let Some(choice) = response.choices.first() {
-            if let Some(tool_calls) = &choice.delta.tool_calls {
-                for delta_call in tool_calls {
-                    let index = delta_call.index.unwrap_or(0);
+        if let Some(choice) = response.choices.first()
+            && let Some(tool_calls) = &choice.delta.tool_calls
+        {
+            for delta_call in tool_calls {
+                let index = delta_call.index.unwrap_or(0);
 
-                    accumulated_calls
-                        .entry(index)
-                        .and_modify(|existing| existing.merge_delta(delta_call))
-                        .or_insert_with(|| delta_call.clone());
+                accumulated_calls
+                    .entry(index)
+                    .and_modify(|existing| existing.merge_delta(delta_call))
+                    .or_insert_with(|| delta_call.clone());
 
-                    println!("  Accumulated tool_call[{}]:", index);
-                    if let Some(call) = accumulated_calls.get(&index) {
-                        println!("    id: {}", call.id);
-                        println!("    name: {}", call.function.name);
-                        println!("    arguments: {}", call.function.arguments);
-                    }
+                println!("  Accumulated tool_call[{}]:", index);
+                if let Some(call) = accumulated_calls.get(&index) {
+                    println!("    id: {}", call.id);
+                    println!("    name: {}", call.function.name);
+                    println!("    arguments: {}", call.function.arguments);
                 }
             }
         }
@@ -263,7 +263,7 @@ async fn test_streaming_tool_calls_parsing() {
     }"#;
 
     // Parse all chunks
-    let chunks = vec![chunk1, chunk2, chunk3, chunk4, chunk5];
+    let chunks = [chunk1, chunk2, chunk3, chunk4, chunk5];
     let mut tool_calls_count = 0;
     let mut tool_call_ids = Vec::new();
 
@@ -276,19 +276,19 @@ async fn test_streaming_tool_calls_parsing() {
             Ok(chunk) => {
                 println!("Chunk #{}: Parsed successfully", i + 1);
 
-                if let Some(choice) = chunk.choices.first() {
-                    if let Some(tool_calls) = &choice.delta.tool_calls {
-                        tool_calls_count += tool_calls.len();
+                if let Some(choice) = chunk.choices.first()
+                    && let Some(tool_calls) = &choice.delta.tool_calls
+                {
+                    tool_calls_count += tool_calls.len();
 
-                        println!("  Found {} tool_calls:", tool_calls.len());
-                        for call in tool_calls {
-                            println!("    - id: {}", call.id);
-                            println!("      name: {}", call.function.name);
-                            println!("      arguments: {}", call.function.arguments);
+                    println!("  Found {} tool_calls:", tool_calls.len());
+                    for call in tool_calls {
+                        println!("    - id: {}", call.id);
+                        println!("      name: {}", call.function.name);
+                        println!("      arguments: {}", call.function.arguments);
 
-                            if !call.id.is_empty() {
-                                tool_call_ids.push(call.id.clone());
-                            }
+                        if !call.id.is_empty() {
+                            tool_call_ids.push(call.id.clone());
                         }
                     }
                 }

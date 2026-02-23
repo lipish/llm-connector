@@ -431,25 +431,25 @@ impl Message {
         let mut found = std::collections::HashMap::<String, String>::new();
         collect_synonyms(raw, &mut found);
 
-        if self.reasoning_content.is_none() {
-            if let Some(v) = found.get("reasoning_content") {
-                self.reasoning_content = Some(v.clone());
-            }
+        if self.reasoning_content.is_none()
+            && let Some(v) = found.get("reasoning_content")
+        {
+            self.reasoning_content = Some(v.clone());
         }
-        if self.reasoning.is_none() {
-            if let Some(v) = found.get("reasoning") {
-                self.reasoning = Some(v.clone());
-            }
+        if self.reasoning.is_none()
+            && let Some(v) = found.get("reasoning")
+        {
+            self.reasoning = Some(v.clone());
         }
-        if self.thought.is_none() {
-            if let Some(v) = found.get("thought") {
-                self.thought = Some(v.clone());
-            }
+        if self.thought.is_none()
+            && let Some(v) = found.get("thought")
+        {
+            self.thought = Some(v.clone());
         }
-        if self.thinking.is_none() {
-            if let Some(v) = found.get("thinking") {
-                self.thinking = Some(v.clone());
-            }
+        if self.thinking.is_none()
+            && let Some(v) = found.get("thinking")
+        {
+            self.thinking = Some(v.clone());
         }
     }
 

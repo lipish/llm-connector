@@ -82,7 +82,7 @@ impl Provider for GoogleProvider {
         // println!("DEBUG: Google Response: {}", text);
 
         let google_response: GoogleResponse =
-            serde_json::from_str(&text).map_err(|e| LlmConnectorError::JsonError(e))?;
+            serde_json::from_str(&text).map_err(LlmConnectorError::JsonError)?;
 
         Ok(google_response.into())
     }
@@ -240,7 +240,7 @@ impl Provider for GoogleProvider {
         }
 
         let models_response: GoogleModelsResponse =
-            serde_json::from_str(&text).map_err(|e| LlmConnectorError::JsonError(e))?;
+            serde_json::from_str(&text).map_err(LlmConnectorError::JsonError)?;
 
         Ok(models_response
             .models
@@ -294,7 +294,7 @@ impl From<&ChatRequest> for GoogleRequest {
             generation_config: Some(GoogleGenerationConfig {
                 temperature: req.temperature,
                 top_p: req.top_p,
-                max_output_tokens: req.max_tokens.map(|t| t as u32),
+                max_output_tokens: req.max_tokens,
             }),
         }
     }
@@ -350,9 +350,9 @@ struct GoogleUsageMetadata {
     thoughts_token_count: Option<u32>,
 }
 
-impl Into<ChatResponse> for GoogleResponse {
-    fn into(self) -> ChatResponse {
-        let choice = if let Some(candidates) = self.candidates {
+impl From<GoogleResponse> for ChatResponse {
+    fn from(value: GoogleResponse) -> Self {
+        let choice = if let Some(candidates) = value.candidates {
             if let Some(candidate) = candidates.into_iter().next() {
                 let content = candidate
                     .content
@@ -383,7 +383,7 @@ impl Into<ChatResponse> for GoogleResponse {
             }
         };
 
-        let usage = self.usage_metadata.map(|u| Usage {
+        let usage = value.usage_metadata.map(|u| Usage {
             prompt_tokens: u.prompt_token_count.unwrap_or(0),
             completion_tokens: u.candidates_token_count.unwrap_or(0)
                 + u.thoughts_token_count.unwrap_or(0),

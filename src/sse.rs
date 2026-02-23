@@ -142,51 +142,51 @@ pub fn sse_to_streaming_response(response: reqwest::Response) -> crate::types::C
                 // 3. delta.reasoning (Qwen, DeepSeek)
                 // 4. delta.thought (OpenAI o1)
                 // 5. delta.thinking (Anthropic)
-                if streaming_response.content.is_empty() {
-                    if let Some(choice) = streaming_response.choices.first() {
-                        let content_to_use = choice
-                            .delta
-                            .content
-                            .as_ref()
-                            .filter(|s| !s.is_empty())
-                            .or_else(|| choice.delta.reasoning_content.as_ref())
-                            .or_else(|| choice.delta.reasoning.as_ref())
-                            .or_else(|| choice.delta.thought.as_ref())
-                            .or_else(|| choice.delta.thinking.as_ref());
+                if streaming_response.content.is_empty()
+                    && let Some(choice) = streaming_response.choices.first()
+                {
+                    let content_to_use = choice
+                        .delta
+                        .content
+                        .as_ref()
+                        .filter(|s| !s.is_empty())
+                        .or(choice.delta.reasoning_content.as_ref())
+                        .or(choice.delta.reasoning.as_ref())
+                        .or(choice.delta.thought.as_ref())
+                        .or(choice.delta.thinking.as_ref());
 
-                        if let Some(content) = content_to_use {
-                            streaming_response.content = content.clone();
-                        }
+                    if let Some(content) = content_to_use {
+                        streaming_response.content = content.clone();
                     }
                 }
 
                 // 🔧 Fix: Accumulate tool_calls across chunks
                 // OpenAI streaming API sends tool_calls incrementally with an index field
-                if let Some(choice) = streaming_response.choices.first_mut() {
-                    if let Some(delta_tool_calls) = &choice.delta.tool_calls {
-                        for delta_call in delta_tool_calls {
-                            let index = delta_call.index.unwrap_or(0);
+                if let Some(choice) = streaming_response.choices.first_mut()
+                    && let Some(delta_tool_calls) = &choice.delta.tool_calls
+                {
+                    for delta_call in delta_tool_calls {
+                        let index = delta_call.index.unwrap_or(0);
 
-                            accumulated_tool_calls
-                                .entry(index)
-                                .and_modify(|existing| existing.merge_delta(delta_call))
-                                .or_insert_with(|| delta_call.clone());
-                        }
+                        accumulated_tool_calls
+                            .entry(index)
+                            .and_modify(|existing| existing.merge_delta(delta_call))
+                            .or_insert_with(|| delta_call.clone());
+                    }
 
-                        // Replace delta.tool_calls with accumulated complete tool_calls
-                        // Only include complete tool_calls (have id, type, and name)
-                        let complete_calls: Vec<ToolCall> = accumulated_tool_calls
-                            .values()
-                            .filter(|call| call.is_complete())
-                            .cloned()
-                            .collect();
+                    // Replace delta.tool_calls with accumulated complete tool_calls
+                    // Only include complete tool_calls (have id, type, and name)
+                    let complete_calls: Vec<ToolCall> = accumulated_tool_calls
+                        .values()
+                        .filter(|call| call.is_complete())
+                        .cloned()
+                        .collect();
 
-                        if !complete_calls.is_empty() {
-                            choice.delta.tool_calls = Some(complete_calls);
-                        } else {
-                            // Don't send incomplete tool_calls to avoid duplicate execution
-                            choice.delta.tool_calls = None;
-                        }
+                    if !complete_calls.is_empty() {
+                        choice.delta.tool_calls = Some(complete_calls);
+                    } else {
+                        // Don't send incomplete tool_calls to avoid duplicate execution
+                        choice.delta.tool_calls = None;
                     }
                 }
 
@@ -226,21 +226,21 @@ mod tests {
         let mut response: StreamingResponse = serde_json::from_str(json_standard).unwrap();
 
         // Simulate the content population logic
-        if response.content.is_empty() {
-            if let Some(choice) = response.choices.first() {
-                let content_to_use = choice
-                    .delta
-                    .content
-                    .as_ref()
-                    .filter(|s| !s.is_empty())
-                    .or_else(|| choice.delta.reasoning_content.as_ref())
-                    .or_else(|| choice.delta.reasoning.as_ref())
-                    .or_else(|| choice.delta.thought.as_ref())
-                    .or_else(|| choice.delta.thinking.as_ref());
+        if response.content.is_empty()
+            && let Some(choice) = response.choices.first()
+        {
+            let content_to_use = choice
+                .delta
+                .content
+                .as_ref()
+                .filter(|s| !s.is_empty())
+                .or(choice.delta.reasoning_content.as_ref())
+                .or(choice.delta.reasoning.as_ref())
+                .or(choice.delta.thought.as_ref())
+                .or(choice.delta.thinking.as_ref());
 
-                if let Some(content) = content_to_use {
-                    response.content = content.clone();
-                }
+            if let Some(content) = content_to_use {
+                response.content = content.clone();
             }
         }
 
@@ -266,21 +266,21 @@ mod tests {
         let mut response: StreamingResponse = serde_json::from_str(json_volcengine).unwrap();
 
         // Simulate the content population logic
-        if response.content.is_empty() {
-            if let Some(choice) = response.choices.first() {
-                let content_to_use = choice
-                    .delta
-                    .content
-                    .as_ref()
-                    .filter(|s| !s.is_empty())
-                    .or_else(|| choice.delta.reasoning_content.as_ref())
-                    .or_else(|| choice.delta.reasoning.as_ref())
-                    .or_else(|| choice.delta.thought.as_ref())
-                    .or_else(|| choice.delta.thinking.as_ref());
+        if response.content.is_empty()
+            && let Some(choice) = response.choices.first()
+        {
+            let content_to_use = choice
+                .delta
+                .content
+                .as_ref()
+                .filter(|s| !s.is_empty())
+                .or(choice.delta.reasoning_content.as_ref())
+                .or(choice.delta.reasoning.as_ref())
+                .or(choice.delta.thought.as_ref())
+                .or(choice.delta.thinking.as_ref());
 
-                if let Some(content) = content_to_use {
-                    response.content = content.clone();
-                }
+            if let Some(content) = content_to_use {
+                response.content = content.clone();
             }
         }
 
@@ -306,21 +306,21 @@ mod tests {
         let mut response: StreamingResponse = serde_json::from_str(json_deepseek).unwrap();
 
         // Simulate the content population logic
-        if response.content.is_empty() {
-            if let Some(choice) = response.choices.first() {
-                let content_to_use = choice
-                    .delta
-                    .content
-                    .as_ref()
-                    .filter(|s| !s.is_empty())
-                    .or_else(|| choice.delta.reasoning_content.as_ref())
-                    .or_else(|| choice.delta.reasoning.as_ref())
-                    .or_else(|| choice.delta.thought.as_ref())
-                    .or_else(|| choice.delta.thinking.as_ref());
+        if response.content.is_empty()
+            && let Some(choice) = response.choices.first()
+        {
+            let content_to_use = choice
+                .delta
+                .content
+                .as_ref()
+                .filter(|s| !s.is_empty())
+                .or(choice.delta.reasoning_content.as_ref())
+                .or(choice.delta.reasoning.as_ref())
+                .or(choice.delta.thought.as_ref())
+                .or(choice.delta.thinking.as_ref());
 
-                if let Some(content) = content_to_use {
-                    response.content = content.clone();
-                }
+            if let Some(content) = content_to_use {
+                response.content = content.clone();
             }
         }
 

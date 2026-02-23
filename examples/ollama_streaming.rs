@@ -43,10 +43,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         if let Some(reason) =
                             sr.choices.first().and_then(|c| c.finish_reason.as_ref())
+                            && reason == "stop"
                         {
-                            if reason == "stop" {
-                                println!("\n\n✅ Streaming completed");
-                            }
+                            println!("\n\n✅ Streaming completed");
                         }
                     }
                     Err(e) => {

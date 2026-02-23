@@ -299,54 +299,53 @@ impl Protocol for ZhipuProtocol {
             LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e))
         })?;
 
-        if let Some(choices) = parsed.choices {
-            if let Some(first_choice) = choices.first() {
-                // Convert ZhipuMessage to TypeMessage
-                // Extract reasoning content (if exists)
-                let content_str = match &first_choice.message.content {
-                    Value::String(s) => s.clone(),
-                    other => other.to_string(),
-                };
-                let (reasoning_content, final_content) =
-                    extract_zhipu_reasoning_content(&content_str);
+        if let Some(choices) = parsed.choices
+            && let Some(first_choice) = choices.first()
+        {
+            // Convert ZhipuMessage to TypeMessage
+            // Extract reasoning content (if exists)
+            let content_str = match &first_choice.message.content {
+                Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
+            let (reasoning_content, final_content) = extract_zhipu_reasoning_content(&content_str);
 
-                let type_message = TypeMessage {
-                    role: match first_choice.message.role.as_str() {
-                        "system" => Role::System,
-                        "user" => Role::User,
-                        "assistant" => Role::Assistant,
-                        "tool" => Role::Tool,
-                        _ => Role::Assistant,
-                    },
-                    content: vec![crate::types::MessageBlock::text(&final_content)],
-                    tool_calls: first_choice.message.tool_calls.as_ref().map(|calls| {
-                        calls
-                            .iter()
-                            .filter_map(|v| serde_json::from_value(v.clone()).ok())
-                            .collect()
-                    }),
-                    ..Default::default()
-                };
+            let type_message = TypeMessage {
+                role: match first_choice.message.role.as_str() {
+                    "system" => Role::System,
+                    "user" => Role::User,
+                    "assistant" => Role::Assistant,
+                    "tool" => Role::Tool,
+                    _ => Role::Assistant,
+                },
+                content: vec![crate::types::MessageBlock::text(&final_content)],
+                tool_calls: first_choice.message.tool_calls.as_ref().map(|calls| {
+                    calls
+                        .iter()
+                        .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                        .collect()
+                }),
+                ..Default::default()
+            };
 
-                let choice = Choice {
-                    index: first_choice.index.unwrap_or(0),
-                    message: type_message,
-                    finish_reason: first_choice.finish_reason.clone(),
-                    logprobs: None,
-                };
+            let choice = Choice {
+                index: first_choice.index.unwrap_or(0),
+                message: type_message,
+                finish_reason: first_choice.finish_reason.clone(),
+                logprobs: None,
+            };
 
-                return Ok(ChatResponse {
-                    id: parsed.id.unwrap_or_else(|| "unknown".to_string()),
-                    object: "chat.completion".to_string(),
-                    created: parsed.created.unwrap_or(0),
-                    model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
-                    content: final_content,
-                    reasoning_content,
-                    choices: vec![choice],
-                    usage: parsed.usage.and_then(|v| serde_json::from_value(v).ok()),
-                    system_fingerprint: None,
-                });
-            }
+            return Ok(ChatResponse {
+                id: parsed.id.unwrap_or_else(|| "unknown".to_string()),
+                object: "chat.completion".to_string(),
+                created: parsed.created.unwrap_or(0),
+                model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
+                content: final_content,
+                reasoning_content,
+                choices: vec![choice],
+                usage: parsed.usage.and_then(|v| serde_json::from_value(v).ok()),
+                system_fingerprint: None,
+            });
         }
 
         Err(LlmConnectorError::InvalidRequest(
@@ -440,25 +439,25 @@ impl Protocol for ZhipuProtocol {
                     })?;
 
                 // Process reasoning content markers
-                if let Some(first_choice) = response.choices.first_mut() {
-                    if let Some(ref delta_content) = first_choice.delta.content {
-                        // Use state machine to process content
-                        let (reasoning_delta, content_delta) = state.process(delta_content);
+                if let Some(first_choice) = response.choices.first_mut()
+                    && let Some(ref delta_content) = first_choice.delta.content
+                {
+                    // Use state machine to process content
+                    let (reasoning_delta, content_delta) = state.process(delta_content);
 
-                        // Update delta
-                        if let Some(reasoning) = reasoning_delta {
-                            first_choice.delta.reasoning_content = Some(reasoning);
-                        }
+                    // Update delta
+                    if let Some(reasoning) = reasoning_delta {
+                        first_choice.delta.reasoning_content = Some(reasoning);
+                    }
 
-                        if let Some(content) = content_delta {
-                            first_choice.delta.content = Some(content.clone());
-                            // Also update response.content
-                            response.content = content;
-                        } else {
-                            // If no content delta, clear delta.content
-                            first_choice.delta.content = None;
-                            response.content = String::new();
-                        }
+                    if let Some(content) = content_delta {
+                        first_choice.delta.content = Some(content.clone());
+                        // Also update response.content
+                        response.content = content;
+                    } else {
+                        // If no content delta, clear delta.content
+                        first_choice.delta.content = None;
+                        response.content = String::new();
                     }
                 }
 

@@ -47,12 +47,12 @@ mod tests {
                     assert_eq!(chunk.model, model, "Chunk model should match request");
                     assert!(!chunk.choices.is_empty(), "Should have at least one choice");
 
-                    if let Some(content) = chunk.get_content() {
-                        if !content.is_empty() {
-                            got_content = true;
-                            total_content.push_str(content);
-                            print!("{}", content);
-                        }
+                    if let Some(content) = chunk.get_content()
+                        && !content.is_empty()
+                    {
+                        got_content = true;
+                        total_content.push_str(content);
+                        print!("{}", content);
                     }
 
                     // Check for finish reason
@@ -60,14 +60,13 @@ mod tests {
                         .choices
                         .first()
                         .and_then(|c| c.finish_reason.as_deref())
+                        && finish_reason == "stop"
                     {
-                        if finish_reason == "stop" {
-                            println!(
-                                "\n✅ Stream completed normally after {} chunks",
-                                chunk_count
-                            );
-                            break;
-                        }
+                        println!(
+                            "\n✅ Stream completed normally after {} chunks",
+                            chunk_count
+                        );
+                        break;
                     }
 
                     // Safety check to prevent infinite loops

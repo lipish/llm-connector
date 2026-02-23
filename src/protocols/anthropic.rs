@@ -253,10 +253,9 @@ impl Protocol for AnthropicProtocol {
                                             .get("message")
                                             .and_then(|m| m.get("id"))
                                             .and_then(|id| id.as_str())
+                                            && let Ok(mut id) = message_id.lock()
                                         {
-                                            if let Ok(mut id) = message_id.lock() {
-                                                *id = msg_id.to_string();
-                                            }
+                                            *id = msg_id.to_string();
                                         }
                                         // message_start does not return content
                                         None
@@ -314,7 +313,7 @@ impl Protocol for AnthropicProtocol {
                                             .and_then(|s| s.as_str())
                                             .map(|s| s.to_string());
 
-                                        let usage = event.get("usage").and_then(|u| {
+                                        let usage = event.get("usage").map(|u| {
                                             let input_tokens = u
                                                 .get("input_tokens")
                                                 .and_then(|t| t.as_u64())
@@ -325,7 +324,7 @@ impl Protocol for AnthropicProtocol {
                                                 .and_then(|t| t.as_u64())
                                                 .unwrap_or(0)
                                                 as u32;
-                                            Some(Usage {
+                                            Usage {
                                                 prompt_tokens: input_tokens,
                                                 completion_tokens: output_tokens,
                                                 total_tokens: input_tokens + output_tokens,
@@ -333,7 +332,7 @@ impl Protocol for AnthropicProtocol {
                                                 prompt_cache_hit_tokens: None,
                                                 prompt_cache_miss_tokens: None,
                                                 prompt_tokens_details: None,
-                                            })
+                                            }
                                         });
 
                                         let id = message_id

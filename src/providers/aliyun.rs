@@ -148,70 +148,58 @@ impl Protocol for AliyunProtocol {
                                 // Parse Aliyun response
                                 if let Ok(aliyun_resp) =
                                     serde_json::from_str::<AliyunResponse>(json_str)
+                                    && let Some(choices) = aliyun_resp.output.choices
+                                    && let Some(first_choice) = choices.first()
                                 {
-                                    if let Some(choices) = aliyun_resp.output.choices {
-                                        if let Some(first_choice) = choices.first() {
-                                            // Convertas StreamingResponse
-                                            let streaming_choice = StreamingChoice {
-                                                index: 0,
-                                                delta: Delta {
-                                                    role: Some(Role::Assistant),
-                                                    content: if first_choice
-                                                        .message
-                                                        .content
-                                                        .is_empty()
-                                                    {
-                                                        None
-                                                    } else {
-                                                        Some(first_choice.message.content.clone())
-                                                    },
-                                                    // Extract tool_calls from streaming response
-                                                    tool_calls: first_choice
-                                                        .message
-                                                        .tool_calls
-                                                        .clone(),
-                                                    reasoning_content: None,
-                                                    reasoning: None,
-                                                    thought: None,
-                                                    thinking: None,
-                                                },
-                                                finish_reason: first_choice.finish_reason.clone(),
-                                                logprobs: None,
-                                            };
+                                    // Convertas StreamingResponse
+                                    let streaming_choice = StreamingChoice {
+                                        index: 0,
+                                        delta: Delta {
+                                            role: Some(Role::Assistant),
+                                            content: if first_choice.message.content.is_empty() {
+                                                None
+                                            } else {
+                                                Some(first_choice.message.content.clone())
+                                            },
+                                            // Extract tool_calls from streaming response
+                                            tool_calls: first_choice.message.tool_calls.clone(),
+                                            reasoning_content: None,
+                                            reasoning: None,
+                                            thought: None,
+                                            thinking: None,
+                                        },
+                                        finish_reason: first_choice.finish_reason.clone(),
+                                        logprobs: None,
+                                    };
 
-                                            let content = first_choice.message.content.clone();
+                                    let content = first_choice.message.content.clone();
 
-                                            let streaming_response = StreamingResponse {
-                                                id: aliyun_resp
-                                                    .request_id
-                                                    .clone()
-                                                    .unwrap_or_default(),
-                                                object: "chat.completion.chunk".to_string(),
-                                                created: 0,
-                                                model: aliyun_resp
-                                                    .model
-                                                    .clone()
-                                                    .unwrap_or_else(|| "unknown".to_string()),
-                                                choices: vec![streaming_choice],
-                                                content,
-                                                reasoning_content: None,
-                                                usage: aliyun_resp.usage.as_ref().map(|u| {
-                                                    crate::types::Usage {
-                                                        prompt_tokens: u.input_tokens,
-                                                        completion_tokens: u.output_tokens,
-                                                        total_tokens: u.total_tokens,
-                                                        prompt_cache_hit_tokens: None,
-                                                        prompt_cache_miss_tokens: None,
-                                                        prompt_tokens_details: None,
-                                                        completion_tokens_details: None,
-                                                    }
-                                                }),
-                                                system_fingerprint: None,
-                                            };
+                                    let streaming_response = StreamingResponse {
+                                        id: aliyun_resp.request_id.clone().unwrap_or_default(),
+                                        object: "chat.completion.chunk".to_string(),
+                                        created: 0,
+                                        model: aliyun_resp
+                                            .model
+                                            .clone()
+                                            .unwrap_or_else(|| "unknown".to_string()),
+                                        choices: vec![streaming_choice],
+                                        content,
+                                        reasoning_content: None,
+                                        usage: aliyun_resp.usage.as_ref().map(|u| {
+                                            crate::types::Usage {
+                                                prompt_tokens: u.input_tokens,
+                                                completion_tokens: u.output_tokens,
+                                                total_tokens: u.total_tokens,
+                                                prompt_cache_hit_tokens: None,
+                                                prompt_cache_miss_tokens: None,
+                                                prompt_tokens_details: None,
+                                                completion_tokens_details: None,
+                                            }
+                                        }),
+                                        system_fingerprint: None,
+                                    };
 
-                                            responses.push(Ok(streaming_response));
-                                        }
-                                    }
+                                    responses.push(Ok(streaming_response));
                                 }
                             }
                         }
@@ -242,55 +230,53 @@ impl Protocol for AliyunProtocol {
             LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e))
         })?;
 
-        if let Some(aliyun_choices) = parsed.output.choices {
-            if let Some(first_choice) = aliyun_choices.first() {
-                // Build choices array (conforming to OpenAI standard format)
-                let choices = vec![crate::types::Choice {
-                    index: 0,
-                    message: crate::types::Message {
-                        role: Role::Assistant,
-                        content: vec![crate::types::MessageBlock::text(
-                            &first_choice.message.content,
-                        )],
-                        name: None,
-                        // Extract tool_calls from Aliyun response
-                        tool_calls: first_choice.message.tool_calls.clone(),
-                        tool_call_id: None,
-                        reasoning_content: None,
-                        reasoning: None,
-                        thought: None,
-                        thinking: None,
-                    },
-                    finish_reason: first_choice.finish_reason.clone(),
-                    logprobs: None,
-                }];
-
-                // Extract content from choices[0] as convenience field
-                let content = first_choice.message.content.clone();
-
-                // Extract usage information
-                let usage = parsed.usage.map(|u| crate::types::Usage {
-                    prompt_tokens: u.input_tokens,
-                    completion_tokens: u.output_tokens,
-                    total_tokens: u.total_tokens,
-                    prompt_cache_hit_tokens: None,
-                    prompt_cache_miss_tokens: None,
-                    prompt_tokens_details: None,
-                    completion_tokens_details: None,
-                });
-
-                return Ok(ChatResponse {
-                    id: parsed.request_id.unwrap_or_default(),
-                    object: "chat.completion".to_string(),
-                    created: 0, // Aliyun does not provide created timestamp
-                    model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
-                    choices,
-                    content,
+        if let Some(aliyun_choices) = parsed.output.choices
+            && let Some(first_choice) = aliyun_choices.first()
+        {
+            // Build choices array (conforming to OpenAI standard format)
+            let choices = vec![crate::types::Choice {
+                index: 0,
+                message: crate::types::Message {
+                    role: Role::Assistant,
+                    content: vec![crate::types::MessageBlock::text(&first_choice.message.content)],
+                    name: None,
+                    // Extract tool_calls from Aliyun response
+                    tool_calls: first_choice.message.tool_calls.clone(),
+                    tool_call_id: None,
                     reasoning_content: None,
-                    usage,
-                    system_fingerprint: None,
-                });
-            }
+                    reasoning: None,
+                    thought: None,
+                    thinking: None,
+                },
+                finish_reason: first_choice.finish_reason.clone(),
+                logprobs: None,
+            }];
+
+            // Extract content from choices[0] as convenience field
+            let content = first_choice.message.content.clone();
+
+            // Extract usage information
+            let usage = parsed.usage.map(|u| crate::types::Usage {
+                prompt_tokens: u.input_tokens,
+                completion_tokens: u.output_tokens,
+                total_tokens: u.total_tokens,
+                prompt_cache_hit_tokens: None,
+                prompt_cache_miss_tokens: None,
+                prompt_tokens_details: None,
+                completion_tokens_details: None,
+            });
+
+            return Ok(ChatResponse {
+                id: parsed.request_id.unwrap_or_default(),
+                object: "chat.completion".to_string(),
+                created: 0, // Aliyun does not provide created timestamp
+                model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
+                choices,
+                content,
+                reasoning_content: None,
+                usage,
+                system_fingerprint: None,
+            });
         }
 
         Err(LlmConnectorError::InvalidRequest(
