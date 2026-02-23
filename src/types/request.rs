@@ -380,7 +380,8 @@ impl Message {
     ///
     /// Joins multiple text blocks with newlines
     pub fn content_as_text(&self) -> String {
-        self.content.iter()
+        self.content
+            .iter()
             .filter_map(|block| block.as_text())
             .collect::<Vec<_>>()
             .join("\n")
@@ -399,10 +400,15 @@ impl Message {
     /// Provider-agnostic post-processor: populate reasoning synonyms from raw JSON
     /// Scans nested JSON objects/arrays and fills each synonym field if present.
     pub fn populate_reasoning_from_json(&mut self, raw: &serde_json::Value) {
-        fn collect_synonyms(val: &serde_json::Value, acc: &mut std::collections::HashMap<String, String>) {
+        fn collect_synonyms(
+            val: &serde_json::Value,
+            acc: &mut std::collections::HashMap<String, String>,
+        ) {
             match val {
                 serde_json::Value::Array(arr) => {
-                    for v in arr { collect_synonyms(v, acc); }
+                    for v in arr {
+                        collect_synonyms(v, acc);
+                    }
                 }
                 serde_json::Value::Object(map) => {
                     for (k, v) in map {
@@ -426,16 +432,24 @@ impl Message {
         collect_synonyms(raw, &mut found);
 
         if self.reasoning_content.is_none() {
-            if let Some(v) = found.get("reasoning_content") { self.reasoning_content = Some(v.clone()); }
+            if let Some(v) = found.get("reasoning_content") {
+                self.reasoning_content = Some(v.clone());
+            }
         }
         if self.reasoning.is_none() {
-            if let Some(v) = found.get("reasoning") { self.reasoning = Some(v.clone()); }
+            if let Some(v) = found.get("reasoning") {
+                self.reasoning = Some(v.clone());
+            }
         }
         if self.thought.is_none() {
-            if let Some(v) = found.get("thought") { self.thought = Some(v.clone()); }
+            if let Some(v) = found.get("thought") {
+                self.thought = Some(v.clone());
+            }
         }
         if self.thinking.is_none() {
-            if let Some(v) = found.get("thinking") { self.thinking = Some(v.clone()); }
+            if let Some(v) = found.get("thinking") {
+                self.thinking = Some(v.clone());
+            }
         }
     }
 
@@ -561,9 +575,7 @@ impl ToolChoice {
     pub fn function(name: impl Into<String>) -> Self {
         Self::Function {
             tool_type: "function".to_string(),
-            function: FunctionChoice {
-                name: name.into(),
-            },
+            function: FunctionChoice { name: name.into() },
         }
     }
 }
@@ -650,10 +662,8 @@ impl ToolCall {
 
     /// Check if this tool call is complete (has all required fields)
     pub fn is_complete(&self) -> bool {
-        !self.id.is_empty()
-            && !self.call_type.is_empty()
-            && !self.function.name.is_empty()
-            // arguments can be empty for functions with no parameters
+        !self.id.is_empty() && !self.call_type.is_empty() && !self.function.name.is_empty()
+        // arguments can be empty for functions with no parameters
     }
 
     /// Parse the arguments JSON string into a typed value

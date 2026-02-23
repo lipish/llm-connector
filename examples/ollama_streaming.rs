@@ -3,9 +3,12 @@
 //! Demonstrates how to use streaming chat output with a local Ollama instance.
 
 #[cfg(feature = "streaming")]
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-#[cfg(feature = "streaming")]
 use futures_util::StreamExt;
+#[cfg(feature = "streaming")]
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 
 #[cfg(feature = "streaming")]
 #[tokio::main]
@@ -18,9 +21,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Prepare request (ensure the model is installed, e.g. llama3.2)
     let request = ChatRequest {
         model: "llama3.2".to_string(),
-        messages: vec![
-            Message::user("Please briefly explain the benefits of streaming output."),
-        ],
+        messages: vec![Message::user(
+            "Please briefly explain the benefits of streaming output.",
+        )],
         max_tokens: Some(128),
         ..Default::default()
     };
@@ -38,7 +41,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             io::stdout().flush().unwrap();
                         }
 
-                        if let Some(reason) = sr.choices.first().and_then(|c| c.finish_reason.as_ref()) {
+                        if let Some(reason) =
+                            sr.choices.first().and_then(|c| c.finish_reason.as_ref())
+                        {
                             if reason == "stop" {
                                 println!("\n\n✅ Streaming completed");
                             }
@@ -53,7 +58,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             println!("❌ Failed to start streaming: {}", e);
-            println!("💡 Please ensure Ollama is running and the model is installed, e.g.: 'ollama pull llama3.2'");
+            println!(
+                "💡 Please ensure Ollama is running and the model is installed, e.g.: 'ollama pull llama3.2'"
+            );
         }
     }
 
@@ -62,5 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(not(feature = "streaming"))]
 fn main() {
-    println!("❌ The 'streaming' feature must be enabled: cargo run --example ollama_streaming --features streaming");
+    println!(
+        "❌ The 'streaming' feature must be enabled: cargo run --example ollama_streaming --features streaming"
+    );
 }

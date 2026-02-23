@@ -4,7 +4,10 @@
 //!
 //! Run: cargo run --example ollama_basic
 
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   ollama pull qwen:7b");
                 return Ok(());
             }
-            
+
             println!("✅ Found {} available models:", models.len());
             for (i, model) in models.iter().enumerate() {
                 println!("  {}. {}", i + 1, model);
@@ -41,15 +44,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Use the first available model or a default model
-    let model = std::env::var("OLLAMA_MODEL")
-        .unwrap_or_else(|_| "llama2".to_string());
+    let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama2".to_string());
 
     // Build chat request
     let request = ChatRequest {
         model: model.clone(),
-        messages: vec![
-            Message::user("Please briefly introduce yourself and what you can help me with.")
-        ],
+        messages: vec![Message::user(
+            "Please briefly introduce yourself and what you can help me with.",
+        )],
         max_tokens: Some(200),
         temperature: Some(0.7),
         ..Default::default()

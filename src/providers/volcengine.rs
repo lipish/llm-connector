@@ -4,9 +4,11 @@
 //! - OpenAI: `/v1/chat/completions`
 //! - Volcengine: `/api/v3/chat/completions`
 
-use crate::core::{ConfigurableProtocol, ProviderBuilder, ProtocolConfig, EndpointConfig, AuthConfig};
-use crate::protocols::OpenAIProtocol;
+use crate::core::{
+    AuthConfig, ConfigurableProtocol, EndpointConfig, ProtocolConfig, ProviderBuilder,
+};
 use crate::error::LlmConnectorError;
+use crate::protocols::OpenAIProtocol;
 
 /// Volcengineprotocoladapter
 ///
@@ -67,13 +69,13 @@ pub fn volcengine_with_config(
             },
             auth: AuthConfig::Bearer,
             extra_headers: vec![],
-        }
+        },
     );
 
     // Use Builder Build
     let mut builder = ProviderBuilder::new(
         protocol,
-        base_url.unwrap_or("https://ark.cn-beijing.volces.com")
+        base_url.unwrap_or("https://ark.cn-beijing.volces.com"),
     );
 
     if let Some(timeout) = timeout_secs {
@@ -91,24 +93,20 @@ pub fn volcengine_with_config(
 mod tests {
     use super::*;
     use crate::core::Protocol;
-    
+
     #[test]
     fn test_volcengine() {
         let provider = volcengine("test-key");
         assert!(provider.is_ok());
     }
-    
+
     #[test]
     fn test_volcengine_with_config() {
-        let provider = volcengine_with_config(
-            "test-key",
-            Some("https://custom.url"),
-            Some(60),
-            None
-        );
+        let provider =
+            volcengine_with_config("test-key", Some("https://custom.url"), Some(60), None);
         assert!(provider.is_ok());
     }
-    
+
     #[test]
     fn test_volcengine_protocol_endpoint() {
         let protocol = ConfigurableProtocol::new(
@@ -121,10 +119,12 @@ mod tests {
                 },
                 auth: AuthConfig::Bearer,
                 extra_headers: vec![],
-            }
+            },
         );
         let endpoint = protocol.chat_endpoint("https://ark.cn-beijing.volces.com");
-        assert_eq!(endpoint, "https://ark.cn-beijing.volces.com/api/v3/chat/completions");
+        assert_eq!(
+            endpoint,
+            "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+        );
     }
 }
-

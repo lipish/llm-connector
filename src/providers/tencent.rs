@@ -8,9 +8,9 @@
 use crate::core::{HttpClient, Protocol};
 use crate::error::LlmConnectorError;
 use crate::protocols::tencent_native::TencentNativeProtocol;
-use crate::types::{ChatRequest, ChatResponse};
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
+use crate::types::{ChatRequest, ChatResponse};
 use async_trait::async_trait;
 use chrono::Utc;
 
@@ -39,7 +39,8 @@ impl TencentProviderImpl {
         let date = now.format("%Y-%m-%d").to_string();
         let host = "hunyuan.tencentcloudapi.com";
 
-        self.protocol.calculate_signature(host, payload, timestamp, &date)
+        self.protocol
+            .calculate_signature(host, payload, timestamp, &date)
             .map(|auth| {
                 vec![
                     ("Authorization".to_string(), auth),
@@ -74,15 +75,20 @@ impl crate::core::Provider for TencentProviderImpl {
         let headers = self.sign_request(&body)?;
 
         // Send request with headers
-        let client_with_auth = self.client.clone().with_headers(headers.into_iter().collect());
-        
+        let client_with_auth = self
+            .client
+            .clone()
+            .with_headers(headers.into_iter().collect());
+
         let response = client_with_auth.post(&url, &protocol_request).await?;
         let status = response.status();
-        let text = response.text().await
+        let text = response
+            .text()
+            .await
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
 
         if !status.is_success() {
-             return Err(self.protocol.map_error(status.as_u16(), &text));
+            return Err(self.protocol.map_error(status.as_u16(), &text));
         }
 
         self.protocol.parse_response(&text)
@@ -105,22 +111,31 @@ impl crate::core::Provider for TencentProviderImpl {
         let headers = self.sign_request(&body)?;
 
         // Send request with headers
-        let client_with_auth = self.client.clone().with_headers(headers.into_iter().collect());
-        
+        let client_with_auth = self
+            .client
+            .clone()
+            .with_headers(headers.into_iter().collect());
+
         let response = client_with_auth.stream(&url, &protocol_request).await?;
         let status = response.status();
 
         if !status.is_success() {
-             let text = response.text().await
+            let text = response
+                .text()
+                .await
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-             return Err(self.protocol.map_error(status.as_u16(), &text));
+            return Err(self.protocol.map_error(status.as_u16(), &text));
         }
 
         self.protocol.parse_stream_response(response).await
     }
 
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
-        Ok(vec!["hunyuan-lite".to_string(), "hunyuan-standard".to_string(), "hunyuan-pro".to_string()])
+        Ok(vec![
+            "hunyuan-lite".to_string(),
+            "hunyuan-standard".to_string(),
+            "hunyuan-pro".to_string(),
+        ])
     }
 }
 
@@ -148,20 +163,13 @@ pub fn tencent_with_config(
     proxy: Option<&str>,
 ) -> Result<TencentProvider, LlmConnectorError> {
     let protocol = TencentNativeProtocol::new(secret_id, secret_key);
-    
+
     // Official endpoint for Hunyuan
     let base_url = "https://hunyuan.tencentcloudapi.com";
-    
-    let client = HttpClient::with_config(
-        base_url,
-        timeout_secs,
-        proxy,
-    )?;
 
-    Ok(TencentProviderImpl {
-        protocol,
-        client,
-    })
+    let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
+
+    Ok(TencentProviderImpl { protocol, client })
 }
 
 #[cfg(test)]
@@ -174,4 +182,3 @@ mod tests {
         assert!(provider.is_ok());
     }
 }
-

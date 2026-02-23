@@ -2,13 +2,16 @@
 //!
 //! Tests the enable_thinking parameter for Aliyun hybrid reasoning mode.
 
-use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message, Role},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read API key from environment variables
-    let api_key = std::env::var("ALIYUN_API_KEY")
-        .expect("ALIYUN_API_KEY environment variable not set");
+    let api_key =
+        std::env::var("ALIYUN_API_KEY").expect("ALIYUN_API_KEY environment variable not set");
 
     println!("🧪 Testing Aliyun enable_thinking parameter");
     println!("{}", "=".repeat(80));
@@ -24,7 +27,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message::text(Role::User, "Which is larger, 9.11 or 9.9? Please explain your reasoning in detail.")],
+        messages: vec![Message::text(
+            Role::User,
+            "Which is larger, 9.11 or 9.9? Please explain your reasoning in detail.",
+        )],
         enable_thinking: Some(true),
         max_tokens: Some(500),
         ..Default::default()
@@ -35,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.chat(&request).await {
         Ok(response) => {
             println!("\n✅ Request succeeded!");
-            
+
             if let Some(reasoning) = response.reasoning_content {
                 println!("\n🧠 Reasoning:");
                 println!("{}", "-".repeat(80));
@@ -48,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   1. The model does not support reasoning mode");
                 println!("   2. API configuration issue");
             }
-            
+
             println!("\n💡 Final answer:");
             println!("{}", response.content);
 
@@ -73,7 +79,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message::text(Role::User, "If a number squared is 144, what is the number?")],
+        messages: vec![Message::text(
+            Role::User,
+            "If a number squared is 144, what is the number?",
+        )],
         max_tokens: Some(500),
         ..Default::default()
     };
@@ -107,7 +116,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let request = ChatRequest {
         model: "qwen-plus".to_string(),
-        messages: vec![Message::text(Role::User, "Hello, please introduce yourself")],
+        messages: vec![Message::text(
+            Role::User,
+            "Hello, please introduce yourself",
+        )],
         enable_thinking: Some(false),
         max_tokens: Some(100),
         ..Default::default()
@@ -118,13 +130,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.chat(&request).await {
         Ok(response) => {
             println!("\n✅ Request succeeded!");
-            
+
             if response.reasoning_content.is_none() {
                 println!("\n✅ Correct: reasoning_content not returned (explicit disable works)");
             } else {
                 println!("\n⚠️  Unexpected: reasoning_content was returned");
             }
-            
+
             println!("\n💡 Answer:");
             println!("{}", response.content);
         }
@@ -152,7 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.chat(&request).await {
         Ok(response) => {
             println!("\n✅ Request succeeded!");
-            
+
             if let Some(reasoning) = response.reasoning_content {
                 println!("\n🧠 Reasoning:");
                 println!("{}", "-".repeat(80));
@@ -162,7 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("\n⚠️  reasoning_content was not returned");
             }
-            
+
             println!("\n💡 Final answer:");
             println!("{}", response.content);
         }
@@ -190,13 +202,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.chat(&request).await {
         Ok(response) => {
             println!("\n✅ Request succeeded!");
-            
+
             if response.reasoning_content.is_none() {
                 println!("\n✅ Correct: reasoning_content not returned (non-reasoning model)");
             } else {
                 println!("\n⚠️  Unexpected: reasoning_content was returned");
             }
-            
+
             println!("\n💡 Answer:");
             println!("{}", response.content);
         }

@@ -320,12 +320,8 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::volcengine_with_config(
-            api_key,
-            base_url,
-            timeout_secs,
-            proxy,
-        )?;
+        let provider =
+            crate::providers::volcengine_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -358,12 +354,8 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::tencent_with_config(
-            secret_id,
-            secret_key,
-            timeout_secs,
-            proxy,
-        )?;
+        let provider =
+            crate::providers::tencent_with_config(secret_id, secret_key, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -392,12 +384,8 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::moonshot_with_config(
-            api_key,
-            base_url,
-            timeout_secs,
-            proxy,
-        )?;
+        let provider =
+            crate::providers::moonshot_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -426,12 +414,8 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::deepseek_with_config(
-            api_key,
-            base_url,
-            timeout_secs,
-            proxy,
-        )?;
+        let provider =
+            crate::providers::deepseek_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -460,12 +444,8 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::xiaomi_with_config(
-            api_key,
-            base_url,
-            timeout_secs,
-            proxy,
-        )?;
+        let provider =
+            crate::providers::xiaomi_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -615,7 +595,8 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::google_with_config(api_key, base_url, timeout_secs, proxy)?;
+        let provider =
+            crate::providers::google_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -642,7 +623,7 @@ impl LlmClient {
         ]
     }
 
-// ...
+    // ...
     /// # Returns
     /// Chat response
     ///

@@ -3,9 +3,12 @@
 //! Demonstrates how to use enhanced Anthropic streaming response functionality
 
 #[cfg(feature = "streaming")]
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-#[cfg(feature = "streaming")]
 use futures_util::StreamExt;
+#[cfg(feature = "streaming")]
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 
 #[cfg(feature = "streaming")]
 #[tokio::main]
@@ -13,11 +16,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Anthropic Streaming Response Example\n");
 
     // Need Anthropic API key
-    let api_key = std::env::var("ANTHROPIC_API_KEY")
-        .unwrap_or_else(|_| {
-            println!("❌ Please set the ANTHROPIC_API_KEY environment variable");
-            std::process::exit(1);
-        });
+    let api_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| {
+        println!("❌ Please set the ANTHROPIC_API_KEY environment variable");
+        std::process::exit(1);
+    });
 
     // Create Anthropic client
     let client = LlmClient::anthropic(&api_key).unwrap();
@@ -26,16 +28,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("💬 Regular Chat Request:");
     let request = ChatRequest {
         model: "claude-3-5-sonnet-20241022".to_string(),
-        messages: vec![
-            Message::user("Please briefly introduce the advantages of streaming responses.")
-        ],
+        messages: vec![Message::user(
+            "Please briefly introduce the advantages of streaming responses.",
+        )],
         max_tokens: Some(200),
         ..Default::default()
     };
 
     match client.chat(&request).await {
         Ok(response) => {
-            println!("   Claude's reply: {}\n", response.choices[0].message.content_as_text());
+            println!(
+                "   Claude's reply: {}\n",
+                response.choices[0].message.content_as_text()
+            );
         }
         Err(e) => {
             println!("   ❌ Chat error: {}\n", e);
@@ -60,8 +65,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         // Check if completed
-                        if let Some(finish_reason) = streaming_response.choices.first()
-                            .and_then(|c| c.finish_reason.as_ref()) {
+                        if let Some(finish_reason) = streaming_response
+                            .choices
+                            .first()
+                            .and_then(|c| c.finish_reason.as_ref())
+                        {
                             if finish_reason == "stop" {
                                 println!("\n\n   ✅ Streaming response completed!");
                                 if let Some(usage) = streaming_response.usage {
@@ -87,9 +95,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n✅ Example completed!");
     println!("\n💡 Tips:");
-    println!("   - Streaming responses provide better user experience with real-time content display");
+    println!(
+        "   - Streaming responses provide better user experience with real-time content display"
+    );
     println!("   - Especially suitable for long text generation and interactive applications");
-    println!("   - The new Anthropic streaming implementation correctly handles complex event states");
+    println!(
+        "   - The new Anthropic streaming implementation correctly handles complex event states"
+    );
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 //! Integration tests for OpenAI protocol
 
-use llm_connector::{LlmClient, ChatRequest, Message};
-use llm_connector::types::{Role, MessageBlock};
+use llm_connector::types::{MessageBlock, Role};
+use llm_connector::{ChatRequest, LlmClient, Message};
 
 #[test]
 fn test_openai_client_creation() {
@@ -19,16 +19,14 @@ fn test_openai_compatible_client_creation() {
 fn test_chat_request_creation() {
     let request = ChatRequest {
         model: "gpt-4".to_string(),
-        messages: vec![
-            Message {
-                role: Role::User,
-                content: vec![MessageBlock::text("Hello")],
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                ..Default::default()
-            }
-        ],
+        messages: vec![Message {
+            role: Role::User,
+            content: vec![MessageBlock::text("Hello")],
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+            ..Default::default()
+        }],
         temperature: Some(0.7),
         max_tokens: Some(100),
         ..Default::default()
@@ -140,7 +138,7 @@ fn test_chat_request_with_all_parameters() {
 #[tokio::test]
 async fn test_fetch_models_with_invalid_key() {
     let client = LlmClient::openai("invalid-key").unwrap();
-    
+
     // This should fail with authentication error
     let result = client.models().await;
     assert!(result.is_err(), "Should fail with invalid API key");
@@ -148,10 +146,10 @@ async fn test_fetch_models_with_invalid_key() {
 
 #[tokio::test]
 async fn test_fetch_models_with_custom_url() {
-    let client = LlmClient::openai_with_base_url("test-key", "https://invalid.example.com/v1").unwrap();
-    
+    let client =
+        LlmClient::openai_with_base_url("test-key", "https://invalid.example.com/v1").unwrap();
+
     // This should fail with connection error
     let result = client.models().await;
     assert!(result.is_err(), "Should fail with invalid URL");
 }
-

@@ -110,7 +110,8 @@ impl<P: Protocol> ProviderBuilder<P> {
     /// .header("X-Another-Header", "value2");
     /// ```
     pub fn header(mut self, key: &str, value: &str) -> Self {
-        self.extra_headers.insert(key.to_string(), value.to_string());
+        self.extra_headers
+            .insert(key.to_string(), value.to_string());
         self
     }
 
@@ -136,11 +137,8 @@ impl<P: Protocol> ProviderBuilder<P> {
     /// ```
     pub fn build(self) -> Result<GenericProvider<P>, LlmConnectorError> {
         // Create HTTP client
-        let client = HttpClient::with_config(
-            &self.base_url,
-            self.timeout_secs,
-            self.proxy.as_deref(),
-        )?;
+        let client =
+            HttpClient::with_config(&self.base_url, self.timeout_secs, self.proxy.as_deref())?;
 
         // Merge authentication headers and additional headers
         let mut headers: HashMap<String, String> =
@@ -160,64 +158,52 @@ mod tests {
 
     #[test]
     fn test_builder_basic() {
-        let provider = ProviderBuilder::new(
-            OpenAIProtocol::new("sk-test"),
-            "https://api.openai.com"
-        )
-        .build();
+        let provider =
+            ProviderBuilder::new(OpenAIProtocol::new("sk-test"), "https://api.openai.com").build();
 
         assert!(provider.is_ok());
     }
 
     #[test]
     fn test_builder_with_timeout() {
-        let provider = ProviderBuilder::new(
-            OpenAIProtocol::new("sk-test"),
-            "https://api.openai.com"
-        )
-        .timeout(60)
-        .build();
+        let provider =
+            ProviderBuilder::new(OpenAIProtocol::new("sk-test"), "https://api.openai.com")
+                .timeout(60)
+                .build();
 
         assert!(provider.is_ok());
     }
 
     #[test]
     fn test_builder_with_proxy() {
-        let provider = ProviderBuilder::new(
-            OpenAIProtocol::new("sk-test"),
-            "https://api.openai.com"
-        )
-        .proxy("http://proxy:8080")
-        .build();
+        let provider =
+            ProviderBuilder::new(OpenAIProtocol::new("sk-test"), "https://api.openai.com")
+                .proxy("http://proxy:8080")
+                .build();
 
         assert!(provider.is_ok());
     }
 
     #[test]
     fn test_builder_with_headers() {
-        let provider = ProviderBuilder::new(
-            OpenAIProtocol::new("sk-test"),
-            "https://api.openai.com"
-        )
-        .header("X-Custom-Header", "value")
-        .header("X-Another-Header", "value2")
-        .build();
+        let provider =
+            ProviderBuilder::new(OpenAIProtocol::new("sk-test"), "https://api.openai.com")
+                .header("X-Custom-Header", "value")
+                .header("X-Another-Header", "value2")
+                .build();
 
         assert!(provider.is_ok());
     }
 
     #[test]
     fn test_builder_chain() {
-        let provider = ProviderBuilder::new(
-            OpenAIProtocol::new("sk-test"),
-            "https://api.openai.com"
-        )
-        .timeout(60)
-        .proxy("http://proxy:8080")
-        .header("X-Custom-Header", "value")
-        .build();
+        let provider =
+            ProviderBuilder::new(OpenAIProtocol::new("sk-test"), "https://api.openai.com")
+                .timeout(60)
+                .proxy("http://proxy:8080")
+                .header("X-Custom-Header", "value")
+                .build();
 
         assert!(provider.is_ok());
     }
 }
-

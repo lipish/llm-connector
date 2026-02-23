@@ -36,8 +36,8 @@
 //!     .unwrap();
 //! ```
 
-use crate::error::LlmConnectorError;
 use crate::client::LlmClient;
+use crate::error::LlmConnectorError;
 
 /// Target provider for the builder
 #[derive(Debug, Clone)]
@@ -54,10 +54,17 @@ enum ProviderKind {
     Google,
     Xiaomi,
     LongcatAnthropic,
-    OpenAICompatible { service_name: String },
-    AzureOpenAI { endpoint: String, api_version: String },
+    OpenAICompatible {
+        service_name: String,
+    },
+    AzureOpenAI {
+        endpoint: String,
+        api_version: String,
+    },
     #[cfg(feature = "tencent")]
-    Tencent { secret_key: String },
+    Tencent {
+        secret_key: String,
+    },
 }
 
 /// Fluent builder for `LlmClient`
@@ -250,7 +257,9 @@ impl LlmClientBuilder {
     /// Build the `LlmClient`
     pub fn build(self) -> Result<LlmClient, LlmConnectorError> {
         let provider = self.provider.ok_or_else(|| {
-            LlmConnectorError::InvalidRequest("No provider specified. Call .openai(), .deepseek(), etc. before .build()".into())
+            LlmConnectorError::InvalidRequest(
+                "No provider specified. Call .openai(), .deepseek(), etc. before .build()".into(),
+            )
         })?;
 
         let api_key = self.api_key.as_deref().unwrap_or("");
@@ -357,9 +366,10 @@ impl LlmClientBuilder {
                 })?;
                 LlmClient::openai_compatible(api_key, url, &service_name)
             }
-            ProviderKind::AzureOpenAI { endpoint, api_version } => {
-                LlmClient::azure_openai(api_key, &endpoint, &api_version)
-            }
+            ProviderKind::AzureOpenAI {
+                endpoint,
+                api_version,
+            } => LlmClient::azure_openai(api_key, &endpoint, &api_version),
             #[cfg(feature = "tencent")]
             ProviderKind::Tencent { secret_key } => {
                 if has_config {

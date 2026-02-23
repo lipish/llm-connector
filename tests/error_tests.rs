@@ -70,11 +70,10 @@ fn test_error_debug() {
 #[test]
 fn test_unsupported_operation_error() {
     let err = LlmConnectorError::UnsupportedOperation(
-        "anthropic does not support model listing".to_string()
+        "anthropic does not support model listing".to_string(),
     );
-    
+
     assert_eq!(err.status_code(), 501);
     assert!(err.to_string().contains("Unsupported operation"));
     assert!(err.to_string().contains("anthropic"));
 }
-

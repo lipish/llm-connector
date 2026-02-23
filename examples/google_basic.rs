@@ -4,19 +4,21 @@
 //!
 //! Run: cargo run --example google_basic
 
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Google Gemini Basic Chat Example\n");
 
     // Get API key from environment variable
-    let api_key = std::env::var("GEMINI_API_KEY")
-        .unwrap_or_else(|_| {
-            println!("❌ Please set environment variable GEMINI_API_KEY");
-            println!("   export GEMINI_API_KEY=your-api-key");
-            std::process::exit(1);
-        });
+    let api_key = std::env::var("GEMINI_API_KEY").unwrap_or_else(|_| {
+        println!("❌ Please set environment variable GEMINI_API_KEY");
+        println!("   export GEMINI_API_KEY=your-api-key");
+        std::process::exit(1);
+    });
 
     // Create Google client
     let client = LlmClient::google(&api_key)?;
@@ -24,9 +26,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build chat request
     let request = ChatRequest {
         model: "gemini-1.5-flash".to_string(),
-        messages: vec![
-            Message::user("Briefly explain the features of Rust programming language.")
-        ],
+        messages: vec![Message::user(
+            "Briefly explain the features of Rust programming language.",
+        )],
         max_tokens: Some(1024),
         temperature: Some(0.7),
         ..Default::default()

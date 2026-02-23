@@ -5,8 +5,11 @@
 
 #[cfg(feature = "streaming")]
 mod tests {
-    use llm_connector::{LlmClient, types::{ChatRequest, Message, MessageBlock, Role}};
     use futures_util::StreamExt;
+    use llm_connector::{
+        LlmClient,
+        types::{ChatRequest, Message, MessageBlock, Role},
+    };
     use std::time::Duration;
 
     /// Test streaming functionality with a given client
@@ -16,7 +19,10 @@ mod tests {
         model: &str,
         test_message: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        println!("🧪 Testing {} streaming with model: {}", protocol_name, model);
+        println!(
+            "🧪 Testing {} streaming with model: {}",
+            protocol_name, model
+        );
 
         let request = ChatRequest {
             model: model.to_string(),
@@ -50,9 +56,16 @@ mod tests {
                     }
 
                     // Check for finish reason
-                    if let Some(finish_reason) = chunk.choices.first().and_then(|c| c.finish_reason.as_deref()) {
+                    if let Some(finish_reason) = chunk
+                        .choices
+                        .first()
+                        .and_then(|c| c.finish_reason.as_deref())
+                    {
                         if finish_reason == "stop" {
-                            println!("\n✅ Stream completed normally after {} chunks", chunk_count);
+                            println!(
+                                "\n✅ Stream completed normally after {} chunks",
+                                chunk_count
+                            );
                             break;
                         }
                     }
@@ -92,7 +105,10 @@ mod tests {
         test_message: &str,
         timeout: Duration,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        println!("⏱️  Testing {} streaming with timeout: {:?}", protocol_name, timeout);
+        println!(
+            "⏱️  Testing {} streaming with timeout: {:?}",
+            protocol_name, timeout
+        );
 
         let request = ChatRequest {
             model: model.to_string(),
@@ -116,7 +132,10 @@ mod tests {
 
         match tokio::time::timeout(timeout, stream_future).await {
             Ok(Ok(chunk_count)) => {
-                println!("✅ Streaming completed within timeout, {} chunks", chunk_count);
+                println!(
+                    "✅ Streaming completed within timeout, {} chunks",
+                    chunk_count
+                );
                 Ok(())
             }
             Ok(Err(e)) => {
@@ -181,8 +200,10 @@ mod tests {
             "Ollama",
             "llama3.2:1b",
             "Hi",
-            Duration::from_secs(5)
-        ).await {
+            Duration::from_secs(5),
+        )
+        .await
+        {
             Ok(_) => {
                 println!("✅ Ollama is available and working");
                 Ok(())
@@ -230,7 +251,8 @@ mod tests {
                     error_str.contains("API key") ||
                     error_str.contains("timeout") ||  // May timeout if network is restricted
                     error_str.contains("Timeout"),
-                    "Error should indicate authentication failure or timeout: {}", error_str
+                    "Error should indicate authentication failure or timeout: {}",
+                    error_str
                 );
             }
         }

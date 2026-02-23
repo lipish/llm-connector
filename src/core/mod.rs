@@ -5,13 +5,13 @@
 //! - HTTP client implementation
 //! - Generic provider implementation
 
-pub mod traits;
-pub mod client;
 pub mod builder;
+pub mod client;
 pub mod configurable;
+pub mod traits;
 
 // Re-export core types
-pub use traits::{Protocol, Provider, GenericProvider};
-pub use client::HttpClient;
 pub use builder::ProviderBuilder;
-pub use configurable::{ConfigurableProtocol, ProtocolConfig, EndpointConfig, AuthConfig};
+pub use client::HttpClient;
+pub use configurable::{AuthConfig, ConfigurableProtocol, EndpointConfig, ProtocolConfig};
+pub use traits::{GenericProvider, Protocol, Provider};

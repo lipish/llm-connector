@@ -3,8 +3,8 @@
 //! This module implements the Anthropic Claude API protocol specification.
 
 use crate::core::Protocol;
-use crate::types::{ChatRequest, ChatResponse, Message, Role, Choice, Usage};
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +21,7 @@ impl AnthropicProtocol {
             api_key: api_key.to_string(),
         }
     }
-    
+
     /// GetAPI key
     pub fn api_key(&self) -> &str {
         &self.api_key
@@ -32,15 +32,15 @@ impl AnthropicProtocol {
 impl Protocol for AnthropicProtocol {
     type Request = AnthropicRequest;
     type Response = AnthropicResponse;
-    
+
     fn name(&self) -> &str {
         "anthropic"
     }
-    
+
     fn chat_endpoint(&self, base_url: &str) -> String {
         format!("{}/v1/messages", base_url.trim_end_matches('/'))
     }
-    
+
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         // Anthropic API requires separating system messages
         let mut system_message = None;
@@ -96,18 +96,24 @@ impl Protocol for AnthropicProtocol {
             stream: request.stream,
         })
     }
-    
+
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        let anthropic_response: AnthropicResponse = serde_json::from_str(response)
-            .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse Anthropic response: {}", e)))?;
+        let anthropic_response: AnthropicResponse =
+            serde_json::from_str(response).map_err(|e| {
+                LlmConnectorError::ParseError(format!("Failed to parse Anthropic response: {}", e))
+            })?;
 
         // Anthropic returns single content chunk
         // Convert Anthropic content to MessageBlock
-        let message_blocks: Vec<crate::types::MessageBlock> = anthropic_response.content.iter()
+        let message_blocks: Vec<crate::types::MessageBlock> = anthropic_response
+            .content
+            .iter()
             .map(|c| crate::types::MessageBlock::text(&c.text))
             .collect();
 
-        let content = anthropic_response.content.first()
+        let content = anthropic_response
+            .content
+            .first()
             .map(|c| c.text.clone())
             .unwrap_or_default();
 
@@ -124,14 +130,19 @@ impl Protocol for AnthropicProtocol {
                 thought: None,
                 thinking: None,
             },
-            finish_reason: Some(anthropic_response.stop_reason.unwrap_or_else(|| "stop".to_string())),
+            finish_reason: Some(
+                anthropic_response
+                    .stop_reason
+                    .unwrap_or_else(|| "stop".to_string()),
+            ),
             logprobs: None,
         }];
 
         let usage = Some(Usage {
             prompt_tokens: anthropic_response.usage.input_tokens,
             completion_tokens: anthropic_response.usage.output_tokens,
-            total_tokens: anthropic_response.usage.input_tokens + anthropic_response.usage.output_tokens,
+            total_tokens: anthropic_response.usage.input_tokens
+                + anthropic_response.usage.output_tokens,
             completion_tokens_details: None,
             prompt_cache_hit_tokens: None,
             prompt_cache_miss_tokens: None,
@@ -153,18 +164,20 @@ impl Protocol for AnthropicProtocol {
             system_fingerprint: None,
         })
     }
-    
+
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
         let error_info = serde_json::from_str::<serde_json::Value>(body)
             .ok()
             .and_then(|v| v.get("error").cloned())
             .unwrap_or_else(|| serde_json::json!({"message": body}));
-            
-        let message = error_info.get("message")
+
+        let message = error_info
+            .get("message")
             .and_then(|m| m.as_str())
             .unwrap_or("Unknown Anthropic error");
 
-        let error_type = error_info.get("type")
+        let error_type = error_info
+            .get("type")
             .and_then(|t| t.as_str())
             .unwrap_or("");
 
@@ -172,7 +185,9 @@ impl Protocol for AnthropicProtocol {
 
         // Detect context length exceeded
         if error_type == "invalid_request_error"
-            && (message.contains("too long") || message.contains("maximum") || message.contains("context"))
+            && (message.contains("too long")
+                || message.contains("maximum")
+                || message.contains("context"))
         {
             return LlmConnectorError::ContextLengthExceeded(msg);
         }
@@ -186,7 +201,7 @@ impl Protocol for AnthropicProtocol {
             _ => LlmConnectorError::ApiError(format!("Anthropic HTTP {}: {}", status, message)),
         }
     }
-    
+
     fn auth_headers(&self) -> Vec<(String, String)> {
         vec![
             ("x-api-key".to_string(), self.api_key.clone()),
@@ -205,8 +220,11 @@ impl Protocol for AnthropicProtocol {
     /// - message_delta: Message delta (contains usage)
     /// - message_stop: Message end
     #[cfg(feature = "streaming")]
-    async fn parse_stream_response(&self, response: reqwest::Response) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        use crate::types::{StreamingResponse, StreamingChoice, Delta, Usage};
+    async fn parse_stream_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        use crate::types::{Delta, StreamingChoice, StreamingResponse, Usage};
         use futures_util::StreamExt;
         use std::sync::{Arc, Mutex};
 
@@ -225,14 +243,17 @@ impl Protocol for AnthropicProtocol {
                         // Parse Anthropic streaming event
                         match serde_json::from_str::<serde_json::Value>(&json_str) {
                             Ok(event) => {
-                                let event_type = event.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                let event_type =
+                                    event.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
                                 match event_type {
                                     "message_start" => {
                                         // Extract and save message id
-                                        if let Some(msg_id) = event.get("message")
+                                        if let Some(msg_id) = event
+                                            .get("message")
                                             .and_then(|m| m.get("id"))
-                                            .and_then(|id| id.as_str()) {
+                                            .and_then(|id| id.as_str())
+                                        {
                                             if let Ok(mut id) = message_id.lock() {
                                                 *id = msg_id.to_string();
                                             }
@@ -242,11 +263,14 @@ impl Protocol for AnthropicProtocol {
                                     }
                                     "content_block_delta" => {
                                         // Extract text delta
-                                        if let Some(text) = event.get("delta")
+                                        if let Some(text) = event
+                                            .get("delta")
                                             .and_then(|d| d.get("text"))
-                                            .and_then(|t| t.as_str()) {
-
-                                            let id = message_id.lock().ok()
+                                            .and_then(|t| t.as_str())
+                                        {
+                                            let id = message_id
+                                                .lock()
+                                                .ok()
                                                 .map(|id| id.clone())
                                                 .unwrap_or_default();
 
@@ -284,14 +308,23 @@ impl Protocol for AnthropicProtocol {
                                     }
                                     "message_delta" => {
                                         // Extract usage and stop_reason
-                                        let stop_reason = event.get("delta")
+                                        let stop_reason = event
+                                            .get("delta")
                                             .and_then(|d| d.get("stop_reason"))
                                             .and_then(|s| s.as_str())
                                             .map(|s| s.to_string());
 
                                         let usage = event.get("usage").and_then(|u| {
-                                            let input_tokens = u.get("input_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
-                                            let output_tokens = u.get("output_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
+                                            let input_tokens = u
+                                                .get("input_tokens")
+                                                .and_then(|t| t.as_u64())
+                                                .unwrap_or(0)
+                                                as u32;
+                                            let output_tokens = u
+                                                .get("output_tokens")
+                                                .and_then(|t| t.as_u64())
+                                                .unwrap_or(0)
+                                                as u32;
                                             Some(Usage {
                                                 prompt_tokens: input_tokens,
                                                 completion_tokens: output_tokens,
@@ -303,7 +336,9 @@ impl Protocol for AnthropicProtocol {
                                             })
                                         });
 
-                                        let id = message_id.lock().ok()
+                                        let id = message_id
+                                            .lock()
+                                            .ok()
                                             .map(|id| id.clone())
                                             .unwrap_or_default();
 
@@ -342,12 +377,10 @@ impl Protocol for AnthropicProtocol {
                                     }
                                 }
                             }
-                            Err(e) => {
-                                Some(Err(LlmConnectorError::ParseError(format!(
-                                    "Failed to parse Anthropic streaming event: {}. JSON: {}",
-                                    e, json_str
-                                ))))
-                            }
+                            Err(e) => Some(Err(LlmConnectorError::ParseError(format!(
+                                "Failed to parse Anthropic streaming event: {}. JSON: {}",
+                                e, json_str
+                            )))),
                         }
                     }
                     Err(e) => Some(Err(e)),
@@ -378,7 +411,7 @@ pub struct AnthropicRequest {
 #[derive(Serialize, Debug)]
 pub struct AnthropicMessage {
     pub role: String,
-    pub content: serde_json::Value,  // Support String or Array
+    pub content: serde_json::Value, // Support String or Array
 }
 
 // Anthropicresponsetype

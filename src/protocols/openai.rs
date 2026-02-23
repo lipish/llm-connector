@@ -3,8 +3,8 @@
 //! This module implements the standard OpenAI API protocol specification.
 
 use crate::core::Protocol;
-use crate::types::{ChatRequest, ChatResponse, Message, Role, Choice, Usage};
 use crate::error::LlmConnectorError;
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +21,7 @@ impl OpenAIProtocol {
             api_key: api_key.to_string(),
         }
     }
-    
+
     /// GetAPI key
     pub fn api_key(&self) -> &str {
         &self.api_key
@@ -32,21 +32,23 @@ impl OpenAIProtocol {
 impl Protocol for OpenAIProtocol {
     type Request = OpenAIRequest;
     type Response = OpenAIResponse;
-    
+
     fn name(&self) -> &str {
         "openai"
     }
-    
+
     fn chat_endpoint(&self, base_url: &str) -> String {
         format!("{}/chat/completions", base_url.trim_end_matches('/'))
     }
-    
+
     fn models_endpoint(&self, base_url: &str) -> Option<String> {
         Some(format!("{}/models", base_url.trim_end_matches('/')))
     }
-    
+
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let messages = request.messages.iter()
+        let messages = request
+            .messages
+            .iter()
             .map(|msg| {
                 // Convert MessageBlock to OpenAI format
                 let content = if msg.content.len() == 1 && msg.content[0].is_text() {
@@ -66,16 +68,19 @@ impl Protocol for OpenAIProtocol {
                     },
                     content,
                     tool_calls: msg.tool_calls.as_ref().map(|calls| {
-                        calls.iter().map(|call| {
-                            serde_json::json!({
-                                "id": call.id,
-                                "type": call.call_type,
-                                "function": {
-                                    "name": call.function.name,
-                                    "arguments": call.function.arguments,
-                                }
+                        calls
+                            .iter()
+                            .map(|call| {
+                                serde_json::json!({
+                                    "id": call.id,
+                                    "type": call.call_type,
+                                    "function": {
+                                        "name": call.function.name,
+                                        "arguments": call.function.arguments,
+                                    }
+                                })
                             })
-                        }).collect()
+                            .collect()
                     }),
                     tool_call_id: msg.tool_call_id.clone(),
                     name: msg.name.clone(),
@@ -85,27 +90,32 @@ impl Protocol for OpenAIProtocol {
 
         // Convert tools
         let tools = request.tools.as_ref().map(|tools| {
-            tools.iter().map(|tool| {
-                serde_json::json!({
-                    "type": tool.tool_type,
-                    "function": {
-                        "name": tool.function.name,
-                        "description": tool.function.description,
-                        "parameters": tool.function.parameters,
-                    }
+            tools
+                .iter()
+                .map(|tool| {
+                    serde_json::json!({
+                        "type": tool.tool_type,
+                        "function": {
+                            "name": tool.function.name,
+                            "description": tool.function.description,
+                            "parameters": tool.function.parameters,
+                        }
+                    })
                 })
-            }).collect()
+                .collect()
         });
 
         // Convert tool_choice
-        let tool_choice = request.tool_choice.as_ref().map(|choice| {
-            serde_json::to_value(choice).unwrap_or(serde_json::json!("auto"))
-        });
+        let tool_choice = request
+            .tool_choice
+            .as_ref()
+            .map(|choice| serde_json::to_value(choice).unwrap_or(serde_json::json!("auto")));
 
         // Convert response_format
-        let response_format = request.response_format.as_ref().map(|rf| {
-            serde_json::to_value(rf).unwrap_or(serde_json::json!({"type": "text"}))
-        });
+        let response_format = request
+            .response_format
+            .as_ref()
+            .map(|rf| serde_json::to_value(rf).unwrap_or(serde_json::json!({"type": "text"})));
 
         Ok(OpenAIRequest {
             model: request.model.clone(),
@@ -121,30 +131,42 @@ impl Protocol for OpenAIProtocol {
             response_format,
         })
     }
-    
+
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        let openai_response: OpenAIResponse = serde_json::from_str(response)
-            .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse OpenAI response: {}", e)))?;
+        let openai_response: OpenAIResponse = serde_json::from_str(response).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to parse OpenAI response: {}", e))
+        })?;
 
         if openai_response.choices.is_empty() {
-            return Err(LlmConnectorError::ParseError("No choices in response".to_string()));
+            return Err(LlmConnectorError::ParseError(
+                "No choices in response".to_string(),
+            ));
         }
 
-        let choices: Vec<Choice> = openai_response.choices.into_iter()
+        let choices: Vec<Choice> = openai_response
+            .choices
+            .into_iter()
             .map(|choice| {
                 // Convert tool_calls
                 let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
-                    calls.iter().filter_map(|call| {
-                        Some(crate::types::ToolCall {
-                            id: call.get("id")?.as_str()?.to_string(),
-                            call_type: call.get("type")?.as_str()?.to_string(),
-                            function: crate::types::FunctionCall {
-                                name: call.get("function")?.get("name")?.as_str()?.to_string(),
-                                arguments: call.get("function")?.get("arguments")?.as_str()?.to_string(),
-                            },
-                            index: None, // Non-streaming responses don't have index
+                    calls
+                        .iter()
+                        .filter_map(|call| {
+                            Some(crate::types::ToolCall {
+                                id: call.get("id")?.as_str()?.to_string(),
+                                call_type: call.get("type")?.as_str()?.to_string(),
+                                function: crate::types::FunctionCall {
+                                    name: call.get("function")?.get("name")?.as_str()?.to_string(),
+                                    arguments: call
+                                        .get("function")?
+                                        .get("arguments")?
+                                        .as_str()?
+                                        .to_string(),
+                                },
+                                index: None, // Non-streaming responses don't have index
+                            })
                         })
-                    }).collect()
+                        .collect()
                 });
 
                 // Convert content to MessageBlock
@@ -193,12 +215,14 @@ impl Protocol for OpenAIProtocol {
         });
 
         // Extract first choice content as convenience field (plain text)
-        let content = choices.first()
+        let content = choices
+            .first()
             .map(|choice| choice.message.content_as_text())
             .unwrap_or_default();
 
         // Extract first choice reasoning_content
-        let reasoning_content = choices.first()
+        let reasoning_content = choices
+            .first()
             .and_then(|c| c.message.reasoning_content.clone());
 
         Ok(ChatResponse {
@@ -213,26 +237,34 @@ impl Protocol for OpenAIProtocol {
             system_fingerprint: openai_response.system_fingerprint,
         })
     }
-    
-    fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
-        let models_response: OpenAIModelsResponse = serde_json::from_str(response)
-            .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse models response: {}", e)))?;
 
-        Ok(models_response.data.into_iter().map(|model| model.id).collect())
+    fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
+        let models_response: OpenAIModelsResponse =
+            serde_json::from_str(response).map_err(|e| {
+                LlmConnectorError::ParseError(format!("Failed to parse models response: {}", e))
+            })?;
+
+        Ok(models_response
+            .data
+            .into_iter()
+            .map(|model| model.id)
+            .collect())
     }
-    
+
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
         let error_info = serde_json::from_str::<serde_json::Value>(body)
             .ok()
             .and_then(|v| v.get("error").cloned())
             .unwrap_or_else(|| serde_json::json!({"message": body}));
-            
-        let message = error_info.get("message")
+
+        let message = error_info
+            .get("message")
             .and_then(|m| m.as_str())
             .unwrap_or("Unknown OpenAI error");
 
         // Check error code for context length exceeded
-        let error_code = error_info.get("code")
+        let error_code = error_info
+            .get("code")
             .and_then(|c| c.as_str())
             .unwrap_or("");
 
@@ -255,10 +287,13 @@ impl Protocol for OpenAIProtocol {
             _ => LlmConnectorError::ApiError(format!("OpenAI HTTP {}: {}", status, message)),
         }
     }
-    
+
     fn auth_headers(&self) -> Vec<(String, String)> {
         vec![
-            ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
+            (
+                "Authorization".to_string(),
+                format!("Bearer {}", self.api_key),
+            ),
             ("Content-Type".to_string(), "application/json".to_string()),
         ]
     }
@@ -292,7 +327,7 @@ pub struct OpenAIRequest {
 #[derive(Serialize, Debug)]
 pub struct OpenAIMessage {
     pub role: String,
-    pub content: serde_json::Value,  // Support String or Array
+    pub content: serde_json::Value, // Support String or Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -322,7 +357,7 @@ pub struct OpenAIChoice {
 
 #[derive(Deserialize, Debug)]
 pub struct OpenAIResponseMessage {
-    pub content: Option<serde_json::Value>,  // Support String or Array
+    pub content: Option<serde_json::Value>, // Support String or Array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -130,31 +130,38 @@ pub use client::LlmClient;
 pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
 pub use types::{
-    ChatRequest, ChatResponse, Choice, Message, Usage, Role,
-    Tool, ToolCall, FunctionCall, ToolChoice, ResponseFormat, JsonSchemaSpec,
+    ChatRequest, ChatResponse, Choice, FunctionCall, JsonSchemaSpec, Message, ResponseFormat, Role,
+    Tool, ToolCall, ToolChoice, Usage,
 };
 
 // Re-export core traits
-pub use core::{Protocol, Provider, GenericProvider, HttpClient};
+pub use core::{GenericProvider, HttpClient, Protocol, Provider};
 
 // Re-export protocols
 // Export standard protocols
-pub use protocols::{OpenAIProtocol, AnthropicProtocol};
+pub use protocols::{AnthropicProtocol, OpenAIProtocol};
 
 // Export private protocols (from providers)
 pub use providers::{AliyunProtocol, ZhipuProtocol};
 
 // Re-export providers
 pub use providers::{
-    OpenAIProvider, AliyunProvider, AnthropicProvider, ZhipuProvider, OllamaProvider,
+    AliyunProvider,
+    AnthropicProvider,
+    OllamaProvider,
+    OpenAIProvider,
+    ZhipuProvider,
+    aliyun,
+    anthropic,
+    ollama,
     // Convenience functions
-    openai, aliyun, anthropic, zhipu, ollama,
+    openai,
+    zhipu,
 };
 
 #[cfg(feature = "streaming")]
 pub use types::{
-    ChatStream, Delta, StreamingChoice, StreamingResponse,
-    StreamingFormat, StreamingConfig, OllamaStreamChunk, OllamaMessage, OllamaChatStream,
-    StreamFormat, StreamChunk, UniversalChatStream
+    ChatStream, Delta, OllamaChatStream, OllamaMessage, OllamaStreamChunk, StreamChunk,
+    StreamFormat, StreamingChoice, StreamingConfig, StreamingFormat, StreamingResponse,
+    UniversalChatStream,
 };
-

@@ -2,7 +2,10 @@
 //!
 //! Demonstrates how to use the new Ollama model management features.
 
-use llm_connector::{LlmClient, Provider, types::{ChatRequest, Message, Role}};
+use llm_connector::{
+    LlmClient, Provider,
+    types::{ChatRequest, Message, Role},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -49,12 +52,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("     Format: {}", model_info.details.format);
             println!("     Family: {}", model_info.details.family);
             println!("     Parameter size: {}", model_info.details.parameter_size);
-            println!("     Quantization level: {}", model_info.details.quantization_level);
+            println!(
+                "     Quantization level: {}",
+                model_info.details.quantization_level
+            );
             if let Some(families) = &model_info.details.families {
                 println!("     Supported families: {:?}", families);
             }
             println!("     Template length: {} chars", model_info.template.len());
-            println!("     Parameters length: {} chars", model_info.parameters.len());
+            println!(
+                "     Parameters length: {} chars",
+                model_info.parameters.len()
+            );
         }
         Err(e) => {
             println!("   ❌ Error: {}", e);
@@ -95,9 +104,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("💬 Chat test:");
     let chat_request = ChatRequest {
         model: "llama3.2".to_string(), // Use a model you actually have
-        messages: vec![
-            Message::text(Role::User, "Hello! Please answer in English.")
-        ],
+        messages: vec![Message::text(
+            Role::User,
+            "Hello! Please answer in English.",
+        )],
         ..Default::default()
     };
 
@@ -107,7 +117,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             println!("   ❌ Chat error: {}", e);
-            println!("   💡 Ensure the model '{}' is installed and available", chat_request.model);
+            println!(
+                "   💡 Ensure the model '{}' is installed and available",
+                chat_request.model
+            );
         }
     }
 

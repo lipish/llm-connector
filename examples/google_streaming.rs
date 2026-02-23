@@ -11,11 +11,14 @@
 #[cfg(feature = "streaming")]
 use futures_util::StreamExt;
 #[cfg(feature = "streaming")]
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
-#[cfg(feature = "streaming")]
-use std::time::{Instant, Duration};
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 #[cfg(feature = "streaming")]
 use std::io::Write;
+#[cfg(feature = "streaming")]
+use std::time::{Duration, Instant};
 
 #[cfg(not(feature = "streaming"))]
 fn main() {
@@ -93,7 +96,8 @@ Use Markdown headings, include a short bullet list, and add a brief conclusion."
         .unwrap_or(30);
 
     loop {
-        let next = tokio::time::timeout(Duration::from_secs(per_chunk_timeout), stream.next()).await;
+        let next =
+            tokio::time::timeout(Duration::from_secs(per_chunk_timeout), stream.next()).await;
         match next {
             Ok(Some(chunk_result)) => {
                 chunk_idx += 1;
@@ -143,8 +147,7 @@ Use Markdown headings, include a short bullet list, and add a brief conclusion."
                 timeout_cnt += 1;
                 eprintln!(
                     "\n[DEBUG] waiting for stream chunk... ({}s timeout, count={})",
-                    per_chunk_timeout,
-                    timeout_cnt
+                    per_chunk_timeout, timeout_cnt
                 );
             }
         }

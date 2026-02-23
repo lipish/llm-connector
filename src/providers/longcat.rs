@@ -7,9 +7,11 @@
 //! Note: LongCat Anthropic format uses `Authorization: Bearer` authentication,
 //! instead of standard Anthropic `x-api-key` authentication.
 
-use crate::core::{ConfigurableProtocol, ProviderBuilder, ProtocolConfig, EndpointConfig, AuthConfig};
-use crate::protocols::AnthropicProtocol;
+use crate::core::{
+    AuthConfig, ConfigurableProtocol, EndpointConfig, ProtocolConfig, ProviderBuilder,
+};
 use crate::error::LlmConnectorError;
+use crate::protocols::AnthropicProtocol;
 
 /// LongCat Anthropic format protocol adapter
 ///
@@ -68,17 +70,15 @@ pub fn longcat_anthropic_with_config(
                 chat_template: "{base_url}/v1/messages".to_string(),
                 models_template: None,
             },
-            auth: AuthConfig::Bearer,  // Use Bearer instead of x-api-key
-            extra_headers: vec![
-                ("anthropic-version".to_string(), "2023-06-01".to_string()),
-            ],
-        }
+            auth: AuthConfig::Bearer, // Use Bearer instead of x-api-key
+            extra_headers: vec![("anthropic-version".to_string(), "2023-06-01".to_string())],
+        },
     );
 
     // Use Builder Build
     let mut builder = ProviderBuilder::new(
         protocol,
-        base_url.unwrap_or("https://api.longcat.chat/anthropic")
+        base_url.unwrap_or("https://api.longcat.chat/anthropic"),
     );
 
     if let Some(timeout) = timeout_secs {
@@ -96,24 +96,20 @@ pub fn longcat_anthropic_with_config(
 mod tests {
     use super::*;
     use crate::core::Protocol;
-    
+
     #[test]
     fn test_longcat_anthropic() {
         let provider = longcat_anthropic("ak_test");
         assert!(provider.is_ok());
     }
-    
+
     #[test]
     fn test_longcat_anthropic_with_config() {
-        let provider = longcat_anthropic_with_config(
-            "ak_test",
-            Some("https://custom.url"),
-            Some(60),
-            None
-        );
+        let provider =
+            longcat_anthropic_with_config("ak_test", Some("https://custom.url"), Some(60), None);
         assert!(provider.is_ok());
     }
-    
+
     #[test]
     fn test_longcat_anthropic_protocol_auth_headers() {
         let protocol = ConfigurableProtocol::new(
@@ -125,21 +121,26 @@ mod tests {
                     models_template: None,
                 },
                 auth: AuthConfig::Bearer,
-                extra_headers: vec![
-                    ("anthropic-version".to_string(), "2023-06-01".to_string()),
-                ],
-            }
+                extra_headers: vec![("anthropic-version".to_string(), "2023-06-01".to_string())],
+            },
         );
         let headers = protocol.auth_headers();
 
         // Should use Bearer authentication
-        assert!(headers.iter().any(|(k, v)| k == "Authorization" && v == "Bearer ak_test123"));
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "Authorization" && v == "Bearer ak_test123")
+        );
 
         // Should contain anthropic-version
-        assert!(headers.iter().any(|(k, v)| k == "anthropic-version" && v == "2023-06-01"));
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "anthropic-version" && v == "2023-06-01")
+        );
 
         // Should not contain x-api-key
         assert!(!headers.iter().any(|(k, _)| k == "x-api-key"));
     }
 }
-

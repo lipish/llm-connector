@@ -8,7 +8,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "tencent")]
     {
-        use llm_connector::{LlmClient, ChatRequest, Message};
+        use llm_connector::{ChatRequest, LlmClient, Message};
 
         // Tencent Hunyuan Secret credentials
         let secret_id = std::env::var("TENCENT_SECRET_ID")
@@ -28,12 +28,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..Default::default()
         };
 
-        println!("🚀 Tencent Hunyuan Native API v3 Streaming Test (model={})\n", request.model);
+        println!(
+            "🚀 Tencent Hunyuan Native API v3 Streaming Test (model={})\n",
+            request.model
+        );
 
         #[cfg(feature = "streaming")]
         {
-            use std::io::Write;
             use futures_util::StreamExt;
+            use std::io::Write;
 
             let mut stream = client.chat_stream(&request).await?;
             let mut full_response = String::new();
@@ -56,10 +59,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             println!("\n\n✅ Full response received.");
         }
-        
+
         #[cfg(not(feature = "streaming"))]
         {
-             println!("❌ Streaming feature is not enabled. Please enable 'streaming' feature.");
+            println!("❌ Streaming feature is not enabled. Please enable 'streaming' feature.");
         }
     }
 

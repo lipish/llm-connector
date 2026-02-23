@@ -55,7 +55,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Provider;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage, ToolCall};
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, ToolCall, Usage};
 
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
@@ -129,7 +129,11 @@ impl MockProvider {
         }
     }
 
-    fn make_tool_call_response(tool_calls: Vec<ToolCall>, model: Option<String>, usage: Option<Usage>) -> ChatResponse {
+    fn make_tool_call_response(
+        tool_calls: Vec<ToolCall>,
+        model: Option<String>,
+        usage: Option<Usage>,
+    ) -> ChatResponse {
         let message = Message::assistant_with_tool_calls(tool_calls);
         let content = message.content_as_text();
         ChatResponse {
@@ -249,7 +253,8 @@ impl MockProviderBuilder {
 
     /// Add a successful text response to the sequential queue
     pub fn add_response_content(mut self, content: impl Into<String>) -> Self {
-        let resp = MockProvider::make_response(content.into(), self.model.clone(), self.usage.clone());
+        let resp =
+            MockProvider::make_response(content.into(), self.model.clone(), self.usage.clone());
         self.responses.push(Ok(resp));
         self
     }
@@ -271,7 +276,11 @@ impl MockProviderBuilder {
         if !self.responses.is_empty() {
             MockProvider::with_responses(self.responses)
         } else if let Some(tool_calls) = self.tool_calls {
-            let default = MockProvider::make_tool_call_response(tool_calls, self.model.clone(), self.usage.clone());
+            let default = MockProvider::make_tool_call_response(
+                tool_calls,
+                self.model.clone(),
+                self.usage.clone(),
+            );
             MockProvider {
                 responses: Mutex::new(Vec::new()),
                 default_response: default,

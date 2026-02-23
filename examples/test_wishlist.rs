@@ -1,7 +1,5 @@
 //! Integration test for wishlist features: tool calling, structured output, error types, usage
-use llm_connector::{
-    LlmClient, ChatRequest, Message, Tool, ToolChoice, ResponseFormat,
-};
+use llm_connector::{ChatRequest, LlmClient, Message, ResponseFormat, Tool, ToolChoice};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,7 +33,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  is_tool_call:   {}", response.is_tool_call());
     println!("  finish_reason:  {:?}", response.finish_reason());
     for tc in response.tool_calls() {
-        println!("  tool_call: id={}, fn={}, args={}", tc.id, tc.function.name, tc.function.arguments);
+        println!(
+            "  tool_call: id={}, fn={}, args={}",
+            tc.id, tc.function.name, tc.function.arguments
+        );
         let args: serde_json::Value = tc.parse_arguments()?;
         println!("  parsed args: {:?}", args);
     }
@@ -43,8 +44,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ========== 2. Structured Output (JSON mode) ==========
     println!("\n=== Test 2: Structured Output (json_object) ===");
     let request = ChatRequest::new(model)
-        .add_message(Message::system("You are a helpful assistant that outputs JSON."))
-        .add_message(Message::user("List 3 programming languages with name and year. Output as JSON array."))
+        .add_message(Message::system(
+            "You are a helpful assistant that outputs JSON.",
+        ))
+        .add_message(Message::user(
+            "List 3 programming languages with name and year. Output as JSON array.",
+        ))
         .with_response_format(ResponseFormat::json_object());
 
     let response = client.chat(&request).await?;
@@ -60,8 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ========== 4. Error Type Detection ==========
     println!("\n=== Test 4: Error Type Detection ===");
     // Test with invalid model to trigger error
-    let bad_request = ChatRequest::new("nonexistent-model-xyz")
-        .add_message(Message::user("Hello"));
+    let bad_request = ChatRequest::new("nonexistent-model-xyz").add_message(Message::user("Hello"));
     match client.chat(&bad_request).await {
         Ok(_) => println!("  (unexpected success)"),
         Err(e) => {

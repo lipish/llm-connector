@@ -1,5 +1,8 @@
 #[cfg(feature = "tencent")]
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,16 +26,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let model = std::env::var("HUNYUAN_MODEL").unwrap_or_else(|_| "hunyuan-lite".to_string());
         let request = ChatRequest {
             model: model.clone(),
-            messages: vec![Message::user("Please briefly describe the features of Tencent Hunyuan LLMs using the native API.")],
+            messages: vec![Message::user(
+                "Please briefly describe the features of Tencent Hunyuan LLMs using the native API.",
+            )],
             max_tokens: Some(256),
             ..Default::default()
         };
 
-        println!("🚀 Tencent Hunyuan Native API v3 Test (model={})\n", request.model);
+        println!(
+            "🚀 Tencent Hunyuan Native API v3 Test (model={})\n",
+            request.model
+        );
 
         match client.chat(&request).await {
             Ok(resp) => {
-                println!("✅ Success, output:\n{}", resp.choices[0].message.content_as_text());
+                println!(
+                    "✅ Success, output:\n{}",
+                    resp.choices[0].message.content_as_text()
+                );
                 println!("\n📊 Token usage:");
                 println!("  Input tokens: {}", resp.prompt_tokens());
                 println!("  Output tokens: {}", resp.completion_tokens());

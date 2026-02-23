@@ -135,7 +135,10 @@ async fn test_streaming_tool_calls_accumulation() {
     }
 
     println!("\n📊 Final result:");
-    println!("  - Accumulated tool_calls count: {}", accumulated_calls.len());
+    println!(
+        "  - Accumulated tool_calls count: {}",
+        accumulated_calls.len()
+    );
 
     for (index, call) in &accumulated_calls {
         println!("\n  Tool Call [{}]:", index);
@@ -158,7 +161,7 @@ async fn test_streaming_tool_calls_accumulation() {
 #[tokio::test]
 async fn test_streaming_tool_calls_parsing() {
     use llm_connector::types::StreamingResponse;
-    
+
     // Simulate actual OpenAI streaming tool_calls format
     // According to OpenAI docs, tool_calls in streaming responses are incremental
 
@@ -185,7 +188,7 @@ async fn test_streaming_tool_calls_parsing() {
             "finish_reason": null
         }]
     }"#;
-    
+
     // Chunk 2: Arguments delta - first part
     let chunk2 = r#"{
         "id": "chatcmpl-123",
@@ -205,7 +208,7 @@ async fn test_streaming_tool_calls_parsing() {
             "finish_reason": null
         }]
     }"#;
-    
+
     // Chunk 3: Arguments delta - second part
     let chunk3 = r#"{
         "id": "chatcmpl-123",
@@ -282,7 +285,7 @@ async fn test_streaming_tool_calls_parsing() {
                             println!("    - id: {}", call.id);
                             println!("      name: {}", call.function.name);
                             println!("      arguments: {}", call.function.arguments);
-                            
+
                             if !call.id.is_empty() {
                                 tool_call_ids.push(call.id.clone());
                             }
@@ -303,7 +306,10 @@ async fn test_streaming_tool_calls_parsing() {
     // Verify the issue - this test demonstrates the original problem
     println!("\n⚠️  Original problem demonstration:");
     println!("  - tool_calls appeared in {} chunks", tool_calls_count);
-    println!("  - If upstream application uses each chunk's tool_calls directly, it will cause duplicate execution!");
-    println!("\nNote: This test demonstrates the pre-fix problem (incremental chunks can be parsed but cause duplicates)");
+    println!(
+        "  - If upstream application uses each chunk's tool_calls directly, it will cause duplicate execution!"
+    );
+    println!(
+        "\nNote: This test demonstrates the pre-fix problem (incremental chunks can be parsed but cause duplicates)"
+    );
 }
-

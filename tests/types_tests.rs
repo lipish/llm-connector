@@ -1,20 +1,32 @@
 //! Tests for type definitions and serialization
 
-use llm_connector::types::{ChatRequest, ChatResponse, Message, MessageBlock, Role, Choice, Usage};
+use llm_connector::types::{ChatRequest, ChatResponse, Choice, Message, MessageBlock, Role, Usage};
 use serde_json;
 
 #[test]
 fn test_role_serialization() {
     assert_eq!(serde_json::to_string(&Role::User).unwrap(), r#""user""#);
-    assert_eq!(serde_json::to_string(&Role::Assistant).unwrap(), r#""assistant""#);
+    assert_eq!(
+        serde_json::to_string(&Role::Assistant).unwrap(),
+        r#""assistant""#
+    );
     assert_eq!(serde_json::to_string(&Role::System).unwrap(), r#""system""#);
 }
 
 #[test]
 fn test_role_deserialization() {
-    assert_eq!(serde_json::from_str::<Role>(r#""user""#).unwrap(), Role::User);
-    assert_eq!(serde_json::from_str::<Role>(r#""assistant""#).unwrap(), Role::Assistant);
-    assert_eq!(serde_json::from_str::<Role>(r#""system""#).unwrap(), Role::System);
+    assert_eq!(
+        serde_json::from_str::<Role>(r#""user""#).unwrap(),
+        Role::User
+    );
+    assert_eq!(
+        serde_json::from_str::<Role>(r#""assistant""#).unwrap(),
+        Role::Assistant
+    );
+    assert_eq!(
+        serde_json::from_str::<Role>(r#""system""#).unwrap(),
+        Role::System
+    );
 }
 
 #[test]
@@ -110,7 +122,10 @@ fn test_chat_request_per_request_overrides() {
     );
     let headers = request.extra_headers.as_ref().unwrap();
     assert_eq!(headers.get("X-Trace-Id"), Some(&"trace-123".to_string()));
-    assert_eq!(headers.get("anthropic-version"), Some(&"2024-01-01".to_string()));
+    assert_eq!(
+        headers.get("anthropic-version"),
+        Some(&"2024-01-01".to_string())
+    );
 }
 
 #[test]
@@ -135,7 +150,7 @@ fn test_usage_serialization() {
 fn test_usage_deserialization() {
     let json = r#"{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}"#;
     let usage: Usage = serde_json::from_str(json).unwrap();
-    
+
     assert_eq!(usage.prompt_tokens, 10);
     assert_eq!(usage.completion_tokens, 20);
     assert_eq!(usage.total_tokens, 30);
@@ -180,7 +195,7 @@ fn test_chat_response_deserialization() {
             "total_tokens": 30
         }
     }"#;
-    
+
     let response: ChatResponse = serde_json::from_str(json).unwrap();
     assert_eq!(response.id, "chatcmpl-123");
     assert_eq!(response.model, "gpt-4");
@@ -289,4 +304,3 @@ fn test_delta_populate_reasoning_from_json() {
     assert_eq!(delta.thinking.as_deref(), Some("hidden"));
     assert_eq!(delta.reasoning.as_deref(), Some("explanation"));
 }
-

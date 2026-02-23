@@ -1,7 +1,7 @@
 //! Streaming types for chat completions
 
 use super::request::{Role, ToolCall};
-use super::response::{Usage, ChatResponse};
+use super::response::{ChatResponse, Usage};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "streaming")]
@@ -73,7 +73,11 @@ impl StreamChunk {
     }
 
     /// Create a new stream chunk with metadata
-    pub fn with_metadata(data: serde_json::Value, format: StreamFormat, metadata: serde_json::Value) -> Self {
+    pub fn with_metadata(
+        data: serde_json::Value,
+        format: StreamFormat,
+        metadata: serde_json::Value,
+    ) -> Self {
         Self {
             data,
             format,
@@ -106,20 +110,27 @@ impl StreamChunk {
     }
 
     /// Create from OpenAI streaming response
-    pub fn from_openai(response: &StreamingResponse, format: StreamFormat) -> Result<Self, serde_json::Error> {
+    pub fn from_openai(
+        response: &StreamingResponse,
+        format: StreamFormat,
+    ) -> Result<Self, serde_json::Error> {
         let data = serde_json::to_value(response)?;
         Ok(Self::new(data, format))
     }
 
     /// Create from Ollama streaming response
-    pub fn from_ollama(chunk: &OllamaStreamChunk, format: StreamFormat) -> Result<Self, serde_json::Error> {
+    pub fn from_ollama(
+        chunk: &OllamaStreamChunk,
+        format: StreamFormat,
+    ) -> Result<Self, serde_json::Error> {
         let data = serde_json::to_value(chunk)?;
         Ok(Self::new(data, format))
     }
 
     /// Check if this is a final chunk (for Ollama format)
     pub fn is_final(&self) -> bool {
-        self.data.get("done")
+        self.data
+            .get("done")
             .and_then(|d| d.as_bool())
             .unwrap_or(false)
     }
@@ -127,7 +138,8 @@ impl StreamChunk {
     /// Extract content from the chunk (works for both OpenAI and Ollama formats)
     pub fn extract_content(&self) -> Option<String> {
         // Try Ollama format first
-        if let Some(content) = self.data
+        if let Some(content) = self
+            .data
             .get("message")
             .and_then(|m| m.get("content"))
             .and_then(|c| c.as_str())
@@ -289,10 +301,15 @@ impl Delta {
 
     /// Provider-agnostic post-processor: populate reasoning synonyms from raw JSON
     pub fn populate_reasoning_from_json(&mut self, raw: &serde_json::Value) {
-        fn collect_synonyms(val: &serde_json::Value, acc: &mut std::collections::HashMap<String, String>) {
+        fn collect_synonyms(
+            val: &serde_json::Value,
+            acc: &mut std::collections::HashMap<String, String>,
+        ) {
             match val {
                 serde_json::Value::Array(arr) => {
-                    for v in arr { collect_synonyms(v, acc); }
+                    for v in arr {
+                        collect_synonyms(v, acc);
+                    }
                 }
                 serde_json::Value::Object(map) => {
                     for (k, v) in map {
@@ -316,16 +333,24 @@ impl Delta {
         collect_synonyms(raw, &mut found);
 
         if self.reasoning_content.is_none() {
-            if let Some(v) = found.get("reasoning_content") { self.reasoning_content = Some(v.clone()); }
+            if let Some(v) = found.get("reasoning_content") {
+                self.reasoning_content = Some(v.clone());
+            }
         }
         if self.reasoning.is_none() {
-            if let Some(v) = found.get("reasoning") { self.reasoning = Some(v.clone()); }
+            if let Some(v) = found.get("reasoning") {
+                self.reasoning = Some(v.clone());
+            }
         }
         if self.thought.is_none() {
-            if let Some(v) = found.get("thought") { self.thought = Some(v.clone()); }
+            if let Some(v) = found.get("thought") {
+                self.thought = Some(v.clone());
+            }
         }
         if self.thinking.is_none() {
-            if let Some(v) = found.get("thinking") { self.thinking = Some(v.clone()); }
+            if let Some(v) = found.get("thinking") {
+                self.thinking = Some(v.clone());
+            }
         }
     }
 }
@@ -350,7 +375,11 @@ impl StreamingResponse {
     /// Convenience: get current chunk content as Option<&str>
     /// Returns None when the convenience `content` field is empty
     pub fn get_content(&self) -> Option<&str> {
-        if self.content.is_empty() { None } else { Some(&self.content) }
+        if self.content.is_empty() {
+            None
+        } else {
+            Some(&self.content)
+        }
     }
 }
 
@@ -373,32 +402,34 @@ impl Default for StreamingResponse {
 impl From<ChatResponse> for StreamingResponse {
     fn from(response: ChatResponse) -> Self {
         let first_choice = response.choices.first();
-        
+
         Self {
             id: response.id,
             object: "chat.completion.chunk".to_string(),
             created: response.created,
             model: response.model,
-            choices: first_choice.map(|choice| {
-                vec![StreamingChoice {
-                    index: choice.index,
-                    delta: Delta {
-                        role: Some(choice.message.role),
-                        content: if choice.message.content.is_empty() {
-                            None
-                        } else {
-                            Some(choice.message.content_as_text())
+            choices: first_choice
+                .map(|choice| {
+                    vec![StreamingChoice {
+                        index: choice.index,
+                        delta: Delta {
+                            role: Some(choice.message.role),
+                            content: if choice.message.content.is_empty() {
+                                None
+                            } else {
+                                Some(choice.message.content_as_text())
+                            },
+                            tool_calls: choice.message.tool_calls.clone(),
+                            reasoning_content: None,
+                            reasoning: None,
+                            thought: None,
+                            thinking: None,
                         },
-                        tool_calls: choice.message.tool_calls.clone(),
-                        reasoning_content: None,
-                        reasoning: None,
-                        thought: None,
-                        thinking: None,
-                    },
-                    finish_reason: choice.finish_reason.clone(),
-                    logprobs: choice.logprobs.clone(),
-                }]
-            }).unwrap_or_default(),
+                        finish_reason: choice.finish_reason.clone(),
+                        logprobs: choice.logprobs.clone(),
+                    }]
+                })
+                .unwrap_or_default(),
             content: response.content,
             reasoning_content: None,
             usage: response.usage,
@@ -406,7 +437,6 @@ impl From<ChatResponse> for StreamingResponse {
         }
     }
 }
-
 
 // ============================================================================
 // Ollama Format Streaming Types
@@ -495,9 +525,8 @@ impl OllamaStreamChunk {
             // These are rough estimates since we don't have actual timing data
             chunk.prompt_eval_duration = Some((usage.prompt_tokens as u64) * 1_000_000); // 1ms per token
             chunk.eval_duration = Some((usage.completion_tokens as u64) * 10_000_000); // 10ms per token
-            chunk.total_duration = Some(
-                chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0)
-            );
+            chunk.total_duration =
+                Some(chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0));
         }
 
         chunk
@@ -508,7 +537,9 @@ impl OllamaStreamChunk {
         let content = if !openai_chunk.content.is_empty() {
             openai_chunk.content.clone()
         } else {
-            openai_chunk.choices.get(0)
+            openai_chunk
+                .choices
+                .get(0)
                 .and_then(|choice| choice.delta.content.clone())
                 .unwrap_or_default()
         };
@@ -525,7 +556,7 @@ impl OllamaStreamChunk {
                 chunk.prompt_eval_duration = Some((usage.prompt_tokens as u64) * 1_000_000);
                 chunk.eval_duration = Some((usage.completion_tokens as u64) * 10_000_000);
                 chunk.total_duration = Some(
-                    chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0)
+                    chunk.prompt_eval_duration.unwrap_or(0) + chunk.eval_duration.unwrap_or(0),
                 );
             }
         }
@@ -545,9 +576,7 @@ pub fn convert_streaming_format(
     is_final: bool,
 ) -> Result<String, serde_json::Error> {
     match format {
-        StreamingFormat::OpenAI => {
-            serde_json::to_string(openai_chunk)
-        }
+        StreamingFormat::OpenAI => serde_json::to_string(openai_chunk),
         StreamingFormat::Ollama => {
             let ollama_chunk = OllamaStreamChunk::from_openai_chunk(openai_chunk, is_final);
             serde_json::to_string(&ollama_chunk)

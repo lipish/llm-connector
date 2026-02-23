@@ -13,10 +13,10 @@
 //!
 //! Note: Specific service provider implementations are in the `providers` module.
 
-pub mod openai;
 pub mod anthropic;
+pub mod openai;
 pub mod tencent_native;
 
 // Re-export standard protocol types
-pub use openai::OpenAIProtocol;
 pub use anthropic::AnthropicProtocol;
+pub use openai::OpenAIProtocol;

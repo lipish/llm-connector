@@ -6,9 +6,9 @@ use crate::core::{HttpClient, Protocol};
 use crate::error::LlmConnectorError;
 use crate::types::{ChatRequest, ChatResponse, Role};
 
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use async_trait::async_trait;
 
 // ============================================================================
 // Aliyun Protocol Definition (Private)
@@ -38,9 +38,7 @@ impl AliyunProtocol {
 
     /// GetstreamingrequestAdditionalheaders
     pub fn streaming_headers(&self) -> Vec<(String, String)> {
-        vec![
-            ("X-DashScope-SSE".to_string(), "enable".to_string()),
-        ]
+        vec![("X-DashScope-SSE".to_string(), "enable".to_string())]
     }
 }
 
@@ -55,12 +53,18 @@ impl Protocol for AliyunProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str) -> String {
-        format!("{}/api/v1/services/aigc/text-generation/generation", base_url)
+        format!(
+            "{}/api/v1/services/aigc/text-generation/generation",
+            base_url
+        )
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {
         vec![
-            ("Authorization".to_string(), format!("Bearer {}", self.api_key)),
+            (
+                "Authorization".to_string(),
+                format!("Bearer {}", self.api_key),
+            ),
             // Note: Content-Type is automatically set by HttpClient::post() .json() method
             // Do not set repeatedly here，otherwise will cause "Content-Type application/json,application/json is not supported" error
         ]
@@ -68,20 +72,24 @@ impl Protocol for AliyunProtocol {
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         // Convert to Aliyun format
-        let aliyun_messages: Vec<AliyunMessage> = request.messages.iter().map(|msg| {
-            AliyunMessage {
-                role: match msg.role {
-                    Role::System => "system".to_string(),
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    Role::Tool => "tool".to_string(),
-                },
-                // Aliyun uses plain text format
-                content: msg.content_as_text(),
-                // Tool calls support
-                tool_calls: msg.tool_calls.clone(),
-            }
-        }).collect();
+        let aliyun_messages: Vec<AliyunMessage> = request
+            .messages
+            .iter()
+            .map(|msg| {
+                AliyunMessage {
+                    role: match msg.role {
+                        Role::System => "system".to_string(),
+                        Role::User => "user".to_string(),
+                        Role::Assistant => "assistant".to_string(),
+                        Role::Tool => "tool".to_string(),
+                    },
+                    // Aliyun uses plain text format
+                    content: msg.content_as_text(),
+                    // Tool calls support
+                    tool_calls: msg.tool_calls.clone(),
+                }
+            })
+            .collect();
 
         Ok(AliyunRequest {
             model: request.model.clone(),
@@ -110,106 +118,129 @@ impl Protocol for AliyunProtocol {
     }
 
     #[cfg(feature = "streaming")]
-    async fn parse_stream_response(&self, response: reqwest::Response) -> Result<crate::types::ChatStream, LlmConnectorError> {
+    async fn parse_stream_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        use crate::types::{Delta, StreamingChoice, StreamingResponse};
         use futures_util::StreamExt;
-        use crate::types::{StreamingResponse, StreamingChoice, Delta};
 
         let stream = response.bytes_stream();
         let mut lines_buffer = String::new();
 
-        let mapped_stream = stream.map(move |result| {
-            match result {
-                Ok(bytes) => {
-                    let text = String::from_utf8_lossy(&bytes);
-                    lines_buffer.push_str(&text);
+        let mapped_stream = stream
+            .map(move |result| {
+                match result {
+                    Ok(bytes) => {
+                        let text = String::from_utf8_lossy(&bytes);
+                        lines_buffer.push_str(&text);
 
-                    let mut responses = Vec::new();
-                    let lines: Vec<&str> = lines_buffer.lines().collect();
+                        let mut responses = Vec::new();
+                        let lines: Vec<&str> = lines_buffer.lines().collect();
 
-                    for line in &lines {
-                        if line.starts_with("data:") {
-                            let json_str = line.trim_start_matches("data:").trim();
-                            if json_str.is_empty() {
-                                continue;
-                            }
+                        for line in &lines {
+                            if line.starts_with("data:") {
+                                let json_str = line.trim_start_matches("data:").trim();
+                                if json_str.is_empty() {
+                                    continue;
+                                }
 
-                            // Parse Aliyun response
-                            if let Ok(aliyun_resp) = serde_json::from_str::<AliyunResponse>(json_str) {
-                                if let Some(choices) = aliyun_resp.output.choices {
-                                    if let Some(first_choice) = choices.first() {
-                                        // Convertas StreamingResponse
-                                        let streaming_choice = StreamingChoice {
-                                            index: 0,
-                                            delta: Delta {
-                                                role: Some(Role::Assistant),
-                                                content: if first_choice.message.content.is_empty() {
-                                                    None
-                                                } else {
-                                                    Some(first_choice.message.content.clone())
+                                // Parse Aliyun response
+                                if let Ok(aliyun_resp) =
+                                    serde_json::from_str::<AliyunResponse>(json_str)
+                                {
+                                    if let Some(choices) = aliyun_resp.output.choices {
+                                        if let Some(first_choice) = choices.first() {
+                                            // Convertas StreamingResponse
+                                            let streaming_choice = StreamingChoice {
+                                                index: 0,
+                                                delta: Delta {
+                                                    role: Some(Role::Assistant),
+                                                    content: if first_choice
+                                                        .message
+                                                        .content
+                                                        .is_empty()
+                                                    {
+                                                        None
+                                                    } else {
+                                                        Some(first_choice.message.content.clone())
+                                                    },
+                                                    // Extract tool_calls from streaming response
+                                                    tool_calls: first_choice
+                                                        .message
+                                                        .tool_calls
+                                                        .clone(),
+                                                    reasoning_content: None,
+                                                    reasoning: None,
+                                                    thought: None,
+                                                    thinking: None,
                                                 },
-                                                // Extract tool_calls from streaming response
-                                                tool_calls: first_choice.message.tool_calls.clone(),
+                                                finish_reason: first_choice.finish_reason.clone(),
+                                                logprobs: None,
+                                            };
+
+                                            let content = first_choice.message.content.clone();
+
+                                            let streaming_response = StreamingResponse {
+                                                id: aliyun_resp
+                                                    .request_id
+                                                    .clone()
+                                                    .unwrap_or_default(),
+                                                object: "chat.completion.chunk".to_string(),
+                                                created: 0,
+                                                model: aliyun_resp
+                                                    .model
+                                                    .clone()
+                                                    .unwrap_or_else(|| "unknown".to_string()),
+                                                choices: vec![streaming_choice],
+                                                content,
                                                 reasoning_content: None,
-                                                reasoning: None,
-                                                thought: None,
-                                                thinking: None,
-                                            },
-                                            finish_reason: first_choice.finish_reason.clone(),
-                                            logprobs: None,
-                                        };
+                                                usage: aliyun_resp.usage.as_ref().map(|u| {
+                                                    crate::types::Usage {
+                                                        prompt_tokens: u.input_tokens,
+                                                        completion_tokens: u.output_tokens,
+                                                        total_tokens: u.total_tokens,
+                                                        prompt_cache_hit_tokens: None,
+                                                        prompt_cache_miss_tokens: None,
+                                                        prompt_tokens_details: None,
+                                                        completion_tokens_details: None,
+                                                    }
+                                                }),
+                                                system_fingerprint: None,
+                                            };
 
-                                        let content = first_choice.message.content.clone();
-
-                                        let streaming_response = StreamingResponse {
-                                            id: aliyun_resp.request_id.clone().unwrap_or_default(),
-                                            object: "chat.completion.chunk".to_string(),
-                                            created: 0,
-                                            model: aliyun_resp.model.clone().unwrap_or_else(|| "unknown".to_string()),
-                                            choices: vec![streaming_choice],
-                                            content,
-                                            reasoning_content: None,
-                                            usage: aliyun_resp.usage.as_ref().map(|u| crate::types::Usage {
-                                                prompt_tokens: u.input_tokens,
-                                                completion_tokens: u.output_tokens,
-                                                total_tokens: u.total_tokens,
-                                                prompt_cache_hit_tokens: None,
-                                                prompt_cache_miss_tokens: None,
-                                                prompt_tokens_details: None,
-                                                completion_tokens_details: None,
-                                            }),
-                                            system_fingerprint: None,
-                                        };
-
-                                        responses.push(Ok(streaming_response));
+                                            responses.push(Ok(streaming_response));
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // Clear processed lines
-                    if let Some(last_line) = lines.last() {
-                        if !last_line.is_empty() && !last_line.starts_with("data:") {
-                            lines_buffer = last_line.to_string();
-                        } else {
-                            lines_buffer.clear();
+                        // Clear processed lines
+                        if let Some(last_line) = lines.last() {
+                            if !last_line.is_empty() && !last_line.starts_with("data:") {
+                                lines_buffer = last_line.to_string();
+                            } else {
+                                lines_buffer.clear();
+                            }
                         }
-                    }
 
-                    futures_util::stream::iter(responses)
+                        futures_util::stream::iter(responses)
+                    }
+                    Err(e) => futures_util::stream::iter(vec![Err(
+                        crate::error::LlmConnectorError::NetworkError(e.to_string()),
+                    )]),
                 }
-                Err(e) => {
-                    futures_util::stream::iter(vec![Err(crate::error::LlmConnectorError::NetworkError(e.to_string()))])
-                }
-            }
-        }).flatten();
+            })
+            .flatten();
 
         Ok(Box::pin(mapped_stream))
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        let parsed: AliyunResponse = serde_json::from_str(response)
-            .map_err(|e| LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e)))?;
+        let parsed: AliyunResponse = serde_json::from_str(response).map_err(|e| {
+            LlmConnectorError::InvalidRequest(format!("Failed to parse response: {}", e))
+        })?;
 
         if let Some(aliyun_choices) = parsed.output.choices {
             if let Some(first_choice) = aliyun_choices.first() {
@@ -218,7 +249,9 @@ impl Protocol for AliyunProtocol {
                     index: 0,
                     message: crate::types::Message {
                         role: Role::Assistant,
-                        content: vec![crate::types::MessageBlock::text(&first_choice.message.content)],
+                        content: vec![crate::types::MessageBlock::text(
+                            &first_choice.message.content,
+                        )],
                         name: None,
                         // Extract tool_calls from Aliyun response
                         tool_calls: first_choice.message.tool_calls.clone(),
@@ -249,7 +282,7 @@ impl Protocol for AliyunProtocol {
                 return Ok(ChatResponse {
                     id: parsed.request_id.unwrap_or_default(),
                     object: "chat.completion".to_string(),
-                    created: 0,  // Aliyun does not provide created timestamp
+                    created: 0, // Aliyun does not provide created timestamp
                     model: parsed.model.unwrap_or_else(|| "unknown".to_string()),
                     choices,
                     content,
@@ -260,7 +293,9 @@ impl Protocol for AliyunProtocol {
             }
         }
 
-        Err(LlmConnectorError::InvalidRequest("Empty or invalid response".to_string()))
+        Err(LlmConnectorError::InvalidRequest(
+            "Empty or invalid response".to_string(),
+        ))
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
@@ -398,19 +433,26 @@ impl crate::core::Provider for AliyunProviderImpl {
         let status = response.status();
 
         if !status.is_success() {
-            let text = response.text().await
+            let text = response
+                .text()
+                .await
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }
 
-        let text = response.text().await
+        let text = response
+            .text()
+            .await
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
 
         self.protocol.parse_response(&text)
     }
 
     #[cfg(feature = "streaming")]
-    async fn chat_stream(&self, request: &ChatRequest) -> Result<crate::types::ChatStream, LlmConnectorError> {
+    async fn chat_stream(
+        &self,
+        request: &ChatRequest,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
         let mut streaming_request = request.clone();
         streaming_request.stream = Some(true);
 
@@ -418,14 +460,17 @@ impl crate::core::Provider for AliyunProviderImpl {
         let url = self.protocol.chat_endpoint(self.client.base_url());
 
         // Create temporary client，add streaming headers
-        let streaming_headers: HashMap<String, String> = self.protocol.streaming_headers().into_iter().collect();
+        let streaming_headers: HashMap<String, String> =
+            self.protocol.streaming_headers().into_iter().collect();
         let streaming_client = self.client.clone().with_headers(streaming_headers);
 
         let response = streaming_client.stream(&url, &protocol_request).await?;
         let status = response.status();
 
         if !status.is_success() {
-            let text = response.text().await
+            let text = response
+                .text()
+                .await
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }
@@ -435,7 +480,7 @@ impl crate::core::Provider for AliyunProviderImpl {
 
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
         Err(LlmConnectorError::UnsupportedOperation(
-            "Aliyun DashScope does not support model listing".to_string()
+            "Aliyun DashScope does not support model listing".to_string(),
         ))
     }
 }
@@ -448,17 +493,17 @@ impl crate::core::Provider for AliyunProviderImpl {
 pub type AliyunProvider = AliyunProviderImpl;
 
 /// CreateAliyun DashScopeserviceProvider
-/// 
+///
 /// # Parameters
 /// - `api_key`: Aliyun DashScope API key
-/// 
+///
 /// # Returns
 /// Configured Aliyun service Provider instance
-/// 
+///
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun;
-/// 
+///
 /// let provider = aliyun("sk-...").unwrap();
 /// ```
 pub fn aliyun(api_key: &str) -> Result<AliyunProvider, LlmConnectorError> {
@@ -505,22 +550,19 @@ pub fn aliyun_with_config(
     let client = client.with_headers(auth_headers);
 
     // Createcustom Aliyun Provider（Requires special handling for streaming requests）
-    Ok(AliyunProviderImpl {
-        protocol,
-        client,
-    })
+    Ok(AliyunProviderImpl { protocol, client })
 }
 
 /// Create Aliyun international service Provider
-/// 
+///
 /// # Parameters
 /// - `api_key`: Aliyun international API key
 /// - `region`: Region (such as "us-west-1", "ap-southeast-1")
-/// 
+///
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_international;
-/// 
+///
 /// let provider = aliyun_international("sk-...", "us-west-1").unwrap();
 /// ```
 pub fn aliyun_international(
@@ -532,39 +574,36 @@ pub fn aliyun_international(
 }
 
 /// Create Aliyun private cloud service Provider
-/// 
+///
 /// # Parameters
 /// - `api_key`: API key
 /// - `endpoint`: Private cloud endpoint URL
-/// 
+///
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_private;
-/// 
+///
 /// let provider = aliyun_private(
 ///     "sk-...",
 ///     "https://dashscope.your-private-cloud.com"
 /// ).unwrap();
 /// ```
-pub fn aliyun_private(
-    api_key: &str,
-    endpoint: &str,
-) -> Result<AliyunProvider, LlmConnectorError> {
+pub fn aliyun_private(api_key: &str, endpoint: &str) -> Result<AliyunProvider, LlmConnectorError> {
     aliyun_with_config(api_key, Some(endpoint), None, None)
 }
 
 /// Create Aliyun service Provider with custom timeout
-/// 
+///
 /// Some Aliyun models may require longer processing time，this function provides convenient timeout configuration。
-/// 
+///
 /// # Parameters
 /// - `api_key`: API key
 /// - `timeout_secs`: Timeout (seconds)
-/// 
+///
 /// # Example
 /// ```rust,no_run
 /// use llm_connector::providers::aliyun_with_timeout;
-/// 
+///
 /// // Set 120 seconds timeout, suitable for long text processing
 /// let provider = aliyun_with_timeout("sk-...", 120).unwrap();
 /// ```
@@ -599,7 +638,7 @@ mod tests {
             "test-key",
             Some("https://custom.dashscope.com"),
             Some(60),
-            None
+            None,
         );
         assert!(provider.is_ok());
 
@@ -613,7 +652,10 @@ mod tests {
         assert!(provider.is_ok());
 
         let provider = provider.unwrap();
-        assert_eq!(provider.client().base_url(), "https://dashscope.us-west-1.aliyuncs.com");
+        assert_eq!(
+            provider.client().base_url(),
+            "https://dashscope.us-west-1.aliyuncs.com"
+        );
     }
 
     #[test]
@@ -622,7 +664,10 @@ mod tests {
         assert!(provider.is_ok());
 
         let provider = provider.unwrap();
-        assert_eq!(provider.client().base_url(), "https://private.dashscope.com");
+        assert_eq!(
+            provider.client().base_url(),
+            "https://private.dashscope.com"
+        );
     }
 
     #[test]
@@ -641,7 +686,7 @@ mod tests {
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
             messages: vec![Message::text(Role::User, "test")],
-            enable_thinking: Some(true),  // Explicitly enable
+            enable_thinking: Some(true), // Explicitly enable
             ..Default::default()
         };
 
@@ -652,7 +697,7 @@ mod tests {
         let request = ChatRequest {
             model: "qwen-plus".to_string(),
             messages: vec![Message::text(Role::User, "test")],
-            enable_thinking: Some(false),  // Explicitly disable
+            enable_thinking: Some(false), // Explicitly disable
             ..Default::default()
         };
 

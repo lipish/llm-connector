@@ -4,20 +4,22 @@
 //!
 //! Run: cargo run --example aliyun_basic
 
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Aliyun Qwen Basic Chat Example\n");
 
     // Read API key from environment variables
-    let api_key = std::env::var("DASHSCOPE_API_KEY")
-        .unwrap_or_else(|_| {
-            println!("❌ Please set the DASHSCOPE_API_KEY environment variable");
-            println!("   export DASHSCOPE_API_KEY=your-api-key");
-            println!("   Get an API key: https://dashscope.console.aliyun.com/");
-            std::process::exit(1);
-        });
+    let api_key = std::env::var("DASHSCOPE_API_KEY").unwrap_or_else(|_| {
+        println!("❌ Please set the DASHSCOPE_API_KEY environment variable");
+        println!("   export DASHSCOPE_API_KEY=your-api-key");
+        println!("   Get an API key: https://dashscope.console.aliyun.com/");
+        std::process::exit(1);
+    });
 
     // Create Aliyun client
     let client = LlmClient::aliyun(&api_key).unwrap();
@@ -25,9 +27,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build chat request
     let request = ChatRequest {
         model: "qwen-turbo".to_string(),
-        messages: vec![
-            Message::user("Please briefly describe the features of Aliyun Qwen large language models.")
-        ],
+        messages: vec![Message::user(
+            "Please briefly describe the features of Aliyun Qwen large language models.",
+        )],
         max_tokens: Some(200),
         temperature: Some(0.7),
         ..Default::default()

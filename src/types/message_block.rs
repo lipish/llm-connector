@@ -26,19 +26,13 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MessageBlock {
     /// Text block
-    Text {
-        text: String,
-    },
+    Text { text: String },
 
     /// Image block (Anthropic format)
-    Image {
-        source: ImageSource,
-    },
+    Image { source: ImageSource },
 
     /// Image URL block (OpenAI format)
-    ImageUrl {
-        image_url: ImageUrl,
-    },
+    ImageUrl { image_url: ImageUrl },
 }
 
 impl MessageBlock {
@@ -92,9 +86,7 @@ impl MessageBlock {
     /// ```
     pub fn image_url_anthropic(url: impl Into<String>) -> Self {
         Self::Image {
-            source: ImageSource::Url {
-                url: url.into(),
-            },
+            source: ImageSource::Url { url: url.into() },
         }
     }
 
@@ -295,4 +287,3 @@ mod tests {
         assert_eq!(block, MessageBlock::text("Hello"));
     }
 }
-

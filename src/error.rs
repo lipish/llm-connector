@@ -112,8 +112,7 @@ impl LlmConnectorError {
     pub fn is_auth_error(&self) -> bool {
         matches!(
             self,
-            LlmConnectorError::AuthenticationError(_)
-                | LlmConnectorError::PermissionError(_)
+            LlmConnectorError::AuthenticationError(_) | LlmConnectorError::PermissionError(_)
         )
     }
 
@@ -207,7 +206,9 @@ mod tests {
 
     #[test]
     fn test_should_reduce_context() {
-        assert!(LlmConnectorError::ContextLengthExceeded("test".to_string()).should_reduce_context());
+        assert!(
+            LlmConnectorError::ContextLengthExceeded("test".to_string()).should_reduce_context()
+        );
         assert!(!LlmConnectorError::InvalidRequest("test".to_string()).should_reduce_context());
     }
 

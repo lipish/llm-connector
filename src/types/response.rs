@@ -124,18 +124,27 @@ impl ChatResponse {
 
     /// Convenience: get usage safely as a tuple (prompt, completion, total)
     pub fn get_usage_safe(&self) -> (u32, u32, u32) {
-        (self.prompt_tokens(), self.completion_tokens(), self.total_tokens())
+        (
+            self.prompt_tokens(),
+            self.completion_tokens(),
+            self.total_tokens(),
+        )
     }
 
     /// Convenience: get first choice content as Option<&str>
     /// Returns None if the convenience `content` field is empty
     pub fn get_content(&self) -> Option<&str> {
-        if self.content.is_empty() { None } else { Some(&self.content) }
+        if self.content.is_empty() {
+            None
+        } else {
+            Some(&self.content)
+        }
     }
 
     /// Check if the response contains tool calls
     pub fn has_tool_calls(&self) -> bool {
-        self.choices.first()
+        self.choices
+            .first()
             .and_then(|c| c.message.tool_calls.as_ref())
             .map(|calls| !calls.is_empty())
             .unwrap_or(false)
@@ -145,14 +154,16 @@ impl ChatResponse {
     ///
     /// Returns an empty slice if no tool calls are present.
     pub fn tool_calls(&self) -> &[crate::types::ToolCall] {
-        self.choices.first()
+        self.choices
+            .first()
             .and_then(|c| c.message.tool_calls.as_deref())
             .unwrap_or(&[])
     }
 
     /// Get the finish reason of the first choice
     pub fn finish_reason(&self) -> Option<&str> {
-        self.choices.first()
+        self.choices
+            .first()
             .and_then(|c| c.finish_reason.as_deref())
     }
 

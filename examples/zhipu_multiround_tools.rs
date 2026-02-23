@@ -1,12 +1,13 @@
 use llm_connector::{
-    types::{ChatRequest, Function, Message, MessageBlock, Role, Tool},
     LlmClient,
+    types::{ChatRequest, Function, Message, MessageBlock, Role, Tool},
 };
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api_key = std::env::var("ZHIPU_API_KEY").expect("Please set environment variable ZHIPU_API_KEY");
+    let api_key =
+        std::env::var("ZHIPU_API_KEY").expect("Please set environment variable ZHIPU_API_KEY");
 
     let client = LlmClient::zhipu(&api_key)?;
 
@@ -32,7 +33,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 Testing Zhipu Multi-round Tool Calling\n");
 
     // === Round 1: User question ===
-    let mut messages = vec![Message::text(Role::User, "Please use the get_weather function to query the weather in New York")];
+    let mut messages = vec![Message::text(
+        Role::User,
+        "Please use the get_weather function to query the weather in New York",
+    )];
 
     let request = ChatRequest {
         model: "glm-4-flash".to_string(),
@@ -77,12 +81,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for call in tool_calls {
                 messages.push(Message {
                     role: Role::Tool,
-                    content: vec![MessageBlock::text(json!({
-                        "location": "New York",
-                        "temperature": "15°C",
-                        "condition": "Clear"
-                    })
-                    .to_string())],
+                    content: vec![MessageBlock::text(
+                        json!({
+                            "location": "New York",
+                            "temperature": "15°C",
+                            "condition": "Clear"
+                        })
+                        .to_string(),
+                    )],
                     tool_call_id: Some(call.id.clone()),
                     name: Some(call.function.name.clone()),
                     ..Default::default()

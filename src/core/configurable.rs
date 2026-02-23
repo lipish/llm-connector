@@ -206,10 +206,7 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
             .map(|template| template.replace("{base_url}", base_url.trim_end_matches('/')))
     }
 
-    fn build_request(
-        &self,
-        request: &ChatRequest,
-    ) -> Result<Self::Request, LlmConnectorError> {
+    fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         self.inner.build_request(request)
     }
 
@@ -346,12 +343,15 @@ mod tests {
         let protocol = ConfigurableProtocol::new(OpenAIProtocol::new("sk-test"), config);
         let headers = protocol.auth_headers();
 
-        assert!(headers
-            .iter()
-            .any(|(k, v)| k == "X-Custom-Header" && v == "value"));
-        assert!(headers
-            .iter()
-            .any(|(k, v)| k == "X-Another-Header" && v == "value2"));
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "X-Custom-Header" && v == "value")
+        );
+        assert!(
+            headers
+                .iter()
+                .any(|(k, v)| k == "X-Another-Header" && v == "value2")
+        );
     }
 }
-

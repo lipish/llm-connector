@@ -96,4 +96,3 @@ async fn test_ollama_fetch_models_unsupported() {
     // Fails when local Ollama server is not running
     assert!(result.is_err());
 }
-

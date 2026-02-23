@@ -7,16 +7,16 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Role, Usage, Choice, Message};
-use async_trait::async_trait;
-use chrono::Utc;
-use hmac::{Hmac, Mac};
-use sha2::{Digest, Sha256};
-use serde::{Deserialize, Serialize};
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
+use async_trait::async_trait;
+use chrono::Utc;
 #[cfg(feature = "streaming")]
 use futures_util::StreamExt;
+use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -43,7 +43,13 @@ impl TencentNativeProtocol {
     }
 
     /// Calculate TC3-HMAC-SHA256 signature
-    pub fn calculate_signature(&self, host: &str, payload: &str, timestamp: i64, date: &str) -> Result<String, LlmConnectorError> {
+    pub fn calculate_signature(
+        &self,
+        host: &str,
+        payload: &str,
+        timestamp: i64,
+        date: &str,
+    ) -> Result<String, LlmConnectorError> {
         let service = "hunyuan";
         let algorithm = "TC3-HMAC-SHA256";
 
@@ -53,11 +59,11 @@ impl TencentNativeProtocol {
         let canonical_query_string = "";
         let canonical_headers = format!("content-type:application/json\nhost:{}\n", host);
         let signed_headers = "content-type;host";
-        
+
         let mut hasher = Sha256::new();
         hasher.update(payload);
         let hashed_request_payload = hex::encode(hasher.finalize());
-        
+
         let canonical_request = format!(
             "{}\n{}\n{}\n{}\n{}\n{}",
             http_request_method,
@@ -70,17 +76,14 @@ impl TencentNativeProtocol {
 
         // 2. String to sign
         let credential_scope = format!("{}/{}/tc3_request", date, service);
-        
+
         let mut hasher = Sha256::new();
         hasher.update(canonical_request.as_bytes());
         let hashed_canonical_request = hex::encode(hasher.finalize());
-        
+
         let string_to_sign = format!(
             "{}\n{}\n{}\n{}",
-            algorithm,
-            timestamp,
-            credential_scope,
-            hashed_canonical_request
+            algorithm, timestamp, credential_scope, hashed_canonical_request
         );
 
         // 3. Calculate Signature
@@ -88,17 +91,13 @@ impl TencentNativeProtocol {
         let k_date = hmac_sha256(k_key.as_bytes(), date.as_bytes())?;
         let k_service = hmac_sha256(&k_date, service.as_bytes())?;
         let k_signing = hmac_sha256(&k_service, "tc3_request".as_bytes())?;
-        
+
         let signature = hex::encode(hmac_sha256(&k_signing, string_to_sign.as_bytes())?);
 
         // 4. Build Authorization Header
         Ok(format!(
             "{} Credential={}/{}, SignedHeaders={}, Signature={}",
-            algorithm,
-            self.secret_id,
-            credential_scope,
-            signed_headers,
-            signature
+            algorithm, self.secret_id, credential_scope, signed_headers, signature
         ))
     }
 }
@@ -122,10 +121,10 @@ impl Protocol for TencentNativeProtocol {
     fn chat_endpoint(&self, _base_url: &str) -> String {
         // Native API uses a fixed endpoint usually, but we respect base_url if provided
         // Official endpoint: https://hunyuan.tencentcloudapi.com
-        if _base_url.is_empty() || _base_url == "https://api.openai.com" { 
-             "https://hunyuan.tencentcloudapi.com".to_string()
+        if _base_url.is_empty() || _base_url == "https://api.openai.com" {
+            "https://hunyuan.tencentcloudapi.com".to_string()
         } else {
-             _base_url.to_string()
+            _base_url.to_string()
         }
     }
 
@@ -138,15 +137,19 @@ impl Protocol for TencentNativeProtocol {
         // Convert to Tencent format
         Ok(TencentRequest {
             model: Some(request.model.clone()),
-            messages: request.messages.iter().map(|m| TencentMessage {
-                role: match m.role {
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    Role::System => "system".to_string(),
-                    _ => "user".to_string(),
-                },
-                content: m.content_as_text(),
-            }).collect(),
+            messages: request
+                .messages
+                .iter()
+                .map(|m| TencentMessage {
+                    role: match m.role {
+                        Role::User => "user".to_string(),
+                        Role::Assistant => "assistant".to_string(),
+                        Role::System => "system".to_string(),
+                        _ => "user".to_string(),
+                    },
+                    content: m.content_as_text(),
+                })
+                .collect(),
             temperature: request.temperature,
             top_p: request.top_p,
             stream: request.stream,
@@ -157,14 +160,19 @@ impl Protocol for TencentNativeProtocol {
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
         let resp: TencentResponse = serde_json::from_str(response)
             .map_err(|e| LlmConnectorError::InvalidRequest(format!("Parse error: {}", e)))?;
-            
+
         if let Some(err) = resp.response.error {
-            return Err(LlmConnectorError::ApiError(format!("{}: {}", err.code, err.message)));
+            return Err(LlmConnectorError::ApiError(format!(
+                "{}: {}",
+                err.code, err.message
+            )));
         }
 
         let task = resp.response; // Inner wrapper
-        
-        let content = task.choices.as_ref()
+
+        let content = task
+            .choices
+            .as_ref()
             .and_then(|c| c.first())
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
@@ -202,85 +210,100 @@ impl Protocol for TencentNativeProtocol {
     }
 
     #[cfg(feature = "streaming")]
-    async fn parse_stream_response(&self, response: reqwest::Response) -> Result<ChatStream, LlmConnectorError> {
+    async fn parse_stream_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<ChatStream, LlmConnectorError> {
         use crate::sse::sse_events;
-        use crate::types::{StreamingResponse, StreamingChoice, Delta};
+        use crate::types::{Delta, StreamingChoice, StreamingResponse};
 
         let event_stream = sse_events(response);
 
-        let stream = event_stream.map(|event_result| {
-            match event_result {
-                Ok(json_str) => {
-                    // Skip [DONE]
-                    if json_str.trim() == "[DONE]" {
-                        return None;
+        let stream = event_stream
+            .map(|event_result| {
+                match event_result {
+                    Ok(json_str) => {
+                        // Skip [DONE]
+                        if json_str.trim() == "[DONE]" {
+                            return None;
+                        }
+
+                        // Parse Tencent-specific PascalCase JSON
+                        match serde_json::from_str::<TencentStreamingResponse>(&json_str) {
+                            Ok(tencent_resp) => {
+                                let content = tencent_resp
+                                    .choices
+                                    .first()
+                                    .and_then(|c| c.delta.content.clone())
+                                    .unwrap_or_default();
+
+                                let role = tencent_resp
+                                    .choices
+                                    .first()
+                                    .and_then(|c| c.delta.role.clone())
+                                    .map(|r| match r.as_str() {
+                                        "user" => Role::User,
+                                        "assistant" => Role::Assistant,
+                                        "system" => Role::System,
+                                        _ => Role::Assistant,
+                                    });
+
+                                let finish_reason = tencent_resp
+                                    .choices
+                                    .first()
+                                    .and_then(|c| c.finish_reason.clone());
+
+                                // Convert to unified StreamingResponse
+                                Some(Ok(StreamingResponse {
+                                    id: tencent_resp.id.unwrap_or_default(),
+                                    object: "chat.completion.chunk".to_string(),
+                                    created: tencent_resp
+                                        .created
+                                        .unwrap_or_else(|| Utc::now().timestamp())
+                                        as u64,
+                                    model: "hunyuan".to_string(),
+                                    choices: vec![StreamingChoice {
+                                        index: 0,
+                                        delta: Delta {
+                                            role,
+                                            content: Some(content.clone()),
+                                            tool_calls: None,
+                                            reasoning_content: None,
+                                            reasoning: None,
+                                            thought: None,
+                                            thinking: None,
+                                        },
+                                        finish_reason,
+                                        logprobs: None,
+                                    }],
+                                    content, // Convenience field
+                                    usage: tencent_resp.usage.map(|u| Usage {
+                                        prompt_tokens: u.prompt_tokens as u32,
+                                        completion_tokens: u.completion_tokens as u32,
+                                        total_tokens: u.total_tokens as u32,
+                                        prompt_cache_hit_tokens: None,
+                                        prompt_cache_miss_tokens: None,
+                                        prompt_tokens_details: None,
+                                        completion_tokens_details: None,
+                                    }),
+                                    reasoning_content: None,
+                                    system_fingerprint: None,
+                                }))
+                            }
+                            Err(e) => Some(Err(LlmConnectorError::ParseError(format!(
+                                "Failed to parse Tencent stream chunk: {} | Original: {}",
+                                e, json_str
+                            )))),
+                        }
                     }
-
-                    // Parse Tencent-specific PascalCase JSON
-                    match serde_json::from_str::<TencentStreamingResponse>(&json_str) {
-                        Ok(tencent_resp) => {
-                            let content = tencent_resp.choices.first()
-                                .and_then(|c| c.delta.content.clone())
-                                .unwrap_or_default();
-                            
-                            let role = tencent_resp.choices.first()
-                                .and_then(|c| c.delta.role.clone())
-                                .map(|r| match r.as_str() {
-                                    "user" => Role::User,
-                                    "assistant" => Role::Assistant,
-                                    "system" => Role::System,
-                                    _ => Role::Assistant,
-                                });
-
-                             let finish_reason = tencent_resp.choices.first()
-                                .and_then(|c| c.finish_reason.clone());
-
-                            // Convert to unified StreamingResponse
-                            Some(Ok(StreamingResponse {
-                                id: tencent_resp.id.unwrap_or_default(),
-                                object: "chat.completion.chunk".to_string(),
-                                created: tencent_resp.created.unwrap_or_else(|| Utc::now().timestamp()) as u64,
-                                model: "hunyuan".to_string(),
-                                choices: vec![StreamingChoice {
-                                    index: 0,
-                                    delta: Delta {
-                                        role,
-                                        content: Some(content.clone()),
-                                        tool_calls: None,
-                                        reasoning_content: None,
-                                        reasoning: None,
-                                        thought: None,
-                                        thinking: None,
-                                    },
-                                    finish_reason,
-                                    logprobs: None,
-                                }],
-                                content, // Convenience field
-                                usage: tencent_resp.usage.map(|u| Usage {
-                                    prompt_tokens: u.prompt_tokens as u32,
-                                    completion_tokens: u.completion_tokens as u32,
-                                    total_tokens: u.total_tokens as u32,
-                                    prompt_cache_hit_tokens: None,
-                                    prompt_cache_miss_tokens: None,
-                                    prompt_tokens_details: None,
-                                    completion_tokens_details: None,
-                                }),
-                                reasoning_content: None,
-                                system_fingerprint: None,
-                            }))
-                        },
-                        Err(e) => Some(Err(LlmConnectorError::ParseError(format!("Failed to parse Tencent stream chunk: {} | Original: {}", e, json_str)))),
-                    }
-                },
-                Err(e) => Some(Err(e)),
-            }
-        })
-        .filter_map(|x| std::future::ready(x));
+                    Err(e) => Some(Err(e)),
+                }
+            })
+            .filter_map(|x| std::future::ready(x));
 
         Ok(Box::pin(stream))
     }
 }
-
 
 // Internal Types
 #[derive(Debug, Serialize, Deserialize)]

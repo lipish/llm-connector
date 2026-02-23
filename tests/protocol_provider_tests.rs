@@ -3,7 +3,7 @@
 //! Tests for protocol implementations and provider adapters.
 
 use llm_connector::{
-    Protocol, OpenAIProtocol, AnthropicProtocol, ZhipuProtocol,
+    AnthropicProtocol, OpenAIProtocol, Protocol, ZhipuProtocol,
     types::{ChatRequest, Message, MessageBlock, Role},
 };
 
@@ -26,14 +26,26 @@ fn test_protocol_creation() {
 fn test_protocol_endpoints() {
     let openai_protocol = OpenAIProtocol::new("test-key");
     let base_url = "https://api.openai.com";
-    assert!(openai_protocol.chat_endpoint(base_url).contains("chat/completions"));
+    assert!(
+        openai_protocol
+            .chat_endpoint(base_url)
+            .contains("chat/completions")
+    );
 
     let anthropic_protocol = AnthropicProtocol::new("sk-ant-test");
     let base_url = "https://api.anthropic.com";
-    assert!(anthropic_protocol.chat_endpoint(base_url).contains("messages"));
+    assert!(
+        anthropic_protocol
+            .chat_endpoint(base_url)
+            .contains("messages")
+    );
 
     let zhipu_protocol = ZhipuProtocol::new("test-key");
-    assert!(zhipu_protocol.chat_endpoint("https://open.bigmodel.cn").contains("chat/completions"));
+    assert!(
+        zhipu_protocol
+            .chat_endpoint("https://open.bigmodel.cn")
+            .contains("chat/completions")
+    );
 }
 
 #[test]
