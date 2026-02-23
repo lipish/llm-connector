@@ -238,7 +238,9 @@ impl Protocol for AliyunProtocol {
                 index: 0,
                 message: crate::types::Message {
                     role: Role::Assistant,
-                    content: vec![crate::types::MessageBlock::text(&first_choice.message.content)],
+                    content: vec![crate::types::MessageBlock::text(
+                        &first_choice.message.content,
+                    )],
                     name: None,
                     // Extract tool_calls from Aliyun response
                     tool_calls: first_choice.message.tool_calls.clone(),
