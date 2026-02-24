@@ -38,7 +38,7 @@ export default defineConfig({
       { text: 'Blog', link: '/blog/' },
       { text: 'Dev', link: '/dev/' },
       {
-        text: 'v0.7.1',
+        text: 'v0.7.2',
         items: [
           { text: 'Changelog', link: 'https://github.com/lipish/llm-connector/blob/main/CHANGELOG.md' },
           { text: 'Contributing', link: '/guide/contributing' }

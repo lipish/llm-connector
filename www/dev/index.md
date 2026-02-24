@@ -2,7 +2,14 @@
 
 Here you can find the current development status and recent updates for `llm-connector`.
 
-## Current Version: 0.7.1
+## Current Version: 0.7.2
+
+### [0.7.2] - 2026-02-24
+
+#### 📝 Documentation
+
+- Added comprehensive changelog and development status to website
+- Updated website configuration with new development section
 
 ### [0.7.1] - 2026-02-23
 

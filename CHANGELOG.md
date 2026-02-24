@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2026-02-24
+
+### 📝 Documentation
+
+- Added comprehensive changelog and development status to website
+- Updated website configuration with new development section
+
 ## [0.7.1] - 2026-02-23
 
 ### 🔧 Maintenance
