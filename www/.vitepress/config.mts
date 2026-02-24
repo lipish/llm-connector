@@ -36,8 +36,9 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Examples', link: '/examples/' },
       { text: 'Blog', link: '/blog/' },
+      { text: 'Dev', link: '/dev/' },
       {
-        text: 'v0.6.1',
+        text: 'v0.7.1',
         items: [
           { text: 'Changelog', link: 'https://github.com/lipish/llm-connector/blob/main/CHANGELOG.md' },
           { text: 'Contributing', link: '/guide/contributing' }
@@ -46,6 +47,14 @@ export default defineConfig({
     ],
 
     sidebar: {
+      '/dev/': [
+        {
+          text: 'Development',
+          items: [
+            { text: 'Status', link: '/dev/' }
+          ]
+        }
+      ],
       '/guide/': [
         {
           text: 'Introduction',
