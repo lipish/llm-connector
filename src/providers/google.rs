@@ -272,31 +272,35 @@ impl From<&ChatRequest> for GoogleRequest {
             .messages
             .iter()
             .map(|msg| {
-                let parts = msg.content.iter().map(|block| match block {
-                    MessageBlock::Text { text } => GooglePart::Text { text: text.clone() },
-                    MessageBlock::Image { source } => match source {
-                        ImageSource::Base64 { media_type, data } => GooglePart::InlineData {
+                let parts = msg
+                    .content
+                    .iter()
+                    .map(|block| match block {
+                        MessageBlock::Text { text } => GooglePart::Text { text: text.clone() },
+                        MessageBlock::Image {
+                            source: ImageSource::Base64 { media_type, data },
+                        } => GooglePart::InlineData {
                             inline_data: GoogleInlineData {
                                 mime_type: media_type.clone(),
                                 data: data.clone(),
+                            },
+                        },
+                        MessageBlock::Image { .. } => GooglePart::Text {
+                            text: "".to_string(),
+                        },
+                        MessageBlock::Document { source } => match source {
+                            DocumentSource::Base64 { media_type, data } => GooglePart::InlineData {
+                                inline_data: GoogleInlineData {
+                                    mime_type: media_type.clone(),
+                                    data: data.clone(),
+                                },
                             },
                         },
                         _ => GooglePart::Text {
                             text: "".to_string(),
                         },
-                    },
-                    MessageBlock::Document { source } => match source {
-                        DocumentSource::Base64 { media_type, data } => GooglePart::InlineData {
-                            inline_data: GoogleInlineData {
-                                mime_type: media_type.clone(),
-                                data: data.clone(),
-                            },
-                        },
-                    },
-                    _ => GooglePart::Text {
-                        text: "".to_string(),
-                    },
-                }).collect();
+                    })
+                    .collect();
 
                 GoogleContent {
                     role: match msg.role {
@@ -428,7 +432,7 @@ impl From<GoogleResponse> for ChatResponse {
                 message: Message::assistant(""),
                 finish_reason: None,
                 logprobs: None,
-                }
+            }
         };
 
         let usage = value.usage_metadata.map(|u| Usage {
@@ -492,7 +496,7 @@ mod tests {
             .with_enable_thinking(true);
 
         let google_req = GoogleRequest::from(&req);
-        
+
         // Verify thinking_config is set
         assert!(google_req.generation_config.is_some());
         let config = google_req.generation_config.unwrap();
@@ -507,7 +511,7 @@ mod tests {
             .with_enable_thinking(false);
 
         let google_req = GoogleRequest::from(&req);
-        
+
         // Verify thinking_config is set to false
         assert!(google_req.generation_config.is_some());
         let config = google_req.generation_config.unwrap();
@@ -517,11 +521,10 @@ mod tests {
 
     #[test]
     fn test_google_thinking_config_none() {
-        let req = ChatRequest::new("gemini-2.0-flash")
-            .add_message(Message::user("test"));
+        let req = ChatRequest::new("gemini-2.0-flash").add_message(Message::user("test"));
 
         let google_req = GoogleRequest::from(&req);
-        
+
         // Verify thinking_config is NOT set
         assert!(google_req.generation_config.is_some());
         let config = google_req.generation_config.unwrap();

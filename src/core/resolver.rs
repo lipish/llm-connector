@@ -53,6 +53,12 @@ pub struct EnvVarResolver {
     mappings: HashMap<String, String>,
 }
 
+impl Default for EnvVarResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EnvVarResolver {
     pub fn new() -> Self {
         let mut mappings = HashMap::new();
@@ -64,7 +70,8 @@ impl EnvVarResolver {
     }
 
     pub fn with_mapping(mut self, prefix: &str, env_var: &str) -> Self {
-        self.mappings.insert(prefix.to_string(), env_var.to_string());
+        self.mappings
+            .insert(prefix.to_string(), env_var.to_string());
         self
     }
 }

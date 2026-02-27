@@ -1,5 +1,8 @@
-use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 use llm_connector::core::{EnvVarResolver, ServiceResolver};
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Message},
+};
 use std::error::Error;
 
 #[tokio::main]
@@ -14,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // 2. Resolve target (simulated)
     let model_name = "claude-3-opus-20240229";
     let target = resolver.resolve(model_name).await?;
-    
+
     println!("Resolved Target:");
     println!("  Model: {}", target.model);
     println!("  Key Found: {}", target.api_key.is_some());
@@ -24,8 +27,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // We use a dummy key here because we'll override it per-request
     let client = LlmClient::openai("sk-placeholder")?;
 
-    let mut request = ChatRequest::new(&target.model)
-        .add_message(Message::user("Hello via dynamic routing!"));
+    let mut request =
+        ChatRequest::new(&target.model).add_message(Message::user("Hello via dynamic routing!"));
 
     // Apply overrides
     if let Some(key) = target.api_key {

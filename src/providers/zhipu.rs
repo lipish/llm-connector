@@ -383,7 +383,8 @@ impl Protocol for ZhipuProtocol {
 
         // Use new robust text stream creator with NDJSON mode (single newline separator)
         // Zhipu's "SSE" is actually more like NDJSON where each line starts with "data:"
-        let events_stream = crate::sse::create_text_stream(response, crate::sse::StreamFormat::NdJson);
+        let events_stream =
+            crate::sse::create_text_stream(response, crate::sse::StreamFormat::NdJson);
 
         // Convert JSON string stream to StreamingResponse stream
         // Use state machine to handle Zhipu ###Thinking and ###Response markers

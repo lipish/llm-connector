@@ -158,11 +158,11 @@ impl ChatRequest {
     /// If the last message is a User message, appends the block to it.
     /// Otherwise, creates a new User message with this block.
     pub fn add_message_block(mut self, block: super::message_block::MessageBlock) -> Self {
-        if let Some(last) = self.messages.last_mut() {
-            if last.role == Role::User {
-                last.content.push(block);
-                return self;
-            }
+        if let Some(last) = self.messages.last_mut()
+            && last.role == Role::User
+        {
+            last.content.push(block);
+            return self;
         }
         self.messages.push(Message::new(Role::User, vec![block]));
         self

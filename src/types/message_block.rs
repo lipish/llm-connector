@@ -151,11 +151,13 @@ impl MessageBlock {
     pub fn from_file_path(path: impl AsRef<std::path::Path>) -> std::io::Result<Self> {
         let path = path.as_ref();
         let bytes = std::fs::read(path)?;
-        let mime = mime_guess::from_path(path).first_or_octet_stream().to_string();
-        
+        let mime = mime_guess::from_path(path)
+            .first_or_octet_stream()
+            .to_string();
+
         use base64::{Engine as _, engine::general_purpose::STANDARD};
         let b64 = STANDARD.encode(bytes);
-        
+
         if mime.starts_with("image/") {
             Ok(Self::image_base64(mime, b64))
         } else {
@@ -229,10 +231,7 @@ pub struct ImageUrl {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum DocumentSource {
-    Base64 {
-        media_type: String,
-        data: String,
-    },
+    Base64 { media_type: String, data: String },
 }
 
 #[cfg(test)]

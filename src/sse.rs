@@ -60,7 +60,9 @@ pub fn create_text_stream(
                         if state.detected_format.is_none() {
                             if state.buffer.contains("data:") {
                                 state.detected_format = Some(StreamFormat::Sse);
-                            } else if state.buffer.contains('\n') && state.buffer.trim().starts_with('{') {
+                            } else if state.buffer.contains('\n')
+                                && state.buffer.trim().starts_with('{')
+                            {
                                 state.detected_format = Some(StreamFormat::NdJson);
                             }
                         }
@@ -70,8 +72,9 @@ pub fn create_text_stream(
                                 // SSE processing (split by \n\n)
                                 // Handle edge case where \n\n might be split across chunks
                                 while let Some(boundary_idx) = state.buffer.find("\n\n") {
-                                    let event_str: String = state.buffer.drain(..boundary_idx + 2).collect();
-                                    
+                                    let event_str: String =
+                                        state.buffer.drain(..boundary_idx + 2).collect();
+
                                     // Extract data lines
                                     let mut data_lines = Vec::new();
                                     for line in event_str.split('\n') {
@@ -83,7 +86,7 @@ pub fn create_text_stream(
                                             }
                                         }
                                     }
-                                    
+
                                     if !data_lines.is_empty() {
                                         out.push(Ok(data_lines.join("\n")));
                                     }
@@ -92,9 +95,10 @@ pub fn create_text_stream(
                             Some(StreamFormat::NdJson) => {
                                 // NDJSON processing (split by \n)
                                 while let Some(boundary_idx) = state.buffer.find('\n') {
-                                    let line: String = state.buffer.drain(..boundary_idx + 1).collect();
+                                    let line: String =
+                                        state.buffer.drain(..boundary_idx + 1).collect();
                                     let trimmed = line.trim();
-                                    
+
                                     // Handle "data:" prefix if present (Zhipu style)
                                     let payload = if let Some(p) = trimmed.strip_prefix("data:") {
                                         p.trim()
@@ -206,7 +210,7 @@ fn populate_convenience_fields(response: &mut crate::types::StreamingResponse) {
 #[cfg(feature = "streaming")]
 fn accumulate_tool_calls(
     response: &mut crate::types::StreamingResponse,
-    accumulated: &mut std::collections::HashMap<usize, crate::types::ToolCall>
+    accumulated: &mut std::collections::HashMap<usize, crate::types::ToolCall>,
 ) {
     if let Some(choice) = response.choices.first_mut()
         && let Some(delta_tool_calls) = &choice.delta.tool_calls
@@ -236,13 +240,10 @@ fn accumulate_tool_calls(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use futures_util::StreamExt;
-
     #[tokio::test]
     async fn test_sse_detection() {
         // Mock SSE response
-        let mock_response = "data: {\"test\":1}\n\ndata: {\"test\":2}\n\n";
+        let _mock_response = "data: {\"test\":1}\n\ndata: {\"test\":2}\n\n";
         // In a real test we would need to mock reqwest::Response, but since we can't easily construct one,
         // we'll verify the logic in CreateTextStream via integration tests or by exposing the internal scanner.
     }

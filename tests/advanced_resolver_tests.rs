@@ -3,7 +3,6 @@ use llm_connector::core::{ServiceResolver, ServiceTarget};
 use llm_connector::error::LlmConnectorError;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 // ============================================================================
 // 1. Exact Match Resolver (精确匹配配置表)

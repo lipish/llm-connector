@@ -1,9 +1,12 @@
-use llm_connector::{LlmClient, types::{ChatRequest, Message, ReasoningEffort, Tool, Function, ResponseFormat}};
-use serde_json::json;
-use std::error::Error;
-use std::env;
-use std::io::Write;
 use futures::StreamExt;
+use llm_connector::{
+    LlmClient,
+    types::{ChatRequest, Function, Message, ReasoningEffort, ResponseFormat, Tool},
+};
+use serde_json::json;
+use std::env;
+use std::error::Error;
+use std::io::Write;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -15,7 +18,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let value = value.trim().trim_matches('"');
                 if std::env::var(key).is_err() {
                     // Safe to set env var in single-threaded test context
-                    unsafe { std::env::set_var(key, value); }
+                    unsafe {
+                        std::env::set_var(key, value);
+                    }
                 }
             }
         }
@@ -25,13 +30,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Use the URL from the image as default, but allow override
     let base_url = env::var("GATEWAY_BASE_URL")
         .unwrap_or_else(|_| "http://123.129.219.111:3000/v1".to_string());
-    
-    let api_key = env::var("GATEWAY_API_KEY")
-        .expect("Please set GATEWAY_API_KEY environment variable");
+
+    let api_key =
+        env::var("GATEWAY_API_KEY").expect("Please set GATEWAY_API_KEY environment variable");
 
     println!("--- Gateway Test Configuration ---");
     println!("Base URL: {}", base_url);
-    println!("API Key: {}...", &api_key.chars().take(6).collect::<String>());
+    println!(
+        "API Key: {}...",
+        &api_key.chars().take(6).collect::<String>()
+    );
     println!("--------------------------------\n");
 
     // Create client (using OpenAI compatible mode as the gateway exposes /v1/chat/completions)
@@ -45,15 +53,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Test 1: OpenAI GPT-4o (Non-Reasoning)
     println!("--- Test 1: OpenAI GPT-4o (Standard) ---");
-    let req_gpt4o = ChatRequest::new("gpt-4o")
-        .add_message(Message::user("Hello! Say this is a test."));
-    
+    let req_gpt4o =
+        ChatRequest::new("gpt-4o").add_message(Message::user("Hello! Say this is a test."));
+
     match client.chat(&req_gpt4o).await {
         Ok(res) => {
             println!("✅ Success!");
             println!("Model: {}", res.model);
             println!("Content: {}", res.content);
-        },
+        }
         Err(e) => println!("❌ Failed: {}", e),
     }
     println!();
@@ -69,14 +77,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("✅ Success!");
             println!("Model: {}", res.model);
             println!("Content: {}", res.content);
-        },
+        }
         Err(e) => {
             println!("❌ Failed: {}", e);
             // Print error details if available
             if let llm_connector::error::LlmConnectorError::ApiError(msg) = &e {
                 println!("Details: {}", msg);
             }
-        },
+        }
     }
     println!();
 
@@ -90,13 +98,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Sending request...");
     let start = std::time::Instant::now();
-    
+
     match client.chat(&req_claude_thinking).await {
         Ok(res) => {
             let duration = start.elapsed();
             println!("✅ Success! (Took {:?})", duration);
             println!("Model: {}", res.model);
-            
+
             // Check if reasoning content is present in standard response
             if let Some(reasoning) = res.reasoning_content {
                 println!("[Thinking Process]:\n{}", reasoning);
@@ -108,14 +116,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
             println!("[Final Answer]:\n{}", res.content);
-        },
+        }
         Err(e) => {
             let duration = start.elapsed();
             println!("❌ Failed after {:?}: {}", duration, e);
             if let llm_connector::error::LlmConnectorError::ApiError(msg) = &e {
                 println!("Details: {}", msg);
             }
-        },
+        }
     }
 
     // Test 4: Claude 3.5 Sonnet (Streaming + Thinking) via Gateway
@@ -138,7 +146,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         }
                         print!("{}", chunk.content);
                         std::io::stdout().flush().unwrap();
-                    },
+                    }
                     Err(e) => {
                         println!("\n❌ Stream Error: {}", e);
                         break;
@@ -146,19 +154,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
             println!("\nStream Finished.");
-        },
+        }
         Err(e) => {
             println!("❌ Connection Failed: {}", e);
             if let llm_connector::error::LlmConnectorError::ApiError(msg) = &e {
                 println!("Details: {}", msg);
             }
-        },
+        }
     }
-    
+
     // Test 5: OpenAI o3-mini (Reasoning Effort)
     println!("--- Test 5: OpenAI o3-mini (Reasoning Effort) ---");
     let req_o3 = ChatRequest::new("o3-mini")
-        .add_message(Message::user("Solve this: If A=5, B=A+2, what is A+B? Explain step by step."))
+        .add_message(Message::user(
+            "Solve this: If A=5, B=A+2, what is A+B? Explain step by step.",
+        ))
         .with_reasoning_effort(ReasoningEffort::High);
 
     match client.chat(&req_o3).await {
@@ -166,13 +176,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("✅ Success!");
             println!("Model: {}", res.model);
             println!("Content: {}", res.content);
-        },
+        }
         Err(e) => {
             println!("❌ Failed: {}", e);
             if let llm_connector::error::LlmConnectorError::ApiError(msg) = &e {
                 println!("Details: {}", msg);
             }
-        },
+        }
     }
     println!();
 
@@ -203,18 +213,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let calls = res.tool_calls();
             if !calls.is_empty() {
                 for call in calls {
-                    println!("Tool Call: {} ({})", call.function.name, call.function.arguments);
+                    println!(
+                        "Tool Call: {} ({})",
+                        call.function.name, call.function.arguments
+                    );
                 }
             } else {
                 println!("⚠️ No tool calls returned (Unexpected)");
             }
-        },
+        }
         Err(e) => {
             println!("❌ Failed: {}", e);
             if let llm_connector::error::LlmConnectorError::ApiError(msg) = &e {
                 println!("Details: {}", msg);
             }
-        },
+        }
     }
     println!();
 
@@ -222,7 +235,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("--- Test 7: OpenAI JSON Mode ---");
     let req_json = ChatRequest::new("gpt-4o")
         .add_message(Message::system("You are a JSON generator."))
-        .add_message(Message::user("Generate a JSON object with keys 'name' and 'age' for a person."))
+        .add_message(Message::user(
+            "Generate a JSON object with keys 'name' and 'age' for a person.",
+        ))
         .with_response_format(ResponseFormat::json_object());
 
     match client.chat(&req_json).await {
@@ -235,13 +250,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             } else {
                 println!("❌ Invalid JSON");
             }
-        },
+        }
         Err(e) => {
             println!("❌ Failed: {}", e);
             if let llm_connector::error::LlmConnectorError::ApiError(msg) = &e {
                 println!("Details: {}", msg);
             }
-        },
+        }
     }
 
     Ok(())

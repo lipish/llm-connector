@@ -3,7 +3,7 @@ use llm_connector::types::{ChatRequest, Message, MessageBlock, Role};
 #[test]
 fn test_add_message_block() {
     let mut req = ChatRequest::new("gpt-4");
-    
+
     // First block creates new user message
     req = req.add_message_block(MessageBlock::text("Hello"));
     assert_eq!(req.messages.len(), 1);
