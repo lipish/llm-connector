@@ -501,7 +501,7 @@ mod tests {
         assert!(google_req.generation_config.is_some());
         let config = google_req.generation_config.unwrap();
         assert!(config.thinking_config.is_some());
-        assert_eq!(config.thinking_config.unwrap().include_thoughts, true);
+        assert!(config.thinking_config.unwrap().include_thoughts);
     }
 
     #[test]
@@ -516,7 +516,7 @@ mod tests {
         assert!(google_req.generation_config.is_some());
         let config = google_req.generation_config.unwrap();
         assert!(config.thinking_config.is_some());
-        assert_eq!(config.thinking_config.unwrap().include_thoughts, false);
+        assert!(!config.thinking_config.unwrap().include_thoughts);
     }
 
     #[test]
