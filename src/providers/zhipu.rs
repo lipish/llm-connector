@@ -262,6 +262,10 @@ impl Protocol for ZhipuProtocol {
                                 "type": "image_url",
                                 "image_url": { "url": image_url.url }
                             }),
+                            MessageBlock::Document { .. } => json!({
+                                "type": "text",
+                                "text": "[Document content not supported by Zhipu provider]"
+                            }),
                         }
                     }).collect();
                     json!(blocks)
@@ -377,54 +381,9 @@ impl Protocol for ZhipuProtocol {
         use crate::types::StreamingResponse;
         use futures_util::StreamExt;
 
-        let stream = response.bytes_stream();
-
-        let events_stream = stream
-            .scan(String::new(), |buffer, chunk_result| {
-                let mut out: Vec<Result<String, LlmConnectorError>> = Vec::new();
-                match chunk_result {
-                    Ok(chunk) => {
-                        let chunk_str = String::from_utf8_lossy(&chunk).replace("\r\n", "\n");
-                        buffer.push_str(&chunk_str);
-
-                        // Zhipu uses single newline to separate each data: line
-                        while let Some(newline_idx) = buffer.find('\n') {
-                            let line: String = buffer.drain(..newline_idx + 1).collect();
-                            let trimmed = line.trim();
-
-                            // Skip empty lines
-                            if trimmed.is_empty() {
-                                continue;
-                            }
-
-                            // Extract content after data:
-                            if let Some(payload) = trimmed
-                                .strip_prefix("data: ")
-                                .or_else(|| trimmed.strip_prefix("data:"))
-                            {
-                                let payload = payload.trim();
-
-                                // Skip [DONE] marker
-                                if payload == "[DONE]" {
-                                    continue;
-                                }
-
-                                // Skip empty payload
-                                if payload.is_empty() {
-                                    continue;
-                                }
-
-                                out.push(Ok(payload.to_string()));
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        out.push(Err(LlmConnectorError::NetworkError(e.to_string())));
-                    }
-                }
-                std::future::ready(Some(out))
-            })
-            .flat_map(futures_util::stream::iter);
+        // Use new robust text stream creator with NDJSON mode (single newline separator)
+        // Zhipu's "SSE" is actually more like NDJSON where each line starts with "data:"
+        let events_stream = crate::sse::create_text_stream(response, crate::sse::StreamFormat::NdJson);
 
         // Convert JSON string stream to StreamingResponse stream
         // Use state machine to handle Zhipu ###Thinking and ###Response markers

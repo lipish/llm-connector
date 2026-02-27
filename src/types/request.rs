@@ -17,6 +17,15 @@ pub enum Role {
     Tool,
 }
 
+/// Reasoning effort for models that support it (e.g. OpenAI o1)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
+}
+
 /// Chat completion request
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ChatRequest {
@@ -85,24 +94,32 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enable_thinking: Option<bool>,
 
+    /// Reasoning effort (e.g., for O1)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffort>,
+
+    /// Thinking budget in tokens (e.g., for Claude 3.7)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_budget: Option<u32>,
+
     /// Per-request API key override (for multi-tenant routing)
     ///
     /// When set, overrides the client's API key for this request.
     /// Applied to both `Authorization: Bearer` and `x-api-key` headers.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing)]
     pub api_key: Option<String>,
 
     /// Per-request base URL override (for multi-tenant routing)
     ///
     /// When set, overrides the client's base URL for this request.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing)]
     pub base_url: Option<String>,
 
     /// Per-request custom headers (e.g. `X-Trace-Id`, `anthropic-version`)
     ///
     /// When set, these headers are merged with the request. Values here
     /// override default provider headers for the same keys.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing)]
     pub extra_headers: Option<HashMap<String, String>>,
 }
 
@@ -133,6 +150,21 @@ impl ChatRequest {
     /// Add a single message to the request
     pub fn add_message(mut self, message: Message) -> Self {
         self.messages.push(message);
+        self
+    }
+
+    /// Add a content block to the last message (or create new user message)
+    ///
+    /// If the last message is a User message, appends the block to it.
+    /// Otherwise, creates a new User message with this block.
+    pub fn add_message_block(mut self, block: super::message_block::MessageBlock) -> Self {
+        if let Some(last) = self.messages.last_mut() {
+            if last.role == Role::User {
+                last.content.push(block);
+                return self;
+            }
+        }
+        self.messages.push(Message::new(Role::User, vec![block]));
         self
     }
 
@@ -213,6 +245,18 @@ impl ChatRequest {
     /// For Aliyun: Enables reasoning content for hybrid models
     pub fn with_enable_thinking(mut self, enable: bool) -> Self {
         self.enable_thinking = Some(enable);
+        self
+    }
+
+    /// Set the reasoning effort
+    pub fn with_reasoning_effort(mut self, effort: ReasoningEffort) -> Self {
+        self.reasoning_effort = Some(effort);
+        self
+    }
+
+    /// Set the thinking budget (tokens)
+    pub fn with_thinking_budget(mut self, budget: u32) -> Self {
+        self.thinking_budget = Some(budget);
         self
     }
 

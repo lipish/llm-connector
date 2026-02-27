@@ -86,14 +86,32 @@ impl Protocol for AnthropicProtocol {
             }
         }
 
+        // Handle thinking/budget
+        let mut max_tokens = request.max_tokens.unwrap_or(1024);
+        let thinking = if let Some(budget) = request.thinking_budget {
+            // If budget is set, enable thinking
+            // Ensure max_tokens is larger than budget (Anthropic requirement)
+            if max_tokens <= budget {
+                // If user didn't set enough max_tokens, bump it
+                max_tokens = budget + 4096;
+            }
+            Some(AnthropicThinking {
+                thinking_type: "enabled".to_string(),
+                budget_tokens: budget,
+            })
+        } else {
+            None
+        };
+
         Ok(AnthropicRequest {
             model: request.model.clone(),
-            max_tokens: request.max_tokens.unwrap_or(1024), // Anthropic requires this to be set
+            max_tokens,
             messages,
             system: system_message,
             temperature: request.temperature,
             top_p: request.top_p,
             stream: request.stream,
+            thinking,
         })
     }
 
@@ -228,8 +246,8 @@ impl Protocol for AnthropicProtocol {
         use futures_util::StreamExt;
         use std::sync::{Arc, Mutex};
 
-        // Use standard SSE parser
-        let events_stream = crate::sse::sse_events(response);
+        // Use standard SSE parser with Auto format detection (Anthropic uses standard SSE)
+        let events_stream = crate::sse::create_text_stream(response, crate::sse::StreamFormat::Sse);
 
         // Shared state: save message_id
         let message_id = Arc::new(Mutex::new(String::new()));
@@ -405,6 +423,15 @@ pub struct AnthropicRequest {
     pub top_p: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<AnthropicThinking>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct AnthropicThinking {
+    #[serde(rename = "type")]
+    pub thinking_type: String,
+    pub budget_tokens: u32,
 }
 
 #[derive(Serialize, Debug)]

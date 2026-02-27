@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-02-27
+
+### 🚀 Major Features
+
+- **Full OpenAI Protocol Compatibility**:
+  - Validated support for **OpenAI o3-mini** with `ReasoningEffort`.
+  - Validated **Claude 3.7 Thinking** models via OpenAI-compatible gateways.
+  - Verified **Function Calling** and **JSON Mode** support.
+  - Added comprehensive test suite `test_gateway_proxy` covering standard chat, reasoning, streaming, tools, and structured output.
+
+- **Dynamic Service Resolution (Gateway Mode)**
+  - Introduced `ServiceResolver` trait for dynamic endpoint/key resolution.
+  - Request-level overrides via `ChatRequest::with_api_key()` and `with_base_url()`.
+  - Enables high-performance gateway scenarios with connection pooling.
+
+- **Reasoning & Thinking Support**
+  - Unified support for reasoning models (Claude 3.7, OpenAI o1/o3, Gemini 2.0).
+  - Added `reasoning_effort` (Low/Medium/High) and `thinking_budget` parameters.
+  - Automatic handling of provider-specific parameters (e.g., `thinking` for Anthropic).
+
+- **Robust Streaming Engine**
+  - Completely rewritten SSE parser in `src/sse.rs`.
+  - Auto-detection of stream formats: Standard SSE, NDJSON (Ollama), and Hybrid SSE (Zhipu).
+  - Improved resilience against network jitter and packet fragmentation.
+
+- **Developer Experience (DX)**
+  - `MessageBlock::from_file_path()` for one-line file/image uploads.
+  - Automatic MIME type detection and Base64 encoding.
+
+### 🔧 Improvements
+
+- **Refactored Architecture**: Clear separation of "Driver Layer" (llm-connector) and "Gateway Layer".
+- **Documentation**: Updated README with new features and architectural diagrams.
+
 ## [0.7.2] - 2026-02-24
 
 ### 📝 Documentation

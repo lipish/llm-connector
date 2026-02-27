@@ -4,7 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, ReasoningEffort, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -129,6 +129,7 @@ impl Protocol for OpenAIProtocol {
             tools,
             tool_choice,
             response_format,
+            reasoning_effort: request.reasoning_effort,
         })
     }
 
@@ -297,6 +298,13 @@ impl Protocol for OpenAIProtocol {
             ("Content-Type".to_string(), "application/json".to_string()),
         ]
     }
+    #[cfg(feature = "streaming")]
+    async fn parse_stream_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        Ok(crate::sse::sse_to_streaming_response(response))
+    }
 }
 
 // OpenAIrequesttype
@@ -322,6 +330,8 @@ pub struct OpenAIRequest {
     pub tool_choice: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffort>,
 }
 
 #[derive(Serialize, Debug)]

@@ -261,7 +261,10 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
         &self,
         response: reqwest::Response,
     ) -> Result<ChatStream, LlmConnectorError> {
-        self.inner.parse_stream_response(response).await
+        // Automatically detect stream format based on content-type or body inspection
+        // This makes ConfigurableProtocol robust for all OpenAI-compatible providers
+        // even if they use NDJSON (like Ollama) or non-standard SSE.
+        Ok(crate::sse::sse_to_streaming_response(response))
     }
 }
 

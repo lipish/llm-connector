@@ -93,16 +93,25 @@ pub trait Provider: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
 
-/// Build per-request header overrides from ChatRequest (api_key + extra_headers)
+/// Helper to build request overrides map
 fn build_request_overrides(request: &ChatRequest) -> HashMap<String, String> {
     let mut overrides = HashMap::new();
+    
+    // 1. API Key override
     if let Some(ref key) = request.api_key {
+        // Most providers use Bearer token, but some use x-api-key.
+        // We set both common headers here to cover most cases.
+        // Providers that need specific handling should implement custom logic.
         overrides.insert("Authorization".to_string(), format!("Bearer {}", key));
         overrides.insert("x-api-key".to_string(), key.clone());
+        overrides.insert("api-key".to_string(), key.clone()); // Azure style
     }
+    
+    // 2. Extra headers override
     if let Some(ref extra) = request.extra_headers {
         overrides.extend(extra.clone());
     }
+    
     overrides
 }
 
@@ -131,6 +140,18 @@ impl<P: Protocol> GenericProvider<P> {
     pub fn client(&self) -> &super::HttpClient {
         &self.client
     }
+    
+    /// Resolve final endpoint URL
+    fn resolve_endpoint(&self, request: &ChatRequest, endpoint_template: String) -> String {
+        // Use request-level base_url override if present, otherwise client default
+        let base_url = request
+            .base_url
+            .as_deref()
+            .unwrap_or_else(|| self.client.base_url())
+            .trim_end_matches('/');
+            
+        endpoint_template.replace("{base_url}", base_url)
+    }
 }
 
 impl<P: Protocol> Clone for GenericProvider<P> {
@@ -150,13 +171,20 @@ impl<P: Protocol> Provider for GenericProvider<P> {
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         let protocol_request = self.protocol.build_request(request)?;
+        
+        // Dynamic endpoint resolution
+        // Note: We use a placeholder base_url here because actual resolution happens inside resolve_endpoint
+        // But protocol.chat_endpoint() expects a base_url string.
+        // So we need to determine base_url first.
         let base_url = request
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
+            
         let url = self.protocol.chat_endpoint(base_url);
         let overrides = build_request_overrides(request);
 
+        // Execute request with overrides
         let response = if overrides.is_empty() {
             self.client.post(&url, &protocol_request).await?
         } else {
@@ -164,6 +192,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
                 .post_with_overrides(&url, &protocol_request, &overrides)
                 .await?
         };
+
         let status = response.status();
         let text = response
             .text()
@@ -171,7 +200,14 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
 
         if !status.is_success() {
-            return Err(self.protocol.map_error(status.as_u16(), &text));
+            // Try to parse detailed error from JSON body
+            let error_detail = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                format!("HTTP {} - Body: {}", status, json)
+            } else {
+                format!("HTTP {} - Body: {}", status, text)
+            };
+            
+            return Err(self.protocol.map_error(status.as_u16(), &error_detail));
         }
         self.protocol.parse_response(&text)
     }
@@ -182,10 +218,12 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         streaming_request.stream = Some(true);
 
         let protocol_request = self.protocol.build_request(&streaming_request)?;
+        
         let base_url = request
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
+            
         let url = self.protocol.chat_endpoint(base_url);
         let overrides = build_request_overrides(request);
 
@@ -196,6 +234,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
                 .stream_with_overrides(&url, &protocol_request, &overrides)
                 .await?
         };
+        
         let status = response.status();
 
         if !status.is_success() {

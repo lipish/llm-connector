@@ -94,6 +94,64 @@ let request = ChatRequest::new("gpt-4")
 let response = client.chat(&request).await?;
 ```
 
+## Advanced Features
+
+### Reasoning & Thinking
+
+Support for reasoning models like OpenAI o1/o3 and Claude 3.7 Sonnet.
+
+```rust
+use llm_connector::types::ReasoningEffort;
+
+let request = ChatRequest::new("claude-3-7-sonnet-20250219")
+    .add_message(Message::user("Solve this logic puzzle..."))
+    .with_thinking_budget(16000) // Enable thinking with 16k token budget
+    .with_max_tokens(20000);     // Ensure max_tokens > thinking_budget
+
+let response = client.chat(&request).await?;
+```
+
+### Dynamic Service Resolution
+
+Resolve API keys and endpoints dynamically based on model name.
+
+```rust
+use llm_connector::core::{EnvVarResolver, ServiceResolver};
+
+let resolver = EnvVarResolver::new()
+    .with_mapping("gpt", "OPENAI_API_KEY")
+    .with_mapping("claude", "ANTHROPIC_API_KEY");
+
+let target = resolver.resolve("claude-3-opus").await?;
+// Use target.api_key and target.endpoint to configure your request
+```
+
+### Request Overrides (Gateway Mode)
+
+For gateway scenarios, you can override the API Key and Base URL per request without creating a new client.
+
+```rust
+let request = ChatRequest::new("gpt-4")
+    .with_api_key("sk-new-key") // Override API Key
+    .with_base_url("https://my-gateway/v1"); // Override Endpoint
+
+let response = client.chat(&request).await?;
+```
+
+### File & Image Upload
+
+Easily upload local files (Images, PDFs) with automatic Base64 encoding and MIME type detection.
+
+```rust
+use llm_connector::types::MessageBlock;
+
+let request = ChatRequest::new("claude-3-5-sonnet")
+    .add_message(Message::user("Analyze this document"))
+    .add_message_block(MessageBlock::from_file_path("report.pdf")?);
+
+let response = client.chat(&request).await?;
+```
+
 ## Documentation
 
 - [Providers](https://llmconn.com/guide/providers)

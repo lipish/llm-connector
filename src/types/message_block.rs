@@ -33,6 +33,9 @@ pub enum MessageBlock {
 
     /// Image URL block (OpenAI format)
     ImageUrl { image_url: ImageUrl },
+
+    /// Document block (Anthropic format)
+    Document { source: DocumentSource },
 }
 
 impl MessageBlock {
@@ -69,6 +72,16 @@ impl MessageBlock {
     pub fn image_base64(media_type: impl Into<String>, data: impl Into<String>) -> Self {
         Self::Image {
             source: ImageSource::Base64 {
+                media_type: media_type.into(),
+                data: data.into(),
+            },
+        }
+    }
+
+    /// Create document block (Base64)
+    pub fn document_base64(media_type: impl Into<String>, data: impl Into<String>) -> Self {
+        Self::Document {
+            source: DocumentSource::Base64 {
                 media_type: media_type.into(),
                 data: data.into(),
             },
@@ -134,6 +147,22 @@ impl MessageBlock {
         }
     }
 
+    /// Create message block from file path (Image or PDF)
+    pub fn from_file_path(path: impl AsRef<std::path::Path>) -> std::io::Result<Self> {
+        let path = path.as_ref();
+        let bytes = std::fs::read(path)?;
+        let mime = mime_guess::from_path(path).first_or_octet_stream().to_string();
+        
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        let b64 = STANDARD.encode(bytes);
+        
+        if mime.starts_with("image/") {
+            Ok(Self::image_base64(mime, b64))
+        } else {
+            Ok(Self::document_base64(mime, b64))
+        }
+    }
+
     /// Get text content (if is text block)
     ///
     /// # Example
@@ -195,6 +224,15 @@ pub struct ImageUrl {
     /// Optional values: "auto", "low", "high"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DocumentSource {
+    Base64 {
+        media_type: String,
+        data: String,
+    },
 }
 
 #[cfg(test)]

@@ -16,6 +16,14 @@ This directory contains curated usage examples for the `llm-connector` library.
 | `anthropic_streaming.rs` | Anthropic streaming response example | `cargo run --example anthropic_streaming --features streaming` |
 | `volcengine_streaming.rs` | Volcengine streaming example (reasoning models supported) | `cargo run --example volcengine_streaming --features streaming -- <api-key> <endpoint>` |
 
+### New Features (0.6.1+)
+
+| Example File | Description | Run Command |
+|---------|------|----------|
+| `reasoning_thinking.rs` | Reasoning/Thinking model example (Claude 3.7 / o1) | `cargo run --example reasoning_thinking` |
+| `file_upload.rs` | File upload helper example | `cargo run --example file_upload` |
+| `dynamic_routing.rs` | Dynamic service resolution example | `cargo run --example dynamic_routing` |
+
 ### Special Features (4)
 
 | Example File | Description | Run Command |

@@ -5,7 +5,8 @@
 
 use crate::core::{HttpClient, Provider};
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
+use crate::types::{ChatRequest, ChatResponse, Choice, Message, MessageBlock, Role, Usage};
+use crate::types::{DocumentSource, ImageSource};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -146,7 +147,7 @@ impl Provider for GoogleProvider {
                                             .content
                                             .as_ref()
                                             .and_then(|c| c.parts.first())
-                                            .map(|p| p.text.clone())
+                                            .and_then(|p| p.as_text().map(|s| s.to_string()))
                                             .unwrap_or_default();
                                         (text, candidate.finish_reason.clone())
                                     })
@@ -271,20 +272,40 @@ impl From<&ChatRequest> for GoogleRequest {
             .messages
             .iter()
             .map(|msg| {
+                let parts = msg.content.iter().map(|block| match block {
+                    MessageBlock::Text { text } => GooglePart::Text { text: text.clone() },
+                    MessageBlock::Image { source } => match source {
+                        ImageSource::Base64 { media_type, data } => GooglePart::InlineData {
+                            inline_data: GoogleInlineData {
+                                mime_type: media_type.clone(),
+                                data: data.clone(),
+                            },
+                        },
+                        _ => GooglePart::Text {
+                            text: "".to_string(),
+                        },
+                    },
+                    MessageBlock::Document { source } => match source {
+                        DocumentSource::Base64 { media_type, data } => GooglePart::InlineData {
+                            inline_data: GoogleInlineData {
+                                mime_type: media_type.clone(),
+                                data: data.clone(),
+                            },
+                        },
+                    },
+                    _ => GooglePart::Text {
+                        text: "".to_string(),
+                    },
+                }).collect();
+
                 GoogleContent {
                     role: match msg.role {
                         Role::User => "user".to_string(),
                         Role::Assistant => "model".to_string(),
-                        Role::System => "user".to_string(), // Google doesn't have system role in v1beta, usually mapped to user or handled differently.
-                        // Actually v1beta supports system instructions now, but let's stick to simple mapping for now.
-                        // Or map system to "user" with some prefix?
-                        // Newer Gemini models support "system" role? No, usually "user".
-                        // But there is `system_instruction` field in request.
+                        Role::System => "user".to_string(),
                         _ => "user".to_string(),
                     },
-                    parts: vec![GooglePart {
-                        text: msg.content_as_text(),
-                    }],
+                    parts,
                 }
             })
             .collect();
@@ -295,6 +316,9 @@ impl From<&ChatRequest> for GoogleRequest {
                 temperature: req.temperature,
                 top_p: req.top_p,
                 max_output_tokens: req.max_tokens,
+                thinking_config: req.enable_thinking.map(|b| GoogleThinkingConfig {
+                    include_thoughts: b,
+                }),
             }),
         }
     }
@@ -309,9 +333,26 @@ struct GoogleContent {
 }
 
 #[derive(Serialize, Deserialize)]
-struct GooglePart {
-    #[serde(default)]
-    text: String,
+#[serde(untagged)]
+enum GooglePart {
+    Text { text: String },
+    InlineData { inline_data: GoogleInlineData },
+}
+
+impl GooglePart {
+    fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Text { text } => Some(text),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct GoogleInlineData {
+    #[serde(rename = "mimeType")]
+    mime_type: String,
+    data: String,
 }
 
 #[derive(Serialize)]
@@ -322,6 +363,13 @@ struct GoogleGenerationConfig {
     top_p: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     max_output_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking_config: Option<GoogleThinkingConfig>,
+}
+
+#[derive(Serialize)]
+struct GoogleThinkingConfig {
+    include_thoughts: bool,
 }
 
 #[derive(Deserialize)]
@@ -357,7 +405,7 @@ impl From<GoogleResponse> for ChatResponse {
                 let content = candidate
                     .content
                     .and_then(|c| c.parts.into_iter().next())
-                    .map(|p| p.text)
+                    .and_then(|p| p.as_text().map(|s| s.to_string()))
                     .unwrap_or_default();
 
                 Choice {
@@ -380,7 +428,7 @@ impl From<GoogleResponse> for ChatResponse {
                 message: Message::assistant(""),
                 finish_reason: None,
                 logprobs: None,
-            }
+                }
         };
 
         let usage = value.usage_metadata.map(|u| Usage {
@@ -430,4 +478,53 @@ pub fn google_with_config(
     proxy: Option<&str>,
 ) -> Result<GoogleProvider, LlmConnectorError> {
     GoogleProvider::with_config(api_key, base_url, timeout_secs, proxy)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Message;
+
+    #[test]
+    fn test_google_thinking_config() {
+        let req = ChatRequest::new("gemini-2.0-flash")
+            .add_message(Message::user("test"))
+            .with_enable_thinking(true);
+
+        let google_req = GoogleRequest::from(&req);
+        
+        // Verify thinking_config is set
+        assert!(google_req.generation_config.is_some());
+        let config = google_req.generation_config.unwrap();
+        assert!(config.thinking_config.is_some());
+        assert_eq!(config.thinking_config.unwrap().include_thoughts, true);
+    }
+
+    #[test]
+    fn test_google_thinking_config_disabled() {
+        let req = ChatRequest::new("gemini-2.0-flash")
+            .add_message(Message::user("test"))
+            .with_enable_thinking(false);
+
+        let google_req = GoogleRequest::from(&req);
+        
+        // Verify thinking_config is set to false
+        assert!(google_req.generation_config.is_some());
+        let config = google_req.generation_config.unwrap();
+        assert!(config.thinking_config.is_some());
+        assert_eq!(config.thinking_config.unwrap().include_thoughts, false);
+    }
+
+    #[test]
+    fn test_google_thinking_config_none() {
+        let req = ChatRequest::new("gemini-2.0-flash")
+            .add_message(Message::user("test"));
+
+        let google_req = GoogleRequest::from(&req);
+        
+        // Verify thinking_config is NOT set
+        assert!(google_req.generation_config.is_some());
+        let config = google_req.generation_config.unwrap();
+        assert!(config.thinking_config.is_none());
+    }
 }

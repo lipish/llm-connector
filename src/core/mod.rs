@@ -8,10 +8,12 @@
 pub mod builder;
 pub mod client;
 pub mod configurable;
+pub mod resolver;
 pub mod traits;
 
 // Re-export core types
 pub use builder::ProviderBuilder;
 pub use client::HttpClient;
 pub use configurable::{AuthConfig, ConfigurableProtocol, EndpointConfig, ProtocolConfig};
+pub use resolver::{EnvVarResolver, ServiceResolver, ServiceTarget, StaticResolver};
 pub use traits::{GenericProvider, Protocol, Provider};

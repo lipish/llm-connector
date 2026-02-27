@@ -323,7 +323,8 @@ impl Provider for OllamaProvider {
             )));
         }
 
-        // Ollama uses JSONL format instead of SSE
+        // Use new robust streaming parser
+        // It will automatically detect NDJSON format used by Ollama
         Ok(crate::sse::sse_to_streaming_response(response))
     }
 
