@@ -1,6 +1,6 @@
 [package]
 name = "llm-connector"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2024"
 authors = ["lipi <lipicoder@qq.com>"]
 description = "Next-generation Rust library for LLM protocol abstraction with native multi-modal support. Supports 12+ providers (OpenAI, Anthropic, Google, Aliyun, Zhipu, Ollama, Tencent, Volcengine, LongCat, Moonshot, DeepSeek, Xiaomi) with clean Protocol/Provider separation, type-safe interface, and universal streaming."

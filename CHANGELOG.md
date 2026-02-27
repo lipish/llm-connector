@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-02-27
+
+### 🔧 Fixed
+
+- **Code Quality**: Resolved all Clippy warnings (unused imports, collapsible matches/ifs).
+- **Format**: Applied `cargo fmt` to the entire codebase to comply with CI requirements.
+
 ## [0.8.0] - 2026-02-27
 
 ### 🚀 Major Features
