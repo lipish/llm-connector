@@ -55,7 +55,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Provider;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, ToolCall, Usage};
+use crate::types::{ChatRequest, ChatResponse, Choice, EmbedRequest, EmbedResponse, EmbeddingData, Message, Role, ToolCall, Usage};
 
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
@@ -181,6 +181,19 @@ impl Provider for MockProvider {
 
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
         Ok(vec!["mock-model".to_string()])
+    }
+
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        Ok(EmbedResponse {
+            object: "list".to_string(),
+            data: vec![EmbeddingData {
+                object: "embedding".to_string(),
+                embedding: vec![0.1, 0.2, 0.3],
+                index: 0,
+            }],
+            model: request.model.clone(),
+            usage: Usage::default(),
+        })
     }
 
     fn as_any(&self) -> &dyn Any {

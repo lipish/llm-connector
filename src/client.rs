@@ -4,7 +4,7 @@
 
 use crate::core::Provider;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse};
+use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
 use std::sync::Arc;
 
 #[cfg(feature = "streaming")]
@@ -694,6 +694,38 @@ impl LlmClient {
         request: &ChatRequest,
     ) -> Result<ChatStream, LlmConnectorError> {
         self.provider.chat_stream(request).await
+    }
+
+    /// Generate embeddings
+    ///
+    /// # Parameters
+    /// - `request`: Embedding request
+    ///
+    /// # Returns
+    /// Embedding response
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    /// use llm_connector::types::EmbedRequest;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = LlmClient::openai("sk-...")?;
+    ///
+    ///     let request = EmbedRequest::new(
+    ///         "text-embedding-3-small",
+    ///         "Hello, world!"
+    ///     );
+    ///
+    ///     let response = client.embed(&request).await?;
+    ///     println!("Embedding length: {}", response.data[0].embedding.len());
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        self.provider.embed(request).await
     }
 
     /// Get available models list

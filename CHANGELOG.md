@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-03-02
+
+### Added
+
+- **Embedding API Support**
+  - Unified `EmbedRequest` and `EmbedResponse` types
+  - Added `.embed()` method to `LlmClient`
+  - Support for 7+ providers: OpenAI, Anthropic, Google Gemini (`batchEmbedContents`), Ollama, Aliyun DashScope, Zhipu GLM, and MockProvider
+- **Multimodal Document Support**
+  - Added `MessageBlock::Document` and `MessageBlock::DocumentUrl` (e.g. for PDF support)
+  - Updated Zhipu and other providers to handle document blocks
+- **Enhanced Usage Tracking**
+  - Added `prompt_cache_hit_tokens` and `prompt_cache_miss_tokens` to `Usage` struct
+  - Robust mapping for Anthropic (`cache_read_input_tokens`, `cache_creation_input_tokens`) and OpenAI caching diagnostics
+
+### Fixed
+
+- **Zhipu Protocol**: Resolved non-exhaustive pattern matching for `MessageBlock`
+- **Documentation**: Added [`docs/PARAMETER_MAPPING.md`](file:///Users/mac-m4/github/llm-connector/docs/PARAMETER_MAPPING.md) for cross-provider parameter reference
+
 ## [0.7.0] - 2026-02-23
 
 ### Added

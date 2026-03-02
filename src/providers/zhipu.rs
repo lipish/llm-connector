@@ -262,6 +262,10 @@ impl Protocol for ZhipuProtocol {
                                 "type": "image_url",
                                 "image_url": { "url": image_url.url }
                             }),
+                            MessageBlock::Document { .. } | MessageBlock::DocumentUrl { .. } => json!({
+                                "type": "text",
+                                "text": "[Document]"
+                            }),
                         }
                     }).collect();
                     json!(blocks)

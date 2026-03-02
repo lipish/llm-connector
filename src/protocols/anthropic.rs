@@ -144,9 +144,13 @@ impl Protocol for AnthropicProtocol {
             total_tokens: anthropic_response.usage.input_tokens
                 + anthropic_response.usage.output_tokens,
             completion_tokens_details: None,
-            prompt_cache_hit_tokens: None,
+            prompt_cache_hit_tokens: anthropic_response.usage.cache_read_input_tokens,
             prompt_cache_miss_tokens: None,
-            prompt_tokens_details: None,
+            prompt_tokens_details: Some(crate::types::PromptTokensDetails {
+                cached_tokens: anthropic_response.usage.cache_read_input_tokens,
+                cache_read_input_tokens: anthropic_response.usage.cache_read_input_tokens,
+                cache_creation_input_tokens: anthropic_response.usage.cache_creation_input_tokens,
+            }),
         });
 
         Ok(ChatResponse {
@@ -324,14 +328,26 @@ impl Protocol for AnthropicProtocol {
                                                 .and_then(|t| t.as_u64())
                                                 .unwrap_or(0)
                                                 as u32;
+                                            let cache_creation = u
+                                                .get("cache_creation_input_tokens")
+                                                .and_then(|t| t.as_u64())
+                                                .map(|t| t as u32);
+                                            let cache_read = u
+                                                .get("cache_read_input_tokens")
+                                                .and_then(|t| t.as_u64())
+                                                .map(|t| t as u32);
                                             Usage {
                                                 prompt_tokens: input_tokens,
                                                 completion_tokens: output_tokens,
                                                 total_tokens: input_tokens + output_tokens,
                                                 completion_tokens_details: None,
-                                                prompt_cache_hit_tokens: None,
+                                                prompt_cache_hit_tokens: cache_read,
                                                 prompt_cache_miss_tokens: None,
-                                                prompt_tokens_details: None,
+                                                prompt_tokens_details: Some(crate::types::PromptTokensDetails {
+                                                    cached_tokens: cache_read,
+                                                    cache_read_input_tokens: cache_read,
+                                                    cache_creation_input_tokens: cache_creation,
+                                                }),
                                             }
                                         });
 
@@ -434,4 +450,6 @@ pub struct AnthropicContent {
 pub struct AnthropicUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
+    pub cache_creation_input_tokens: Option<u32>,
+    pub cache_read_input_tokens: Option<u32>,
 }

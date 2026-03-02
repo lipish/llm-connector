@@ -4,7 +4,7 @@
 
 use crate::core::{HttpClient, Provider};
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role};
+use crate::types::{ChatRequest, ChatResponse, Choice, EmbedRequest, EmbedResponse, EmbeddingData, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -202,6 +202,73 @@ impl Provider for OllamaProvider {
             .map_err(|e| LlmConnectorError::ParseError(format!("Failed to parse models: {}", e)))?;
 
         Ok(models_response.models.into_iter().map(|m| m.name).collect())
+    }
+
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        let endpoint = format!("{}/api/embed", self.base_url);
+        
+        // Ollama specific embed request
+        let req = serde_json::json!({
+            "model": request.model,
+            "input": request.input,
+        });
+
+        let response = self.client.post(&endpoint, &req).await?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+
+        if !status.is_success() {
+            return Err(LlmConnectorError::ApiError(format!(
+                "Ollama HTTP {}: {}",
+                status, text
+            )));
+        }
+
+        let embed_response: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| LlmConnectorError::ParseError(e.to_string()))?;
+
+        let embeddings = embed_response
+            .get("embeddings")
+            .and_then(|e| e.as_array())
+            .ok_or_else(|| LlmConnectorError::ParseError("Missing embeddings field".to_string()))?;
+
+        let mut data = Vec::new();
+        for (index, emb) in embeddings.iter().enumerate() {
+            let vec = emb
+                .as_array()
+                .ok_or_else(|| LlmConnectorError::ParseError("Invalid embedding format".to_string()))?
+                .iter()
+                .filter_map(|v| v.as_f64().map(|f| f as f32))
+                .collect();
+            data.push(EmbeddingData {
+                object: "embedding".to_string(),
+                embedding: vec,
+                index: index as u32,
+            });
+        }
+
+        let usage = Usage {
+            prompt_tokens: embed_response
+                .get("prompt_eval_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            completion_tokens: 0,
+            total_tokens: embed_response
+                .get("prompt_eval_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            ..Default::default()
+        };
+
+        Ok(EmbedResponse {
+            object: "list".to_string(),
+            data,
+            model: request.model.clone(),
+            usage,
+        })
     }
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {

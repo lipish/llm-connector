@@ -5,7 +5,7 @@
 
 use crate::core::{HttpClient, Provider};
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
+use crate::types::{ChatRequest, ChatResponse, Choice, EmbedRequest, EmbedResponse, EmbeddingData, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
@@ -249,6 +249,65 @@ impl Provider for GoogleProvider {
             .collect())
     }
 
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        let url = format!(
+            "{}/models/{}:batchEmbedContents",
+            self.client.base_url(),
+            request.model
+        );
+
+        let requests: Vec<GoogleEmbedRequest> = request
+            .input
+            .iter()
+            .map(|text| GoogleEmbedRequest {
+                model: format!("models/{}", request.model),
+                content: GoogleContent {
+                    role: String::new(),
+                    parts: vec![GooglePart {
+                        text: text.clone(),
+                    }],
+                },
+            })
+            .collect();
+
+        let req_body = GoogleBatchEmbedRequest { requests };
+
+        let response = self.client.post(&url, &req_body).await?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+
+        if !status.is_success() {
+            return Err(LlmConnectorError::ProviderError(format!(
+                "Google API error: {} - {}",
+                status, text
+            )));
+        }
+
+        let google_response: GoogleBatchEmbedResponse =
+            serde_json::from_str(&text).map_err(LlmConnectorError::JsonError)?;
+
+        let mut data = Vec::new();
+        if let Some(embeddings) = google_response.embeddings {
+            for (index, emb) in embeddings.into_iter().enumerate() {
+                data.push(EmbeddingData {
+                    object: "embedding".to_string(),
+                    embedding: emb.values,
+                    index: index as u32,
+                });
+            }
+        }
+
+        Ok(EmbedResponse {
+            object: "list".to_string(),
+            data,
+            model: request.model.clone(),
+            usage: Usage::default(),
+        })
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -416,6 +475,27 @@ struct GoogleModelsResponse {
 #[derive(Deserialize)]
 struct GoogleModel {
     name: String,
+}
+
+#[derive(Serialize)]
+struct GoogleBatchEmbedRequest {
+    requests: Vec<GoogleEmbedRequest>,
+}
+
+#[derive(Serialize)]
+struct GoogleEmbedRequest {
+    model: String,
+    content: GoogleContent,
+}
+
+#[derive(Deserialize)]
+struct GoogleBatchEmbedResponse {
+    embeddings: Option<Vec<GoogleEmbedding>>,
+}
+
+#[derive(Deserialize)]
+struct GoogleEmbedding {
+    values: Vec<f32>,
 }
 
 // Public factory functions

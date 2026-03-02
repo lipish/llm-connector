@@ -4,7 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
+use crate::types::{ChatRequest, ChatResponse, Choice, EmbedRequest, EmbedResponse, Message, Role, Usage, EmbeddingData};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -43,6 +43,10 @@ impl Protocol for OpenAIProtocol {
 
     fn models_endpoint(&self, base_url: &str) -> Option<String> {
         Some(format!("{}/models", base_url.trim_end_matches('/')))
+    }
+
+    fn embed_endpoint(&self, base_url: &str) -> Option<String> {
+        Some(format!("{}/embeddings", base_url.trim_end_matches('/')))
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
@@ -251,6 +255,52 @@ impl Protocol for OpenAIProtocol {
             .collect())
     }
 
+    fn build_embed_request(
+        &self,
+        request: &EmbedRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        let req = OpenAIEmbedRequest {
+            model: request.model.clone(),
+            input: request.input.clone(),
+            encoding_format: request.encoding_format.clone(),
+            user: request.user.clone(),
+        };
+        serde_json::to_value(req).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to serialize embed request: {}", e))
+        })
+    }
+
+    fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
+        let openai_response: OpenAIEmbedResponse = serde_json::from_str(response).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to parse OpenAI embed response: {}", e))
+        })?;
+
+        let usage = openai_response.usage.map(|u| Usage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: 0,
+            total_tokens: u.total_tokens,
+            completion_tokens_details: None,
+            prompt_cache_hit_tokens: None,
+            prompt_cache_miss_tokens: None,
+            prompt_tokens_details: None,
+        }).unwrap_or_default();
+
+        Ok(EmbedResponse {
+            object: openai_response.object,
+            data: openai_response
+                .data
+                .into_iter()
+                .map(|d| EmbeddingData {
+                    object: d.object,
+                    embedding: d.embedding,
+                    index: d.index,
+                })
+                .collect(),
+            model: openai_response.model,
+            usage,
+        })
+    }
+
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
         let error_info = serde_json::from_str::<serde_json::Value>(body)
             .ok()
@@ -380,4 +430,30 @@ pub struct OpenAIModelsResponse {
 #[derive(Deserialize, Debug)]
 pub struct OpenAIModel {
     pub id: String,
+}
+
+// Embedding Data Structures
+#[derive(Serialize, Debug)]
+pub struct OpenAIEmbedRequest {
+    pub model: String,
+    pub input: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding_format: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct OpenAIEmbedResponse {
+    pub object: String,
+    pub data: Vec<OpenAIEmbeddingData>,
+    pub model: String,
+    pub usage: Option<OpenAIUsage>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct OpenAIEmbeddingData {
+    pub object: String,
+    pub embedding: Vec<f32>,
+    pub index: u32,
 }

@@ -4,7 +4,7 @@
 
 use crate::core::{HttpClient, Protocol};
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Role};
+use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, EmbeddingData, Role, Usage};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -57,6 +57,13 @@ impl Protocol for AliyunProtocol {
             "{}/api/v1/services/aigc/text-generation/generation",
             base_url
         )
+    }
+
+    fn embed_endpoint(&self, base_url: &str) -> Option<String> {
+        Some(format!(
+            "{}/api/v1/services/embeddings/text-embedding/text-embedding",
+            base_url
+        ))
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {
@@ -114,6 +121,53 @@ impl Protocol for AliyunProtocol {
                 tools: request.tools.clone(),
                 tool_choice: request.tool_choice.clone(),
             },
+        })
+    }
+
+    fn build_embed_request(
+        &self,
+        request: &EmbedRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        let req = AliyunEmbedRequest {
+            model: request.model.clone(),
+            input: AliyunEmbedInput {
+                texts: request.input.clone(),
+            },
+            parameters: request.encoding_format.as_deref().map(|f| AliyunEmbedParameters {
+                text_type: f.to_string(),
+            }),
+        };
+        serde_json::to_value(req).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to serialize embed request: {}", e))
+        })
+    }
+
+    fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
+        let parsed: AliyunEmbedResponse = serde_json::from_str(response).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to parse embed response: {}", e))
+        })?;
+
+        let usage = Usage {
+            prompt_tokens: parsed.usage.total_tokens,
+            completion_tokens: 0,
+            total_tokens: parsed.usage.total_tokens,
+            ..Default::default()
+        };
+
+        Ok(EmbedResponse {
+            object: "list".to_string(),
+            data: parsed
+                .output
+                .embeddings
+                .into_iter()
+                .map(|e| EmbeddingData {
+                    object: "embedding".to_string(),
+                    embedding: e.embedding,
+                    index: e.text_index as u32,
+                })
+                .collect(),
+            model: "aliyun".to_string(),
+            usage,
         })
     }
 
@@ -378,6 +432,48 @@ pub struct AliyunUsage {
     pub total_tokens: u32,
 }
 
+// Embeddings Data Structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunEmbedRequest {
+    pub model: String,
+    pub input: AliyunEmbedInput,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameters: Option<AliyunEmbedParameters>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunEmbedInput {
+    pub texts: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunEmbedParameters {
+    pub text_type: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunEmbedResponse {
+    pub output: AliyunEmbedOutput,
+    pub usage: AliyunEmbedUsage,
+    pub request_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunEmbedOutput {
+    pub embeddings: Vec<AliyunEmbedding>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunEmbedding {
+    pub embedding: Vec<f32>,
+    pub text_index: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliyunEmbedUsage {
+    pub total_tokens: u32,
+}
+
 // ============================================================================
 // Custom Aliyun Provider Implementation
 // ============================================================================
@@ -434,6 +530,20 @@ impl crate::core::Provider for AliyunProviderImpl {
             .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
 
         self.protocol.parse_response(&text)
+    }
+
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        let url = self.protocol.embed_endpoint(self.client.base_url()).unwrap();
+        let protocol_request = self.protocol.build_embed_request(request)?;
+        let response = self.client.post(&url, &protocol_request).await?;
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(self.protocol.map_error(status.as_u16(), &text));
+        }
+
+        self.protocol.parse_embed_response(&text)
     }
 
     #[cfg(feature = "streaming")]
