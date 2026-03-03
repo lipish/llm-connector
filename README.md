@@ -9,92 +9,76 @@
 [![docs.rs](https://img.shields.io/docsrs/llm-connector)](https://docs.rs/llm-connector)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-High-performance Rust library for unifying LLM providers behind one type-safe API.
+**The Blind Protocol Engine** - A pure, URL-agnostic adapter for LLM services.
 
-[Installation](#installation) • [Usage](#usage) • [Documentation](#documentation) • [Contributing](https://llmconn.com/guide/contributing) • [Providers](https://llmconn.com/guide/providers)
+[Installation](#installation) • [Usage](#usage) • [Philosophy](#philosophy) • [Documentation](#documentation) • [Synergy](#synergy-with-llm-providers)
 
 </div>
 
-## Library Focus
+---
 
-`llm-connector` is designed as a **minimalist driver-level layer** for AI providers. Its primary goal is to provide a single, ergonomic, and type-safe API for major LLM services while managing the differences between them at a lower layer.
+## 🚀 The Pure Protocol Engine
 
-- **Minimalist Scope**: We focus on connectivity, normalization, and performance.
-- **Driver Philosophy**: We do the "SDK gymnastics" so you don't have to, providing a cumulative and stable foundation.
-- **Clear Boundaries**: This library does NOT include high-level agentic frameworks, prompt management systems, or complex RAG pipelines. It is the engine that powers them.
+`llm-connector` is a **minimalist, standalone driver layer** for AI providers. Unlike other libraries that maintain lists of provider endpoints, `llm-connector` adopts a **Pure Gateway Architecture**: it handles protocol adaptation, streaming, and token normalization, but remains completely "blind" to API endpoints.
 
-## llm-connector vs rust-genai
+- **Zero Hardcoded URLs**: No default endpoints. You provide the `base_url`, we provide the protocol.
+- **Pure Positioning**: We don't care where the model is hosted (SaaS, Local, Private Cloud). We only care about the *dialect* (Protocol) it speaks.
+- **Standalone & Light**: `llm-connector` is self-contained. It does **not** depend on any endpoint management projects or external databases.
 
-Both libraries aim to simplify interacting with multiple LLM providers in Rust, but they have different core philosophies:
+## 🤝 Ecosystem Decoupling
 
-| Feature | `llm-connector` (This Library) | `rust-genai` |
+While `llm-connector` is the **engine (Protocol)**, it is designed to work seamlessly with (but not depend on) configuration managers like [llm-providers](https://github.com/lipish/llm-providers). 
+
+- **llm-connector**: Handles *how* to talk (Request/Response logic).
+- **llm-providers**: (External) Handles *where* to talk (URL/Region discovery).
+
+This decoupling ensures that `llm-connector` remains a stable, logic-only library while the rapidly changing landscape of AI endpoints is managed elsewhere.
+
+## 📊 Comparison
+
+| Feature | `llm-connector` (Protocol Engine) | Traditional SDKs / Libraries |
 | :--- | :--- | :--- |
-| **Primary Focus** | **Minimalism & Gateway-friendly**. Highly optimized for multi-tenant SaaS and proxy services with dynamic overrides. | **Native Protocol Depth**. Aims to deeply map and standardize unique features across many long-tail providers. |
-| **Gateway Support** | ✅ **Native** `Per-Request Overrides` (change API key, Base URL, headers *per request* without new clients). | ❌ Requires creating separate clients or complex routing for multi-tenant API key swapping. |
-| **Function Calling** | ✅ **Standardized**. Strong, cross-provider tool calling support (including Aliyun Native) compatible with OpenAI format. | ⚠️ Limited/in-development function calling. |
-| **Reasoning Models** | ✅ **Universal Extraction**. Automatically detects and extracts `reasoning_content`, `thought`, and `thinking` fields natively. | ✅ Supports `ReasoningEffort` controls for Anthropic and Gemini. |
-| **Tokens & Usage** | ✅ Core total/prompt/completion tracking. **Now with prompt caching support** (Anthropic & OpenAI). | ✅ **Ultra-granular**. Deep mapping of cached tokens and provider-specific quirks (e.g., Gemini cumulative streams). |
-| **Ecosystem Size** | Focused on the absolute major players (OpenAI, Anthropic, Gemini, DeepSeek, Qwen, Moonshot, Zhipu, etc.). | Massive ecosystem support (Groq, xAI, Cohere, Together, Fireworks, etc.). |
+| **Endpoint Logic** | ❌ None. Mandatory `base_url`. | ✅ Hardcoded/Default URLs. |
+| **Maintenance** | 🛠️ Low. Logic-only updates. | ⚠️ High. Constant URL/Region list syncing. |
+| **Self-Hosted** | ✅ Native. Any URL works. | ⚠️ Often requires hacky overrides. |
+| **SaaS Gateway** | ✅ Optimized. Perfect for proxies. | ❌ Often inflexible. |
 
-*Choose `llm-connector` if you are building an AI SaaS, a unified gateway, or need robust function calling and reasoning model extraction out-of-the-box. Choose `rust-genai` if you need broad coverage of alternative endpoints and deep native parameter tweaking (like Gemini Thinking levels).*
-
-## Philosophy
-
-- One API, many providers.
-- Unified response types for chat + streaming.
-- Minimal configuration: explicit `base_url`, `timeout`, `proxy`.
-
-## Key Features
-
-- Provider-agnostic client API (`LlmClient`)
-- Universal streaming with a unified `StreamingResponse`
-- Function calling / tools (OpenAI-compatible)
-- Multi-modal messages (text + images + **PDF/Documents**)
-- **Embedding API Support** (Unified Vector Embeddings)
-- Reasoning model normalization
-- Per-request overrides: API key, base URL, and headers for multi-tenant / gateway use
-
-## Installation
+## 🛠️ Installation
 
 **MSRV**: Rust 1.85+ (Rust 2024 edition)
 
 ```toml
 [dependencies]
-llm-connector = "0.7.1"
+llm-connector = "0.8.0"
 tokio = { version = "1", features = ["full"] }
 ```
 
-## Usage
+## 📖 Usage
 
-### Chat
+### Unified Chat
+All client constructions now **mandatorily require** a `base_url`.
 
 ```rust
 use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 
-let client = LlmClient::openai("sk-...")?;
-let request = ChatRequest {
-    model: "gpt-4".to_string(),
-    messages: vec![Message::text(Role::User, "Hello!")],
-    ..Default::default()
-};
+// Positioned as a blind protocol engine: You must provide the base_url
+let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
+
+let request = ChatRequest::new("gpt-4o")
+    .add_message(Message::user("What is the speed of light?"));
 
 let response = client.chat(&request).await?;
 println!("{}", response.content);
 ```
 
-### Streaming
+### Universal Streaming
 
 ```rust
 use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 use futures_util::StreamExt;
 
-let client = LlmClient::openai("sk-...")?;
-let request = ChatRequest {
-    model: "gpt-4".to_string(),
-    messages: vec![Message::text(Role::User, "Tell me a story")],
-    stream: Some(true),
-    ..Default::default()
-};
+let client = LlmClient::anthropic("sk-ant-...", "https://api.anthropic.com")?;
+let request = ChatRequest::new("claude-3-5-sonnet-20240620").stream(true);
 
 let mut stream = client.chat_stream(&request).await?;
 while let Some(chunk) = stream.next().await {
@@ -104,72 +88,39 @@ while let Some(chunk) = stream.next().await {
 }
 ```
 
-### Embedding
-
-Generate vector embeddings across any provider:
+### Fluent Builder
 
 ```rust
-use llm_connector::{LlmClient, types::EmbedRequest};
-
-let client = LlmClient::openai("sk-...")?;
-let request = EmbedRequest {
-    model: "text-embedding-3-small".to_string(),
-    input: vec!["Hello world".to_string(), "Rust is awesome".to_string()],
-    ..Default::default()
-};
-
-let response = client.embed(&request).await?;
-for data in response.data {
-    println!("Embedding [{}]: {:?}", data.index, data.embedding);
-}
+let client = LlmClient::builder()
+    .openai("sk-...")
+    .base_url("https://api.deepseek.com") // Mandatory
+    .timeout(60)
+    .build()?;
 ```
 
-### Per-Request Overrides (Multi-Tenant / Gateway)
-
-Override API key, base URL, or headers per request without creating a new client:
+### Per-Request Overrides (Gateway Pattern)
+Ideal for building unified AI gateways or multi-tenant proxies.
 
 ```rust
-let request = ChatRequest::new("gpt-4")
-    .add_message(Message::user("Hello"))
-    .with_api_key("tenant-key")
-    .with_base_url("https://proxy.example.com/v1")
-    .with_header("X-Trace-Id", "trace-123");
+let request = ChatRequest::new("gpt-4o")
+    .with_api_key("dynamic-tenant-key")
+    .with_base_url("https://my-proxy.internal/v1");
 
 let response = client.chat(&request).await?;
 ```
 
-## Documentation
+## 📂 Recent Changelogs
 
-- [Providers](https://llmconn.com/guide/providers)
-- [Streaming](https://llmconn.com/guide/streaming)
-- [Tools / Function Calling](https://llmconn.com/guide/tools)
-- [Multi-modal](https://llmconn.com/guide/multimodal)
-- [Architecture](https://llmconn.com/guide/architecture)
-- [Changelog](CHANGELOG.md)
+- **v0.8.0 (2026-03-02)**
+    - `!` **BREAKING**: Rebranded as a **Pure Protocol Engine**.
+    - `!` **BREAKING**: Removed all default/hardcoded URLs. `base_url` is now **mandatory** for all client constructors.
+    - `!` **BREAKING**: Removed redundant provider files (`deepseek`, `moonshot`, `volcengine`, etc.) in favor of generic Protocol adapters.
+    - `+` **Endpoints Module**: Added `llm_connector::endpoints` constants for common API addresses (optional reference only).
+- **v0.7.1**
+    - `+` **Embedding API**: Unified `.embed()` support for major providers.
+    - `+` **Document Support**: Added `MessageBlock::Document` for PDFs and files.
+    - `^` **Usage**: Added `prompt_cache_hit_tokens` support.
 
-## Recent Changelogs
-
-Highlights from the latest updates (see [CHANGELOG.md](CHANGELOG.md) for full history):
-
-- **v0.7.1 (2026-03-02)**
-    - `+` **Embedding API**: Unified `.embed()` support for OpenAI, Anthropic, Google, Ollama, Aliyun, and Zhipu.
-    - `+` **Document Support**: Added `MessageBlock::Document` for multi-modal file uploads (PDFs, etc.).
-    - `^` **Usage Enhancements**: Added support for `prompt_cache_hit_tokens` and detailed caching stats.
-- **v0.7.0 (2026-02-23)**
-    - `+` **Per-Request Overrides**: Support for `api_key`, `base_url`, and `extra_headers` per request for multi-tenant gateways.
-    - `^` Better handling of custom headers for all `GenericProvider`-based models.
-- **v0.6.1 (2026-02-20)**
-    - `^` **Rust 2024 Edition**: MSRV is now Rust 1.85+.
-    - `🔧` Switched to `rustls-tls` by default for better cross-compilation.
-- **v0.6.0 (2026-02-15)**
-    - `+` **Builder Pattern for LlmClient**: New `LlmClient::builder()` for fluent client construction.
-    - `+` **Zhipu Multimodal**: Native support for image URLs and base64 images.
-    - `!` **Streaming enabled by default**: `chat_stream` is now part of the default feature set.
-
-## Contributing
-
-Contributions welcome! See https://llmconn.com/guide/contributing for guidelines.
-
-## License
+## 📜 License
 
 MIT

@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Create Anthropic client
-    let client = LlmClient::anthropic(&api_key).unwrap();
+    let client = LlmClient::anthropic(&api_key, llm_connector::endpoints::ANTHROPIC_API_V1).unwrap();
 
     // 1. Regular chat request
     println!("💬 Regular Chat Request:");

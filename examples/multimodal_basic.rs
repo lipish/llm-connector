@@ -90,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(api_key) = std::env::var("OPENAI_API_KEY") {
         println!("Using OpenAI API...");
 
-        let client = LlmClient::openai(&api_key)?;
+        let client = LlmClient::openai(&api_key, llm_connector::endpoints::OPENAI_API_V1)?;
 
         let request = ChatRequest {
             model: "gpt-4o-mini".to_string(),

@@ -4,46 +4,46 @@ use llm_connector::LlmClient;
 
 #[test]
 fn test_openai_client_creation() {
-    let client = LlmClient::openai("sk-test").unwrap();
+    let client = LlmClient::openai("sk-test", "https://api.openai.com/v1").unwrap();
     assert_eq!(client.provider_name(), "openai");
 }
 
 #[test]
 fn test_openai_compatible_client_creation() {
-    let client = LlmClient::openai_with_base_url("sk-test", "https://api.test.com/v1").unwrap();
+    let client = LlmClient::openai("sk-test", "https://api.test.com/v1").unwrap();
     assert_eq!(client.provider_name(), "openai");
 }
 
 #[test]
 fn test_anthropic_client_creation() {
-    let client = LlmClient::anthropic("sk-ant-test").unwrap();
+    let client = LlmClient::anthropic("sk-ant-test", "https://api.anthropic.com").unwrap();
     assert_eq!(client.provider_name(), "anthropic");
 }
 
 #[test]
 fn test_aliyun_client_creation() {
-    let client = LlmClient::aliyun("sk-test").unwrap();
+    let client = LlmClient::aliyun("sk-test", "https://dashscope.aliyuncs.com/api/v1").unwrap();
     assert_eq!(client.provider_name(), "aliyun");
 }
 
 #[test]
 fn test_ollama_client_creation() {
-    let client = LlmClient::ollama().unwrap();
+    let client = LlmClient::ollama("http://localhost:11434").unwrap();
     assert_eq!(client.provider_name(), "ollama");
 }
 
 #[test]
 fn test_ollama_with_custom_url() {
-    let client = LlmClient::ollama_with_base_url("http://localhost:11434").unwrap();
+    let client = LlmClient::ollama("http://localhost:11434").unwrap();
     assert_eq!(client.provider_name(), "ollama");
 }
 
 #[test]
 fn test_multiple_clients_can_coexist() {
-    let openai = LlmClient::openai("sk-1").unwrap();
-    let anthropic = LlmClient::anthropic("sk-2").unwrap();
-    let aliyun = LlmClient::aliyun("sk-3").unwrap();
-    let ollama = LlmClient::ollama().unwrap();
+    let openai = LlmClient::openai("sk-1", "https://api.openai.com/v1").unwrap();
+    let anthropic = LlmClient::anthropic("sk-2", "https://api.anthropic.com").unwrap();
+    let aliyun = LlmClient::aliyun("sk-3", "https://dashscope.aliyuncs.com/api/v1").unwrap();
+    let ollama = LlmClient::ollama("http://localhost:11434").unwrap();
 
     assert_eq!(openai.provider_name(), "openai");
     assert_eq!(anthropic.provider_name(), "anthropic");
@@ -65,7 +65,7 @@ fn test_client_is_sync() {
 
 #[tokio::test]
 async fn test_openai_fetch_models_unsupported_with_invalid_key() {
-    let client = LlmClient::openai("invalid-key").unwrap();
+    let client = LlmClient::openai("invalid-key", "https://api.openai.com/v1").unwrap();
     let result = client.models().await;
     // Should fail (either auth error or connection error)
     assert!(result.is_err());
@@ -73,7 +73,7 @@ async fn test_openai_fetch_models_unsupported_with_invalid_key() {
 
 #[tokio::test]
 async fn test_anthropic_fetch_models_unsupported() {
-    let client = LlmClient::anthropic("test-key").unwrap();
+    let client = LlmClient::anthropic("test-key", "https://api.anthropic.com").unwrap();
     let result = client.models().await;
     // May fail due to unsupported listing or API error
     assert!(result.is_err());
@@ -81,7 +81,7 @@ async fn test_anthropic_fetch_models_unsupported() {
 
 #[tokio::test]
 async fn test_aliyun_fetch_models_unsupported() {
-    let client = LlmClient::aliyun("test-key").unwrap();
+    let client = LlmClient::aliyun("test-key", "https://dashscope.aliyuncs.com/api/v1").unwrap();
     let result = client.models().await;
     // Should return UnsupportedOperation error
     assert!(result.is_err());
@@ -91,7 +91,7 @@ async fn test_aliyun_fetch_models_unsupported() {
 
 #[tokio::test]
 async fn test_ollama_fetch_models_unsupported() {
-    let client = LlmClient::ollama().unwrap();
+    let client = LlmClient::ollama("http://localhost:11434").unwrap();
     let result = client.models().await;
     // Fails when local Ollama server is not running
     assert!(result.is_err());

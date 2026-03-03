@@ -37,7 +37,7 @@ impl Protocol for AnthropicProtocol {
         "anthropic"
     }
 
-    fn chat_endpoint(&self, base_url: &str) -> String {
+    fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
         format!("{}/v1/messages", base_url.trim_end_matches('/'))
     }
 

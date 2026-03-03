@@ -11,8 +11,8 @@ use llm_connector::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦙 Ollama Model Management Example\n");
 
-    // Create Ollama client (default local address)
-    let client = LlmClient::ollama()?;
+    // Create Ollama client
+    let client = LlmClient::ollama(llm_connector::endpoints::OLLAMA_LOCAL)?;
 
     // Get Ollama-specific interface
     let ollama = match client.as_ollama() {
@@ -43,37 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!();
 
-    // 2. Get model details
-    println!("🔍 Get model details:");
-    let model_name = "llama3.2"; // Change this to a model you actually have
-    match ollama.show_model(model_name).await {
-        Ok(model_info) => {
-            println!("   Model details:");
-            println!("     Format: {}", model_info.details.format);
-            println!("     Family: {}", model_info.details.family);
-            println!("     Parameter size: {}", model_info.details.parameter_size);
-            println!(
-                "     Quantization level: {}",
-                model_info.details.quantization_level
-            );
-            if let Some(families) = &model_info.details.families {
-                println!("     Supported families: {:?}", families);
-            }
-            println!("     Template length: {} chars", model_info.template.len());
-            println!(
-                "     Parameters length: {} chars",
-                model_info.parameters.len()
-            );
-        }
-        Err(e) => {
-            println!("   ❌ Error: {}", e);
-            println!("   💡 Ensure the model '{}' is installed", model_name);
-        }
-    }
-
-    println!();
-
-    // 3. Pull a new model (commented out to avoid real download)
+    // 2. Pull a new model (commented out to avoid real download)
     println!("📥 Pull a new model:");
     println!("   // The code below shows how to pull a new model");
     println!("   // ollama.pull_model(\"llama3.2:1b\").await?;");

@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=".repeat(80));
 
     // Create client
-    let client = LlmClient::aliyun(&api_key)?;
+    let client = LlmClient::aliyun(&api_key, llm_connector::endpoints::ALIYUN_DASHSCOPE_V1)?;
 
     println!("\n📝 Test 1: Hybrid reasoning model + explicitly enabled");
     println!("{}", "-".repeat(80));

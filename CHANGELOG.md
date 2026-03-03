@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-03-02
+
+### ⚠️ Breaking Changes - Pure Protocol Engine Architecture
+
+- **Mandatory `base_url`**: All client constructors (`LlmClient::openai`, `LlmClient::anthropic`, `LlmClient::zhipu`, etc.) and provider factory functions now **mandatorily require** a `base_url` parameter. Hardcoded default URLs have been removed from the library core.
+- **Provider Consolidation**: Redundant provider modules (`deepseek.rs`, `moonshot.rs`, `volcengine.rs`, `xiaomi.rs`, `longcat.rs`) have been removed and consolidated into generic protocols (`OpenAIProtocol`, `AnthropicProtocol`).
+- **Removed Methods**: `openai_with_base_url()`, `ollama_with_base_url()`, and various `_with_timeout()` factory methods have been removed as their functionality is now covered by the mandatory `base_url` and consolidated `_with_config` methods.
+
+### 🚀 New Features
+
+- **Protocol-First Design**: Positioned as a standalone, "URL-Blind" protocol engine that focuses exclusively on protocol adaptation, streaming, and token counting.
+- **Reference Endpoints**: Added `src/endpoints.rs` featuring `pub const` official API endpoints for developer convenience.
+- **Standalone Library**: Explicitly decoupled core logic from endpoint management, ensuring zero dependencies on external URL management projects for core functionality.
+
+### 📝 Documentation
+
+- Updated `README.md` to reflect the new "Pure Gateway" positioning.
+- Updated all examples and tests to use explicit `base_url` parameters.
+
 ## [0.7.1] - 2026-03-02
 
 ### Added

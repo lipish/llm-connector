@@ -1,4 +1,4 @@
-//! Tencent Cloud Native Protocol Implementation
+//! Tencent Cloud Protocol Implementation
 //!
 //! Implements Tencent Cloud API v3 signature (TC3-HMAC-SHA256).
 //! Reference: https://cloud.tencent.com/document/api/1729/101837
@@ -118,7 +118,7 @@ impl Protocol for TencentNativeProtocol {
         "tencent"
     }
 
-    fn chat_endpoint(&self, _base_url: &str) -> String {
+    fn chat_endpoint(&self, _base_url: &str, _model: &str) -> String {
         // Native API uses a fixed endpoint usually, but we respect base_url if provided
         // Official endpoint: https://hunyuan.tencentcloudapi.com
         if _base_url.is_empty() || _base_url == "https://api.openai.com" {

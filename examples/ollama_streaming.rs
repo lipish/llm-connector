@@ -15,8 +15,8 @@ use llm_connector::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🦙 Ollama Streaming Response Example\n");
 
-    // Create Ollama client (default http://localhost:11434)
-    let client = LlmClient::ollama().unwrap();
+    // Create Ollama client
+    let client = LlmClient::ollama(llm_connector::endpoints::OLLAMA_LOCAL).unwrap();
 
     // Prepare request (ensure the model is installed, e.g. llama3.2)
     let request = ChatRequest {

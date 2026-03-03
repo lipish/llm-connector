@@ -30,7 +30,13 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     fn name(&self) -> &str;
 
     /// Get chat completion endpoint URL
-    fn chat_endpoint(&self, base_url: &str) -> String;
+    fn chat_endpoint(&self, base_url: &str, model: &str) -> String;
+
+    /// Get chat stream endpoint URL (optional)
+    #[cfg(feature = "streaming")]
+    fn chat_stream_endpoint(&self, base_url: &str, model: &str) -> String {
+        self.chat_endpoint(base_url, model)
+    }
 
     /// Get model list endpoint URL (optional)
     fn models_endpoint(&self, _base_url: &str) -> Option<String> {
@@ -38,7 +44,7 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     }
 
     /// Get embeddings endpoint URL (optional)
-    fn embed_endpoint(&self, _base_url: &str) -> Option<String> {
+    fn embed_endpoint(&self, _base_url: &str, _model: &str) -> Option<String> {
         None
     }
 
@@ -138,6 +144,7 @@ fn build_request_overrides(request: &ChatRequest) -> HashMap<String, String> {
 /// This struct provides generic implementation for most standard LLM APIs.
 /// It uses Protocol trait to handle API-specific format conversion,
 /// uses HttpClient to handle network communication.
+#[derive(Debug)]
 pub struct GenericProvider<P: Protocol> {
     protocol: P,
     client: super::HttpClient,
@@ -181,7 +188,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
-        let url = self.protocol.chat_endpoint(base_url);
+        let url = self.protocol.chat_endpoint(base_url, &request.model);
         let overrides = build_request_overrides(request);
 
         let response = if overrides.is_empty() {
@@ -213,7 +220,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
-        let url = self.protocol.chat_endpoint(base_url);
+        let url = self.protocol.chat_stream_endpoint(base_url, &request.model);
         let overrides = build_request_overrides(request);
 
         let response = if overrides.is_empty() {
@@ -263,7 +270,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
     async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
         let endpoint = self
             .protocol
-            .embed_endpoint(self.client.base_url())
+            .embed_endpoint(self.client.base_url(), &request.model)
             .ok_or_else(|| {
                 LlmConnectorError::UnsupportedOperation(format!(
                     "{} does not support embeddings",

@@ -9,7 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key =
         std::env::var("ZHIPU_API_KEY").expect("Please set environment variable ZHIPU_API_KEY");
 
-    let client = LlmClient::zhipu(&api_key)?;
+    let client = LlmClient::zhipu(&api_key, llm_connector::endpoints::ZHIPU_CN_V4)?;
 
     // Define tools
     let tools = vec![Tool {
