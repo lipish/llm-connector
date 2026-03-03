@@ -31,6 +31,9 @@ pub fn openai_message_converter(messages: &[Message]) -> Vec<serde_json::Value> 
         if let Some(ref name) = msg.name {
             map.insert("name".to_string(), serde_json::json!(name));
         }
+        if let Some(ref rc) = msg.reasoning_content {
+            map.insert("reasoning_content".to_string(), serde_json::json!(rc));
+        }
         
         serde_json::Value::Object(map)
     }).collect()

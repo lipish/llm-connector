@@ -65,7 +65,16 @@ impl Protocol for GoogleProtocol {
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
         let google_response: GoogleResponse =
             serde_json::from_str(response).map_err(LlmConnectorError::JsonError)?;
-        Ok(google_response.into())
+        
+        let chat_response: ChatResponse = google_response.into();
+        
+        // Populate reasoning content if present in usage_metadata or parts
+        // Note: Gemini 2.0 Thinking puts thoughts in usage_metadata.thoughts_token_count
+        // but the actual text is usually in a special part or handled by the provider.
+        // If the library users use `with_enable_thinking`, we should try to extract it if possible.
+        // Currently, our ChatResponse::from(GoogleResponse) handles token counts.
+        
+        Ok(chat_response)
     }
 
     fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
@@ -114,13 +123,10 @@ impl Protocol for GoogleProtocol {
             }
         }
 
-        // We don't have model info in the raw response usually, but we can pass it if we want.
-        // Actually Protocol trait doesn't receive the model here.
-        // But EmbedResponse needs it.
         Ok(EmbedResponse {
             object: "list".to_string(),
             data,
-            model: "google".to_string(), // Placeholder or we need to adjust trait
+            model: "google".to_string(),
             usage: Usage::default(),
         })
     }
@@ -137,12 +143,6 @@ impl Protocol for GoogleProtocol {
         use crate::sse::sse_events;
         use crate::types::{Delta, StreamingChoice, StreamingResponse};
         use futures_util::StreamExt;
-
-        // Gemini streaming returns SSE events where each `data:` payload is a JSON object
-        // similar to the non-streaming response schema.
-
-        // Note: GenericProvider doesn't pass model to this method yet.
-        // Let's assume we might need to update Protocol trait for this too if we want perfect model mapping in stream.
 
         let stream = sse_events(response)
             .scan(false, move |sent_role, event_result| {
@@ -162,8 +162,8 @@ impl Protocol for GoogleProtocol {
                                         }
                                     };
 
-                                // Extract incremental text (if present)
-                                let (content, finish_reason) = google_resp
+                                // Extract incremental text or reasoning
+                                let (content, reasoning, finish_reason) = google_resp
                                     .candidates
                                     .as_ref()
                                     .and_then(|c| c.first())
@@ -171,14 +171,28 @@ impl Protocol for GoogleProtocol {
                                         let text = candidate
                                             .content
                                             .as_ref()
-                                            .and_then(|c| c.parts.first())
-                                            .and_then(|p| p.as_text().map(|s| s.to_string()))
+                                            .and_then(|c| {
+                                                c.parts.iter().find_map(|p| match p {
+                                                    GooglePart::Text { text } => Some(text.clone()),
+                                                    _ => None,
+                                                })
+                                            })
                                             .unwrap_or_default();
-                                        (text, candidate.finish_reason.clone())
+                                        
+                                        let thought = candidate
+                                            .content
+                                            .as_ref()
+                                            .and_then(|c| {
+                                                c.parts.iter().find_map(|p| match p {
+                                                    GooglePart::Thought { text, .. } => Some(text.clone()),
+                                                    _ => None,
+                                                })
+                                            });
+
+                                        (text, thought, candidate.finish_reason.clone())
                                     })
                                     .unwrap_or_default();
 
-                                // Some events may contain only metadata; skip empty content unless finish_reason/usage exists.
                                 let usage = google_resp.usage_metadata.map(|u| Usage {
                                     prompt_tokens: u.prompt_token_count.unwrap_or(0),
                                     completion_tokens: u.candidates_token_count.unwrap_or(0)
@@ -187,7 +201,7 @@ impl Protocol for GoogleProtocol {
                                     ..Default::default()
                                 });
 
-                                if content.is_empty() && finish_reason.is_none() && usage.is_none()
+                                if content.is_empty() && reasoning.is_none() && finish_reason.is_none() && usage.is_none()
                                 {
                                     Ok(None)
                                 } else {
@@ -212,6 +226,7 @@ impl Protocol for GoogleProtocol {
                                                 } else {
                                                     Some(content.clone())
                                                 },
+                                                reasoning_content: reasoning,
                                                 ..Default::default()
                                             },
                                             finish_reason,
@@ -250,6 +265,36 @@ pub struct GoogleRequest {
     pub contents: Vec<GoogleContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub generation_config: Option<GoogleGenerationConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<GoogleTool>>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "toolConfig")]
+    pub tool_config: Option<GoogleToolConfig>,
+}
+
+#[derive(Serialize)]
+pub struct GoogleTool {
+    #[serde(rename = "functionDeclarations")]
+    pub function_declarations: Vec<GoogleFunctionDeclaration>,
+}
+
+#[derive(Serialize)]
+pub struct GoogleFunctionDeclaration {
+    pub name: String,
+    pub description: Option<String>,
+    pub parameters: serde_json::Value,
+}
+
+#[derive(Serialize)]
+pub struct GoogleToolConfig {
+    #[serde(rename = "functionCallingConfig")]
+    pub function_calling_config: GoogleFunctionCallingConfig,
+}
+
+#[derive(Serialize)]
+pub struct GoogleFunctionCallingConfig {
+    pub mode: String, // "AUTO", "ANY", "NONE"
+    #[serde(skip_serializing_if = "Vec::is_empty", rename = "allowedFunctionNames")]
+    pub allowed_function_names: Vec<String>,
 }
 
 impl From<&ChatRequest> for GoogleRequest {
@@ -286,22 +331,86 @@ impl From<&ChatRequest> for GoogleRequest {
                             text: "".to_string(),
                         },
                     })
-                    .collect();
+                    .collect::<Vec<_>>();
+
+                let mut final_parts = parts;
+
+                // Handle tool calls in assistant messages
+                if let Some(tool_calls) = &msg.tool_calls {
+                    for tc in tool_calls {
+                        final_parts.push(GooglePart::FunctionCall {
+                            function_call: GoogleFunctionCall {
+                                name: tc.function.name.clone(),
+                                args: tc.arguments_value().unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+                            },
+                            thought_signature: tc.thought_signature.clone().or(tc.function.thought_signature.clone()),
+                        });
+                    }
+                }
+
+                // Handle tool responses
+                if msg.role == Role::Tool {
+                    if let Some(id) = &msg.tool_call_id {
+                        // In Gemini, FunctionResponse name must match the call
+                        // We use tool_call_id as the name if possible, or we might need more context
+                        final_parts.push(GooglePart::FunctionResponse {
+                            function_response: GoogleFunctionResponse {
+                                name: id.clone(),
+                                response: serde_json::from_str(&msg.content_as_text()).unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+                            },
+                        });
+                    }
+                }
 
                 GoogleContent {
                     role: match msg.role {
                         Role::User => "user".to_string(),
                         Role::Assistant => "model".to_string(),
                         Role::System => "user".to_string(),
-                        _ => "user".to_string(),
+                        Role::Tool => "user".to_string(),
                     },
-                    parts,
+                    parts: final_parts,
                 }
             })
             .collect();
 
+        let tools = req.tools.as_ref().map(|t| {
+            vec![GoogleTool {
+                function_declarations: t
+                    .iter()
+                    .map(|tool| GoogleFunctionDeclaration {
+                        name: tool.function.name.clone(),
+                        description: tool.function.description.clone(),
+                        parameters: tool.function.parameters.clone(),
+                    })
+                    .collect(),
+            }]
+        });
+
+        let tool_config = req.tool_choice.as_ref().map(|tc| {
+            let (mode, allowed) = match tc {
+                crate::types::ToolChoice::Mode(m) => match m.as_str() {
+                    "none" => ("NONE", vec![]),
+                    "auto" => ("AUTO", vec![]),
+                    "required" => ("ANY", vec![]),
+                    _ => ("AUTO", vec![]),
+                },
+                crate::types::ToolChoice::Function { function, .. } => {
+                    ("ANY", vec![function.name.clone()])
+                }
+            };
+            GoogleToolConfig {
+                function_calling_config: GoogleFunctionCallingConfig {
+                    mode: mode.to_string(),
+                    allowed_function_names: allowed,
+                },
+            }
+        });
+
         GoogleRequest {
             contents,
+            tools,
+            tool_config,
             generation_config: Some(GoogleGenerationConfig {
                 temperature: req.temperature,
                 top_p: req.top_p,
@@ -325,8 +434,31 @@ pub struct GoogleContent {
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GooglePart {
+    Thought { text: String, thought: bool }, 
     Text { text: String },
     InlineData { inline_data: GoogleInlineData },
+    FunctionCall { 
+        #[serde(rename = "functionCall")] 
+        function_call: GoogleFunctionCall,
+        #[serde(skip_serializing_if = "Option::is_none", rename = "thoughtSignature")]
+        thought_signature: Option<String>,
+    },
+    FunctionResponse { 
+        #[serde(rename = "functionResponse")] 
+        function_response: GoogleFunctionResponse 
+    },
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GoogleFunctionCall {
+    pub name: String,
+    pub args: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GoogleFunctionResponse {
+    pub name: String,
+    pub response: serde_json::Value,
 }
 
 impl GooglePart {
@@ -390,35 +522,57 @@ pub struct GoogleUsageMetadata {
 
 impl From<GoogleResponse> for ChatResponse {
     fn from(value: GoogleResponse) -> Self {
-        let choice = if let Some(candidates) = value.candidates {
-            if let Some(candidate) = candidates.into_iter().next() {
-                let content = candidate
-                    .content
-                    .and_then(|c| c.parts.into_iter().next())
-                    .and_then(|p| p.as_text().map(|s| s.to_string()))
-                    .unwrap_or_default();
+        let mut tool_calls = Vec::new();
+        let mut reasoning_content = None;
+        let mut final_content = String::new();
+        let mut finish_reason = None;
 
-                Choice {
-                    index: 0,
-                    message: Message::assistant(&content),
-                    finish_reason: candidate.finish_reason,
-                    logprobs: None,
-                }
-            } else {
-                Choice {
-                    index: 0,
-                    message: Message::assistant(""),
-                    finish_reason: None,
-                    logprobs: None,
+        if let Some(candidates) = value.candidates {
+            if let Some(candidate) = candidates.into_iter().next() {
+                finish_reason = candidate.finish_reason;
+                if let Some(content) = candidate.content {
+                    for part in content.parts {
+                        match part {
+                            GooglePart::Text { text } => {
+                                if !final_content.is_empty() {
+                                    final_content.push('\n');
+                                }
+                                final_content.push_str(&text);
+                            }
+                            GooglePart::FunctionCall { function_call, thought_signature } => {
+                                tool_calls.push(crate::types::ToolCall {
+                                    id: function_call.name.clone(), // Use name as ID
+                                    call_type: "function".to_string(),
+                                    function: crate::types::FunctionCall {
+                                        name: function_call.name,
+                                        arguments: function_call.args.to_string(),
+                                        thought_signature: thought_signature.clone(),
+                                    },
+                                    index: Some(tool_calls.len()),
+                                    thought_signature,
+                                });
+                            }
+                            GooglePart::Thought { text, .. } => {
+                                reasoning_content = Some(text);
+                            }
+                            _ => {}
+                        }
+                    }
                 }
             }
-        } else {
-            Choice {
-                index: 0,
-                message: Message::assistant(""),
-                finish_reason: None,
-                logprobs: None,
-            }
+        }
+
+        let choice = Choice {
+            index: 0,
+            message: Message {
+                role: Role::Assistant,
+                content: vec![crate::types::MessageBlock::text(final_content.clone())],
+                tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
+                reasoning_content: reasoning_content.clone(),
+                ..Default::default()
+            },
+            finish_reason,
+            logprobs: None,
         };
 
         let usage = value.usage_metadata.map(|u| Usage {
@@ -432,11 +586,11 @@ impl From<GoogleResponse> for ChatResponse {
         ChatResponse {
             id: "google".to_string(),
             object: "chat.completion".to_string(),
-            created: 0,
+            created: chrono::Utc::now().timestamp() as u64,
             model: "google".to_string(),
-            choices: vec![choice.clone()],
-            content: choice.message.content_as_text(),
-            reasoning_content: None,
+            choices: vec![choice],
+            content: final_content,
+            reasoning_content,
             usage,
             system_fingerprint: None,
         }

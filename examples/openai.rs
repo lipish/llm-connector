@@ -5,6 +5,8 @@
 //! Run: cargo run --example openai
 
 use dotenvy::dotenv;
+#[allow(unused_imports)]
+use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, EmbedRequest},

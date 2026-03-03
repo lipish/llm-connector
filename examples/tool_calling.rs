@@ -6,6 +6,8 @@
 //! Run: cargo run --example tool_calling
 
 use dotenvy::dotenv;
+#[allow(unused_imports)]
+use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, Tool, ToolChoice},

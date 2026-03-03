@@ -88,12 +88,28 @@ pub fn parse_openai_compatible_chat_response(
         for choice in choices {
             let msg_source = choice.message.or(choice.delta); // Support standard and delta
             if let Some(msg) = msg_source {
-                let content_str = msg.content.unwrap_or_default();
+                let mut content_str = msg.content.unwrap_or_default();
+                let mut reasoning_str = msg.reasoning_content;
+
+                // Handle providers like Minimax that embed thinking in <think> tags
+                if reasoning_str.is_none() && content_str.contains("<think>") {
+                    if let Some(start_idx) = content_str.find("<think>") {
+                        if let Some(end_idx) = content_str.find("</think>") {
+                            let extracted_reasoning = content_str[start_idx + 7..end_idx].to_string();
+                            reasoning_str = Some(extracted_reasoning);
+                            
+                            // Remove the <think>...</think> block from the content
+                            let mut new_content = content_str[..start_idx].to_string();
+                            new_content.push_str(&content_str[end_idx + 8..]);
+                            content_str = new_content.trim().to_string();
+                        }
+                    }
+                }
 
                 // Keep the first choice's content as main
                 if choice.index.unwrap_or(0) == 0 {
                     main_content = content_str.clone();
-                    main_reasoning = msg.reasoning_content.clone();
+                    main_reasoning = reasoning_str.clone();
                 }
 
                 // Parse Tool Calls
@@ -107,11 +123,13 @@ pub fn parse_openai_compatible_chat_response(
                     }
                 }
 
-                let final_message = if let Some(tc) = mapped_tool_calls {
+                let mut final_message = if let Some(tc) = mapped_tool_calls {
                     crate::types::Message::assistant_with_tool_calls(tc)
                 } else {
                     crate::types::Message::assistant(&content_str)
                 };
+                
+                final_message.reasoning_content = reasoning_str;
 
                 mapped_choices.push(crate::types::Choice {
                     index: choice.index.unwrap_or(0),

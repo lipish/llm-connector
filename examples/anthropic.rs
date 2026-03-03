@@ -5,6 +5,7 @@
 //! Run: cargo run --example anthropic
 
 use dotenvy::dotenv;
+use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},

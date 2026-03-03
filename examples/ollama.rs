@@ -4,6 +4,7 @@
 //!
 //! Run: cargo run --example ollama
 
+use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},

@@ -655,6 +655,11 @@ pub struct ToolCall {
     /// This field is used internally for streaming accumulation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index: Option<usize>,
+
+    /// Provider-specific thought signature (for Gemini 3.0+)
+    /// Mandatory to return in subsequent requests to preserve reasoning state
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thought_signature: Option<String>,
 }
 
 /// Function call details
@@ -672,6 +677,10 @@ pub struct FunctionCall {
     /// In streaming mode, this is accumulated across multiple chunks
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub arguments: String,
+
+    /// Provider-specific thought signature (for Gemini 3.0+)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thought_signature: Option<String>,
 }
 
 impl ToolCall {
@@ -701,6 +710,14 @@ impl ToolCall {
         // Update index if present
         if delta.index.is_some() {
             self.index = delta.index;
+        }
+
+        // Update thought_signature if present
+        if delta.thought_signature.is_some() {
+            self.thought_signature = delta.thought_signature.clone();
+        }
+        if delta.function.thought_signature.is_some() {
+            self.function.thought_signature = delta.function.thought_signature.clone();
         }
     }
 

@@ -49,7 +49,7 @@ This decoupling ensures that `llm-connector` remains a stable, logic-only librar
 
 ```toml
 [dependencies]
-llm-connector = "0.8.0"
+llm-connector = "1.0.2"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -169,7 +169,12 @@ let response = client.chat(&request).await?;
 
 ## 📂 Recent Changelogs
 
-- **v0.8.0 (2026-03-02)**
+- **v1.0.2 (2026-03-03)**
+    - `+` **Google Gemini support**: Full tool calling and reasoning (`thinking`) for Gemini 2.x and 3.x models.
+    - `+` **Gemini 3.x `thoughtSignature`**: Automatically captures and replays the mandatory `thoughtSignature` field required by Gemini 3.x for multi-turn tool conversations.
+    - `+` **Gemini role mapping**: Tool (function) responses correctly mapped to the `user` role required by the `v1beta` API.
+    - `^` **`ToolCall` / `FunctionCall`**: Added optional `thought_signature` field for cross-provider extensibility.
+- **v1.0.1 (2026-03-02)**
     - `!` **BREAKING**: Rebranded as a **Pure Protocol Engine**.
     - `!` **BREAKING**: Removed all default/hardcoded URLs. `base_url` is now **mandatory** for all client constructors.
     - `!` **BREAKING**: Removed redundant provider files (`deepseek`, `moonshot`, `volcengine`, etc.) in favor of generic Protocol adapters.

@@ -1,4 +1,5 @@
 use dotenvy::dotenv;
+use llm_providers;
 use llm_connector::{LlmClient, Message};
 use std::env;
 

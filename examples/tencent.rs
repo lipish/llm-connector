@@ -4,6 +4,8 @@
 //!
 //! Run: cargo run --example tencent --features tencent
 
+use llm_providers;
+
 #[cfg(feature = "tencent")]
 use dotenvy::dotenv;
 #[cfg(feature = "tencent")]
