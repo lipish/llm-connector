@@ -31,14 +31,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("❌ Please set TENCENT_SECRET_KEY in .env or environment");
             std::process::exit(1);
         });
-        let base_url = env::var("TENCENT_BASE_URL").unwrap_or_else(|_| "hunyuan.tencentcloudapi.com".to_string());
+        let base_url = env::var("TENCENT_BASE_URL")
+            .unwrap_or_else(|_| "hunyuan.tencentcloudapi.com".to_string());
 
         let client = LlmClient::tencent(&secret_id, &secret_key, &base_url)?;
 
         println!("--- 1. Basic Chat ---");
-        let request = ChatRequest::new("hunyuan-lite")
-            .add_message(Message::user("Hello Tencent, describe the city of Shenzhen."));
-        
+        let request = ChatRequest::new("hunyuan-lite").add_message(Message::user(
+            "Hello Tencent, describe the city of Shenzhen.",
+        ));
+
         let response = client.chat(&request).await?;
         println!("Response: {}\n", response.content);
 
@@ -48,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let request = ChatRequest::new("hunyuan-lite")
                 .add_message(Message::user("Tell me a fun fact about pandas."))
                 .with_stream(true);
-            
+
             let mut stream = client.chat_stream(&request).await?;
             print!("Streaming: ");
             while let Some(chunk) = futures_util::StreamExt::next(&mut stream).await {

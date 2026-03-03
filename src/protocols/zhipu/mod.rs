@@ -68,7 +68,8 @@ impl Protocol for ZhipuProtocol {
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let messages = crate::protocols::common::request::openai_message_converter(&request.messages);
+        let messages =
+            crate::protocols::common::request::openai_message_converter(&request.messages);
 
         Ok(ZhipuRequest {
             model: request.model.clone(),
@@ -83,7 +84,10 @@ impl Protocol for ZhipuProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_chat_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_chat_response(
+            response,
+            self.name(),
+        )
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {

@@ -19,14 +19,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let api_key = env::var("GOOGLE_API_KEY").expect("GOOGLE_API_KEY not set");
     let region = env::var("GOOGLE_REGION").unwrap_or_else(|_| "global".to_string());
-    
+
     // Fetch endpoint from llm-providers
     let endpoint_id = format!("google:{}", region);
     let (provider_id, endpoint) = llm_providers::get_endpoint(&endpoint_id)
         .ok_or_else(|| format!("Endpoint {} not found", endpoint_id))?;
-    
+
     let base_url = env::var("GOOGLE_BASE_URL").unwrap_or_else(|_| endpoint.base_url.to_string());
-    
+
     // We'll use gemini-3-flash-preview for tools, and try to enable thinking
     let model = env::var("GOOGLE_MODEL").unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
 
@@ -59,7 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Initial request with tools and thinking enabled
     println!("--- Step 1: Request with Tools & Thinking ---");
     let request = ChatRequest::new(&model)
-        .add_message(Message::user("What's the weather like in Beijing right now? Solve this by thinking carefully."))
+        .add_message(Message::user(
+            "What's the weather like in Beijing right now? Solve this by thinking carefully.",
+        ))
         .with_tools(vec![weather_tool])
         .with_enable_thinking(true);
 
@@ -74,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         for tc in tool_calls {
             println!("  - Function: {}", tc.function.name);
             println!("  - Arguments: {}", tc.function.arguments);
-            
+
             // 3. Mock tool execution
             println!("\n--- Step 2: Executing Tool ---");
             let tool_result = json!({"location": "Beijing", "temperature": "15", "unit": "celsius", "description": "Sunny"}).to_string();
@@ -92,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_enable_thinking(true);
 
             let final_response = client.chat(&final_request).await?;
-            
+
             if let Some(final_reasoning) = &final_response.reasoning_content {
                 println!("🧠 Final Thinking Process:\n{}\n", final_reasoning);
             }

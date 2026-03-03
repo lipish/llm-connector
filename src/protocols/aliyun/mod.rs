@@ -55,9 +55,15 @@ impl Protocol for AliyunProtocol {
     fn embed_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
         let base = base_url.trim_end_matches('/');
         if base.ends_with("/api/v1") {
-            Some(format!("{}/services/embeddings/text-embedding/text-embedding", base))
+            Some(format!(
+                "{}/services/embeddings/text-embedding/text-embedding",
+                base
+            ))
         } else {
-            Some(format!("{}/api/v1/services/embeddings/text-embedding/text-embedding", base))
+            Some(format!(
+                "{}/api/v1/services/embeddings/text-embedding/text-embedding",
+                base
+            ))
         }
     }
 
@@ -66,7 +72,8 @@ impl Protocol for AliyunProtocol {
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let aliyun_messages = crate::protocols::common::request::openai_message_converter(&request.messages);
+        let aliyun_messages =
+            crate::protocols::common::request::openai_message_converter(&request.messages);
 
         Ok(AliyunRequest {
             model: request.model.clone(),
@@ -112,7 +119,10 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_embed_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_embed_response(
+            response,
+            self.name(),
+        )
     }
 
     #[cfg(feature = "streaming")]
@@ -124,7 +134,10 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_chat_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_chat_response(
+            response,
+            self.name(),
+        )
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {

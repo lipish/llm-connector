@@ -11,11 +11,11 @@
 //! Run: cargo run --example zhipu
 
 use dotenvy::dotenv;
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
+use llm_providers;
 use std::env;
 
 #[tokio::main]
@@ -53,9 +53,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = builder.build()?;
 
     println!("--- 1. Basic Chat ({}) ---", provider_id);
-    let request = ChatRequest::new(&model)
-        .add_message(Message::user("Introduce yourself in a few words."));
-    
+    let request =
+        ChatRequest::new(&model).add_message(Message::user("Introduce yourself in a few words."));
+
     let response = client.chat(&request).await?;
     println!("Response: {}\n", response.content);
 
@@ -63,9 +63,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("--- 2. Streaming Chat ---");
         let request = ChatRequest::new(&model)
-            .add_message(Message::user("Tell a very short story about a robot learning to cook."))
+            .add_message(Message::user(
+                "Tell a very short story about a robot learning to cook.",
+            ))
             .with_stream(true);
-        
+
         let mut stream = client.chat_stream(&request).await?;
         print!("Streaming: ");
         while let Some(chunk) = futures_util::StreamExt::next(&mut stream).await {

@@ -5,11 +5,11 @@
 //! Run: cargo run --example zhipu_vision
 
 use dotenvy::dotenv;
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, MessageBlock},
 };
+use llm_providers;
 use std::env;
 
 #[tokio::main]
@@ -19,10 +19,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let api_key = env::var("ZHIPU_API_KEY").expect("ZHIPU_API_KEY not set");
     let region = env::var("ZHIPU_REGION").unwrap_or_else(|_| "global".to_string());
-    
+
     // For vision, GLM-4V is standard, but GLM-5 should support it too.
     let model = env::var("ZHIPU_MODEL").unwrap_or_else(|_| "glm-4v".to_string());
-    
+
     // 1. Get endpoint from llm-providers
     let endpoint_id = format!("zhipu:{}", region);
     let (_, endpoint) = llm_providers::get_endpoint(&endpoint_id)
@@ -39,9 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Prepare multi-modal message
     // Using a sample image from the internet
     let image_url = "https://img1.baidu.com/it/u=1361506484,475200373&fm=253&fmt=auto&app=138&f=JPEG?w=800&h=500";
-    
+
     println!("🖼️ Analyzing image: {}", image_url);
-    
+
     let message = Message::new(
         llm_connector::types::Role::User,
         vec![
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Send request
     let response = client.chat(&request).await?;
-    
+
     println!("\n🏁 Assistant Response:\n{}\n", response.content);
 
     Ok(())

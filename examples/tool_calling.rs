@@ -6,12 +6,12 @@
 //! Run: cargo run --example tool_calling
 
 use dotenvy::dotenv;
-#[allow(unused_imports)]
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, Tool, ToolChoice},
 };
+#[allow(unused_imports)]
+use llm_providers;
 use serde_json::json;
 use std::env;
 
@@ -25,8 +25,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("❌ Please set OPENAI_API_KEY in .env");
         std::process::exit(1);
     });
-    let base_url = env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
-    
+    let base_url =
+        env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+
     let client = LlmClient::openai(&api_key, &base_url)?;
 
     // 1. Define a tool (function)
@@ -62,11 +63,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(choice) = response.choices.first() {
         if let Some(tool_calls) = &choice.message.tool_calls {
             println!("🤖 Assistant wants to call {} tool(s):", tool_calls.len());
-            
+
             for tool_call in tool_calls {
                 println!("   - Function: {}", tool_call.function.name);
                 println!("   - Arguments: {}", tool_call.function.arguments);
-                
+
                 // 3. Simulate calling the tool and returning the result
                 println!("   - [Simulating tool execution...]");
                 let tool_result = json!({

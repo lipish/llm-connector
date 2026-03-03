@@ -50,7 +50,8 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let messages = crate::protocols::common::request::openai_message_converter(&request.messages);
+        let messages =
+            crate::protocols::common::request::openai_message_converter(&request.messages);
 
         // Convert tools
         let tools = request.tools.as_ref().map(|tools| {
@@ -98,7 +99,10 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_chat_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_chat_response(
+            response,
+            self.name(),
+        )
     }
 
     fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
@@ -130,7 +134,10 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_embed_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_embed_response(
+            response,
+            self.name(),
+        )
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {

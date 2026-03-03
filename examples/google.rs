@@ -5,11 +5,11 @@
 //! Run: cargo run --example google
 
 use dotenvy::dotenv;
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
+use llm_providers;
 use std::env;
 use std::io::{self, Write};
 
@@ -20,12 +20,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let api_key = env::var("GOOGLE_API_KEY").expect("GOOGLE_API_KEY not set");
     let region = env::var("GOOGLE_REGION").unwrap_or_else(|_| "global".to_string());
-    
+
     // Fetch endpoint and default model from llm-providers
     let endpoint_id = format!("google:{}", region);
     let (provider_id, endpoint) = llm_providers::get_endpoint(&endpoint_id)
         .ok_or_else(|| format!("Endpoint {} not found", endpoint_id))?;
-    
+
     let base_url = env::var("GOOGLE_BASE_URL").unwrap_or_else(|_| endpoint.base_url.to_string());
     let model = env::var("GOOGLE_MODEL").unwrap_or_else(|_| {
         llm_providers::list_models(provider_id)
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("--- 1. Basic Chat ({}) ---", model);
     let request = ChatRequest::new(&model)
         .add_message(Message::user("What's interesting about the Big Bang?"));
-    
+
     let response = client.chat(&request).await?;
     println!("Response: {}\n", response.content);
 
@@ -52,9 +52,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("--- 2. Streaming Chat ---");
         let stream_request = ChatRequest::new(&model)
-            .add_message(Message::user("Describe the aurora borealis in one sentence."))
+            .add_message(Message::user(
+                "Describe the aurora borealis in one sentence.",
+            ))
             .with_stream(true);
-        
+
         let mut stream = client.chat_stream(&stream_request).await?;
         print!("Streaming: ");
         io::stdout().flush()?;
@@ -71,7 +73,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("--- 3. Reasoning (Thinking) with gemini-2.0-flash-thinking-exp ---");
     let thinking_model = "gemini-2.0-flash-thinking-exp";
     let thinking_request = ChatRequest::new(thinking_model)
-        .add_message(Message::user("Which is larger, 9.11 or 9.9? Explain with thinking process."))
+        .add_message(Message::user(
+            "Which is larger, 9.11 or 9.9? Explain with thinking process.",
+        ))
         .with_enable_thinking(true);
 
     match client.chat(&thinking_request).await {

@@ -230,7 +230,8 @@ impl Protocol for AnthropicProtocol {
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {
-        let mut headers = crate::protocols::common::auth::api_key_header(&self.api_key, "x-api-key");
+        let mut headers =
+            crate::protocols::common::auth::api_key_header(&self.api_key, "x-api-key");
         headers.push(("anthropic-version".to_string(), "2023-06-01".to_string()));
         headers
     }

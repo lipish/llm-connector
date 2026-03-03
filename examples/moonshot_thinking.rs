@@ -5,11 +5,11 @@
 //! Run: cargo run --example moonshot_thinking
 
 use dotenvy::dotenv;
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
+use llm_providers;
 use std::env;
 
 #[tokio::main]
@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = env::var("MOONSHOT_API_KEY").expect("MOONSHOT_API_KEY not set");
     let region = env::var("MOONSHOT_REGION").unwrap_or_else(|_| "cn".to_string());
     let model = env::var("MOONSHOT_MODEL").unwrap_or_else(|_| "kimi-k2.5".to_string());
-    
+
     let endpoint_id = format!("moonshot:{}", region);
     let (_, endpoint) = llm_providers::get_endpoint(&endpoint_id)
         .ok_or_else(|| format!("Endpoint {} not found", endpoint_id))?;
@@ -44,10 +44,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.chat(&request).await?;
 
     // 2. Show reasoning content
-    if let Some(reasoning) = response.choices.first().and_then(|c| c.message.reasoning_any()) {
+    if let Some(reasoning) = response
+        .choices
+        .first()
+        .and_then(|c| c.message.reasoning_any())
+    {
         println!("🧠 Thinking Process:\n{}\n", reasoning);
     } else {
-        println!("⚠️ No explicit reasoning content returned in a separate field (the model might integrate reasoning directly into the response content).");
+        println!(
+            "⚠️ No explicit reasoning content returned in a separate field (the model might integrate reasoning directly into the response content)."
+        );
     }
 
     println!("🏁 Final Answer:\n{}\n", response.content);

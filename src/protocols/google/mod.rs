@@ -65,15 +65,15 @@ impl Protocol for GoogleProtocol {
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
         let google_response: GoogleResponse =
             serde_json::from_str(response).map_err(LlmConnectorError::JsonError)?;
-        
+
         let chat_response: ChatResponse = google_response.into();
-        
+
         // Populate reasoning content if present in usage_metadata or parts
         // Note: Gemini 2.0 Thinking puts thoughts in usage_metadata.thoughts_token_count
         // but the actual text is usually in a special part or handled by the provider.
         // If the library users use `with_enable_thinking`, we should try to extract it if possible.
         // Currently, our ChatResponse::from(GoogleResponse) handles token counts.
-        
+
         Ok(chat_response)
     }
 
@@ -178,16 +178,15 @@ impl Protocol for GoogleProtocol {
                                                 })
                                             })
                                             .unwrap_or_default();
-                                        
-                                        let thought = candidate
-                                            .content
-                                            .as_ref()
-                                            .and_then(|c| {
-                                                c.parts.iter().find_map(|p| match p {
-                                                    GooglePart::Thought { text, .. } => Some(text.clone()),
-                                                    _ => None,
-                                                })
-                                            });
+
+                                        let thought = candidate.content.as_ref().and_then(|c| {
+                                            c.parts.iter().find_map(|p| match p {
+                                                GooglePart::Thought { text, .. } => {
+                                                    Some(text.clone())
+                                                }
+                                                _ => None,
+                                            })
+                                        });
 
                                         (text, thought, candidate.finish_reason.clone())
                                     })
@@ -201,7 +200,10 @@ impl Protocol for GoogleProtocol {
                                     ..Default::default()
                                 });
 
-                                if content.is_empty() && reasoning.is_none() && finish_reason.is_none() && usage.is_none()
+                                if content.is_empty()
+                                    && reasoning.is_none()
+                                    && finish_reason.is_none()
+                                    && usage.is_none()
                                 {
                                     Ok(None)
                                 } else {
@@ -341,9 +343,14 @@ impl From<&ChatRequest> for GoogleRequest {
                         final_parts.push(GooglePart::FunctionCall {
                             function_call: GoogleFunctionCall {
                                 name: tc.function.name.clone(),
-                                args: tc.arguments_value().unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+                                args: tc
+                                    .arguments_value()
+                                    .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
                             },
-                            thought_signature: tc.thought_signature.clone().or(tc.function.thought_signature.clone()),
+                            thought_signature: tc
+                                .thought_signature
+                                .clone()
+                                .or(tc.function.thought_signature.clone()),
                         });
                     }
                 }
@@ -356,7 +363,8 @@ impl From<&ChatRequest> for GoogleRequest {
                         final_parts.push(GooglePart::FunctionResponse {
                             function_response: GoogleFunctionResponse {
                                 name: id.clone(),
-                                response: serde_json::from_str(&msg.content_as_text()).unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+                                response: serde_json::from_str(&msg.content_as_text())
+                                    .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
                             },
                         });
                     }
@@ -434,18 +442,25 @@ pub struct GoogleContent {
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GooglePart {
-    Thought { text: String, thought: bool }, 
-    Text { text: String },
-    InlineData { inline_data: GoogleInlineData },
-    FunctionCall { 
-        #[serde(rename = "functionCall")] 
+    Thought {
+        text: String,
+        thought: bool,
+    },
+    Text {
+        text: String,
+    },
+    InlineData {
+        inline_data: GoogleInlineData,
+    },
+    FunctionCall {
+        #[serde(rename = "functionCall")]
         function_call: GoogleFunctionCall,
         #[serde(skip_serializing_if = "Option::is_none", rename = "thoughtSignature")]
         thought_signature: Option<String>,
     },
-    FunctionResponse { 
-        #[serde(rename = "functionResponse")] 
-        function_response: GoogleFunctionResponse 
+    FunctionResponse {
+        #[serde(rename = "functionResponse")]
+        function_response: GoogleFunctionResponse,
     },
 }
 
@@ -539,7 +554,10 @@ impl From<GoogleResponse> for ChatResponse {
                                 }
                                 final_content.push_str(&text);
                             }
-                            GooglePart::FunctionCall { function_call, thought_signature } => {
+                            GooglePart::FunctionCall {
+                                function_call,
+                                thought_signature,
+                            } => {
                                 tool_calls.push(crate::types::ToolCall {
                                     id: function_call.name.clone(), // Use name as ID
                                     call_type: "function".to_string(),
@@ -567,7 +585,11 @@ impl From<GoogleResponse> for ChatResponse {
             message: Message {
                 role: Role::Assistant,
                 content: vec![crate::types::MessageBlock::text(final_content.clone())],
-                tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
+                tool_calls: if tool_calls.is_empty() {
+                    None
+                } else {
+                    Some(tool_calls)
+                },
                 reasoning_content: reasoning_content.clone(),
                 ..Default::default()
             },

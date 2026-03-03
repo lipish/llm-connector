@@ -4,11 +4,11 @@
 //!
 //! Run: cargo run --example ollama
 
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
+use llm_providers;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,13 +19,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("--- 1. List Local Models ---");
     match client.models().await {
         Ok(models) => println!("Available models: {:?}\n", models),
-        Err(e) => println!("⚠️ Could not list models (Ollama might not be running): {}\n", e),
+        Err(e) => println!(
+            "⚠️ Could not list models (Ollama might not be running): {}\n",
+            e
+        ),
     }
 
     println!("--- 2. Basic Chat ---");
-    let request = ChatRequest::new("llama3")
-        .add_message(Message::user("Why is Rust so popular?"));
-    
+    let request = ChatRequest::new("llama3").add_message(Message::user("Why is Rust so popular?"));
+
     match client.chat(&request).await {
         Ok(response) => println!("Response: {}\n", response.content),
         Err(e) => println!("⚠️ Chat failed (Make sure llama3 is pulled): {}\n", e),
@@ -37,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let request = ChatRequest::new("llama3")
             .add_message(Message::user("Tell me a joke about programming."))
             .with_stream(true);
-        
+
         match client.chat_stream(&request).await {
             Ok(mut stream) => {
                 print!("Streaming: ");

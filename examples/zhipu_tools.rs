@@ -5,11 +5,11 @@
 //! Run: cargo run --example zhipu_tools
 
 use dotenvy::dotenv;
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, Tool},
 };
+use llm_providers;
 use serde_json::json;
 use std::env;
 
@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = env::var("ZHIPU_API_KEY").expect("ZHIPU_API_KEY not set");
     let region = env::var("ZHIPU_REGION").unwrap_or_else(|_| "global".to_string());
     let model = env::var("ZHIPU_MODEL").unwrap_or_else(|_| "glm-5".to_string());
-    
+
     // 1. Get endpoint from llm-providers
     let endpoint_id = format!("zhipu:{}", region);
     let (_, endpoint) = llm_providers::get_endpoint(&endpoint_id)
@@ -64,14 +64,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.chat(&request).await?;
 
     // Show reasoning if present
-    if let Some(reasoning) = response.choices.first().and_then(|c| c.message.reasoning_any()) {
+    if let Some(reasoning) = response
+        .choices
+        .first()
+        .and_then(|c| c.message.reasoning_any())
+    {
         println!("🧠 Reasoning:\n{}\n", reasoning);
     }
 
     if response.has_tool_calls() {
         let tool_calls = response.tool_calls();
         println!("🛠️ Model requested {} tool call(s):", tool_calls.len());
-        
+
         // Add the assistant's tool call message to history
         if let Some(choice) = response.choices.first() {
             request.messages.push(choice.message.clone());
@@ -90,18 +94,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "unit": "celsius",
                     "description": "Partly cloudy"
                 });
-                
+
                 println!("✅ Executed tool: {} -> {}", name, result);
 
                 // Add tool result to history
-                request.messages.push(Message::tool(result.to_string(), &tool_call.id));
+                request
+                    .messages
+                    .push(Message::tool(result.to_string(), &tool_call.id));
             }
         }
 
         // 5. Final request to get the answer
         println!("\n--- Step 2: Sending tool result back to model ---");
         let final_response = client.chat(&request).await?;
-        
+
         println!("🏁 Final Answer:\n{}\n", final_response.content);
     } else {
         println!("Response: {}\n", response.content);

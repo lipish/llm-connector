@@ -148,7 +148,7 @@ pub fn json_lines_events(
 }
 
 /// Parse a single SSE line and extract the JSON payload
-/// 
+///
 /// # Returns
 /// - `Ok(Some(Value))` if line contains valid JSON data
 /// - `Ok(None)` if line is empty, comment, or "[DONE]"

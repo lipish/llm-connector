@@ -2,8 +2,8 @@
 //!
 //! Verified that HTTP status codes and API error messages are correctly mapped to LlmConnectorError.
 
-use llm_connector::error::LlmConnectorError;
 use llm_connector::core::Protocol;
+use llm_connector::error::LlmConnectorError;
 use llm_connector::protocols::openai::OpenAIProtocol;
 
 #[test]

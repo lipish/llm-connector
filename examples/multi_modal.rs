@@ -6,14 +6,14 @@
 //! Run: cargo run --example multi_modal
 
 use dotenvy::dotenv;
-#[allow(unused_imports)]
-use llm_providers;
+use futures::StreamExt;
 use llm_connector::{
     LlmClient,
-    types::{ChatRequest, Message, MessageBlock, Role, EmbedRequest},
+    types::{ChatRequest, EmbedRequest, Message, MessageBlock, Role},
 };
+#[allow(unused_imports)]
+use llm_providers;
 use std::env;
-use futures::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,7 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("--- 2. Embeddings ---");
     let embed_request = EmbedRequest::new("text-embedding-3-small", "Hello world");
     let embed_response = client.embed(&embed_request).await?;
-    println!("Embedding vector first 5: {:?}", &embed_response.data[0].embedding[0..5]);
+    println!(
+        "Embedding vector first 5: {:?}",
+        &embed_response.data[0].embedding[0..5]
+    );
 
     Ok(())
 }

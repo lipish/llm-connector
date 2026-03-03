@@ -2,7 +2,7 @@
 //!
 //! Verified the core data types and their helpers.
 
-use llm_connector::types::{Message, Role, MessageBlock, ChatRequest};
+use llm_connector::types::{ChatRequest, Message, MessageBlock, Role};
 
 #[test]
 fn test_message_creation() {
@@ -22,7 +22,7 @@ fn test_chat_request_builder() {
         .with_temperature(0.5)
         .with_max_tokens(100)
         .with_stream(true); // Added with_stream
-    
+
     assert_eq!(req.model, "model");
     assert_eq!(req.messages.len(), 1);
     assert_eq!(req.temperature, Some(0.5));
@@ -32,10 +32,10 @@ fn test_chat_request_builder() {
 
 #[test]
 fn test_message_blocks() {
-    let msg = Message::new(Role::User, vec![
-        MessageBlock::text("t1"),
-        MessageBlock::text("t2"),
-    ]);
+    let msg = Message::new(
+        Role::User,
+        vec![MessageBlock::text("t1"), MessageBlock::text("t2")],
+    );
     assert_eq!(msg.content.len(), 2);
     assert_eq!(msg.content_as_text(), "t1\nt2");
 }

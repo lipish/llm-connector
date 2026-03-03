@@ -6,12 +6,12 @@
 //! Run: cargo run --example minimax
 
 use dotenvy::dotenv;
-use llm_providers;
 use futures_util::StreamExt;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
+use llm_providers;
 use std::env;
 use std::io::{self, Write};
 

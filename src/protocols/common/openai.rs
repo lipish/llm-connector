@@ -95,9 +95,10 @@ pub fn parse_openai_compatible_chat_response(
                 if reasoning_str.is_none() && content_str.contains("<think>") {
                     if let Some(start_idx) = content_str.find("<think>") {
                         if let Some(end_idx) = content_str.find("</think>") {
-                            let extracted_reasoning = content_str[start_idx + 7..end_idx].to_string();
+                            let extracted_reasoning =
+                                content_str[start_idx + 7..end_idx].to_string();
                             reasoning_str = Some(extracted_reasoning);
-                            
+
                             // Remove the <think>...</think> block from the content
                             let mut new_content = content_str[..start_idx].to_string();
                             new_content.push_str(&content_str[end_idx + 8..]);
@@ -128,7 +129,7 @@ pub fn parse_openai_compatible_chat_response(
                 } else {
                     crate::types::Message::assistant(&content_str)
                 };
-                
+
                 final_message.reasoning_content = reasoning_str;
 
                 mapped_choices.push(crate::types::Choice {

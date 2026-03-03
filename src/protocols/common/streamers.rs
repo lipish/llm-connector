@@ -1,7 +1,7 @@
 //! Common Streaming Interpreters
 
 use crate::error::LlmConnectorError;
-use crate::types::{StreamingResponse, Usage, StreamingChoice, Delta, Role};
+use crate::types::{Delta, Role, StreamingChoice, StreamingResponse, Usage};
 use serde_json::Value;
 
 /// Anthropic Event interpretation
@@ -13,7 +13,11 @@ pub fn interpret_anthropic_event(
 
     match event_type {
         "content_block_delta" => {
-            if let Some(text) = event.get("delta").and_then(|d| d.get("text")).and_then(|t| t.as_str()) {
+            if let Some(text) = event
+                .get("delta")
+                .and_then(|d| d.get("text"))
+                .and_then(|t| t.as_str())
+            {
                 Ok(Some(StreamingResponse {
                     id: message_id.to_string(),
                     object: "chat.completion.chunk".to_string(),
@@ -40,7 +44,11 @@ pub fn interpret_anthropic_event(
             }
         }
         "message_delta" => {
-            let stop_reason = event.get("delta").and_then(|d| d.get("stop_reason")).and_then(|s| s.as_str()).map(|s| s.to_string());
+            let stop_reason = event
+                .get("delta")
+                .and_then(|d| d.get("stop_reason"))
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string());
             let usage = event.get("usage").map(|u| {
                 let in_t = u.get("input_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
                 let out_t = u.get("output_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
@@ -55,7 +63,10 @@ pub fn interpret_anthropic_event(
             Ok(Some(StreamingResponse {
                 id: message_id.to_string(),
                 object: "chat.completion.chunk".to_string(),
-                created: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                created: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs(),
                 model: "anthropic".to_string(),
                 choices: vec![StreamingChoice {
                     index: 0,

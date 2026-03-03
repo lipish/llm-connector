@@ -5,11 +5,11 @@
 //! Run: cargo run --example moonshot_tools
 
 use dotenvy::dotenv;
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, Tool, ToolChoice},
 };
+use llm_providers;
 use serde::Deserialize;
 use std::env;
 
@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = env::var("MOONSHOT_API_KEY").expect("MOONSHOT_API_KEY not set");
     let region = env::var("MOONSHOT_REGION").unwrap_or_else(|_| "cn".to_string());
     let model = env::var("MOONSHOT_MODEL").unwrap_or_else(|_| "kimi-k2.5".to_string());
-    
+
     let endpoint_id = format!("moonshot:{}", region);
     let (_, endpoint) = llm_providers::get_endpoint(&endpoint_id)
         .ok_or_else(|| format!("Endpoint {} not found", endpoint_id))?;
@@ -74,13 +74,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if response.has_tool_calls() {
         let tool_call = &response.tool_calls()[0];
         let args: WeatherArgs = tool_call.parse_arguments()?;
-        println!("🛠️  Model requested tool: {} with args: {:?}", tool_call.function.name, args);
+        println!(
+            "🛠️  Model requested tool: {} with args: {:?}",
+            tool_call.function.name, args
+        );
 
         // Add assistant's tool call to history
         messages.push(response.choices[0].message.clone());
 
         // Perform mock tool execution
-        let tool_result = format!("The weather in {} is 25 degrees Celsius and sunny.", args.location);
+        let tool_result = format!(
+            "The weather in {} is 25 degrees Celsius and sunny.",
+            args.location
+        );
         println!("📡 Tool result: {}", tool_result);
 
         // Add tool result to history
@@ -88,13 +94,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // 4. Final request
         println!("--- Step 2: Getting final answer ---");
-        let final_request = ChatRequest::new(&model)
-            .with_messages(messages);
-        
+        let final_request = ChatRequest::new(&model).with_messages(messages);
+
         let final_response = client.chat(&final_request).await?;
         println!("🤖 Final Answer: {}", final_response.content);
     } else {
-        println!("⚠️  Model did not call the tool. Response: {}", response.content);
+        println!(
+            "⚠️  Model did not call the tool. Response: {}",
+            response.content
+        );
     }
 
     Ok(())

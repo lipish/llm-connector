@@ -5,11 +5,11 @@
 //! Run: cargo run --example anthropic
 
 use dotenvy::dotenv;
-use llm_providers;
 use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
+use llm_providers;
 use std::env;
 
 #[tokio::main]
@@ -18,14 +18,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Anthropic Claude Comprehensive Example\n");
 
     let api_key = env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY not set");
-    let base_url = env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
+    let base_url =
+        env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
     let client = LlmClient::anthropic(&api_key, &base_url)?;
 
     println!("--- 1. Chat with System Message ---");
     let request = ChatRequest::new("claude-opus-4-5-20251101")
-        .add_message(Message::system("You are a helpful assistant that speaks like a pirate."))
+        .add_message(Message::system(
+            "You are a helpful assistant that speaks like a pirate.",
+        ))
         .add_message(Message::user("How's the weather today?"));
-    
+
     let response = client.chat(&request).await?;
     println!("Response: {}\n", response.content);
 
@@ -33,9 +36,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("--- 2. Streaming Chat ---");
         let request = ChatRequest::new("claude-opus-4-5-20251101")
-            .add_message(Message::user("Explain the concept of monads in functional programming."))
+            .add_message(Message::user(
+                "Explain the concept of monads in functional programming.",
+            ))
             .with_stream(true);
-        
+
         let mut stream = client.chat_stream(&request).await?;
         print!("Streaming: ");
         while let Some(chunk) = futures_util::StreamExt::next(&mut stream).await {
