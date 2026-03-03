@@ -190,7 +190,7 @@ impl Protocol for OpenAIProtocol {
 }
 
 // OpenAIrequesttype
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct OpenAIRequest {
     pub model: String,
     pub messages: Vec<serde_json::Value>,
@@ -216,7 +216,7 @@ pub struct OpenAIRequest {
     pub reasoning_effort: Option<ReasoningEffort>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct OpenAIMessage {
     pub role: String,
     pub content: serde_json::Value, // Support String or Array
@@ -240,7 +240,7 @@ pub struct OpenAIModel {
 }
 
 // Embedding Data Structures
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct OpenAIEmbedRequest {
     pub model: String,
     pub input: Vec<String>,

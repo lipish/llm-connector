@@ -262,7 +262,7 @@ impl Protocol for GoogleProtocol {
 // Google API Types
 // ============================================================================
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleRequest {
     pub contents: Vec<GoogleContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -273,26 +273,26 @@ pub struct GoogleRequest {
     pub tool_config: Option<GoogleToolConfig>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleTool {
     #[serde(rename = "functionDeclarations")]
     pub function_declarations: Vec<GoogleFunctionDeclaration>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleFunctionDeclaration {
     pub name: String,
     pub description: Option<String>,
     pub parameters: serde_json::Value,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleToolConfig {
     #[serde(rename = "functionCallingConfig")]
     pub function_calling_config: GoogleFunctionCallingConfig,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleFunctionCallingConfig {
     pub mode: String, // "AUTO", "ANY", "NONE"
     #[serde(skip_serializing_if = "Vec::is_empty", rename = "allowedFunctionNames")]
@@ -492,7 +492,7 @@ pub struct GoogleInlineData {
     pub data: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleGenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
@@ -504,7 +504,7 @@ pub struct GoogleGenerationConfig {
     pub thinking_config: Option<GoogleThinkingConfig>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleThinkingConfig {
     pub include_thoughts: bool,
 }
@@ -629,12 +629,12 @@ pub struct GoogleModel {
     pub name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleBatchEmbedRequest {
     pub requests: Vec<GoogleEmbedRequest>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleEmbedRequest {
     pub model: String,
     pub content: GoogleContent,

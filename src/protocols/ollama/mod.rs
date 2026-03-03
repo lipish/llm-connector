@@ -176,7 +176,7 @@ impl Protocol for OllamaProtocol {
 // Ollama API Types
 // ============================================================================
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct OllamaChatRequest {
     pub model: String,
     pub messages: Vec<OllamaMessage>,
@@ -190,7 +190,7 @@ pub struct OllamaMessage {
     pub content: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct OllamaOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,

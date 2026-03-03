@@ -312,7 +312,7 @@ impl Protocol for AnthropicProtocol {
 }
 
 // Anthropicrequesttype
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AnthropicRequest {
     pub model: String,
     pub max_tokens: u32,
@@ -329,14 +329,14 @@ pub struct AnthropicRequest {
     pub thinking: Option<AnthropicThinking>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AnthropicThinking {
     #[serde(rename = "type")]
     pub thinking_type: String,
     pub budget_tokens: u32,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AnthropicMessage {
     pub role: String,
     pub content: serde_json::Value, // Support String or Array
