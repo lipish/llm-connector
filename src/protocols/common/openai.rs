@@ -29,7 +29,7 @@ pub struct OpenAICompatibleResponse {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct OpenAICompatibleChoice {
+pub struct OpenAICompatibleChoice {
     pub index: Option<u32>,
     pub message: Option<OpenAICompatibleMessage>,
     pub delta: Option<OpenAICompatibleMessage>, // For streaming
@@ -37,7 +37,8 @@ pub(crate) struct OpenAICompatibleChoice {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub(crate) struct OpenAICompatibleMessage {
+pub struct OpenAICompatibleMessage {
+    #[allow(dead_code)]
     pub role: Option<String>,
     pub content: Option<String>,
     pub tool_calls: Option<serde_json::Value>,
@@ -46,7 +47,7 @@ pub(crate) struct OpenAICompatibleMessage {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct OpenAICompatibleUsage {
+pub struct OpenAICompatibleUsage {
     pub prompt_tokens: Option<u32>,
     pub completion_tokens: Option<u32>,
     pub total_tokens: Option<u32>,
@@ -148,7 +149,7 @@ pub struct OpenAICompatibleEmbedResponse {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct OpenAICompatibleEmbedData {
+pub struct OpenAICompatibleEmbedData {
     pub object: Option<String>,
     pub embedding: Vec<f32>,
     pub index: u32,

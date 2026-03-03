@@ -38,7 +38,12 @@ impl Protocol for AnthropicProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
-        format!("{}/v1/messages", base_url.trim_end_matches('/'))
+        let base = base_url.trim_end_matches('/');
+        if base.ends_with("/v1") {
+            format!("{}/messages", base)
+        } else {
+            format!("{}/v1/messages", base)
+        }
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
@@ -244,7 +249,6 @@ impl Protocol for AnthropicProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        use crate::types::{StreamingChoice, StreamingResponse, Usage};
         use futures_util::StreamExt;
         use std::sync::{Arc, Mutex};
 

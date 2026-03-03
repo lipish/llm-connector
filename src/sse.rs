@@ -147,6 +147,33 @@ pub fn json_lines_events(
     create_text_stream(response, StreamFormat::NdJson)
 }
 
+/// Parse a single SSE line and extract the JSON payload
+/// 
+/// # Returns
+/// - `Ok(Some(Value))` if line contains valid JSON data
+/// - `Ok(None)` if line is empty, comment, or "[DONE]"
+/// - `Err` if line contains invalid JSON
+pub fn parse_sse_line(line: &str) -> Result<Option<serde_json::Value>, LlmConnectorError> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with(':') {
+        return Ok(None);
+    }
+
+    if let Some(payload) = line.strip_prefix("data:") {
+        let payload = payload.trim();
+        if payload.is_empty() || payload == "[DONE]" {
+            return Ok(None);
+        }
+
+        let value: serde_json::Value = serde_json::from_str(payload).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to parse SSE JSON: {}", e))
+        })?;
+        Ok(Some(value))
+    } else {
+        Ok(None)
+    }
+}
+
 /// Convert HTTP response to StreamingResponse stream with automatic format detection
 #[cfg(feature = "streaming")]
 pub fn sse_to_streaming_response(response: reqwest::Response) -> crate::types::ChatStream {

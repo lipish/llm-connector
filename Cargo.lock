@@ -240,6 +240,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotenvy"
+version = "0.15.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -758,12 +764,13 @@ checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 
 [[package]]
 name = "llm-connector"
-version = "0.9.1"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "base64",
  "bytes",
  "chrono",
+ "dotenvy",
  "futures",
  "futures-util",
  "hex",

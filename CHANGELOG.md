@@ -1,6 +1,20 @@
-# Changelog
+## [1.0.0] - 2026-03-03
 
-All notable changes to this project will be documented in this file.
+### 🚀 Major Milestone - V2 Stage-Based Architecture
+
+- **Stage-Based Protocol Decomposition**: Protocol handling is now split into 4 distinct, reusable stages:
+  - **Schema Mapping**: Converting unified `ChatRequest` to provider-specific schemas.
+  - **Transport & Auth**: Handling HTTP requests, authentication headers, and connectivity.
+  - **Stream Interpretation**: Chunked parsing for SSE/NDJSON streams with unified reasoning extraction.
+  - **Response Normalization**: Converting raw API responses into a consistent `ChatResponse` format.
+- **Improved Maintainability**: Providers now inherit from a clean, modular structure in `src/protocols/common`.
+- **Comprehensive Examples**: Consolidated all fragmented examples into high-quality, unified provider examples.
+- **Enhanced Test Suite**: Revitalized the entire test directory with modular unit and integration tests.
+- **Bug Fixes & Robustness**:
+  - Fixed double `/v1` path issues for Anthropic and Aliyun.
+  - Resolved compiler warnings across the entire crate.
+  - Added new `tool_calling.rs` example for function calling verification.
+
 
 ## [0.9.1] - 2026-03-03
 

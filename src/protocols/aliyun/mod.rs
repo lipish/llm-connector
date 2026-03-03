@@ -44,17 +44,21 @@ impl Protocol for AliyunProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
-        format!(
-            "{}/api/v1/services/aigc/text-generation/generation",
-            base_url
-        )
+        let base = base_url.trim_end_matches('/');
+        if base.ends_with("/api/v1") {
+            format!("{}/services/aigc/text-generation/generation", base)
+        } else {
+            format!("{}/api/v1/services/aigc/text-generation/generation", base)
+        }
     }
 
     fn embed_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
-        Some(format!(
-            "{}/api/v1/services/embeddings/text-embedding/text-embedding",
-            base_url
-        ))
+        let base = base_url.trim_end_matches('/');
+        if base.ends_with("/api/v1") {
+            Some(format!("{}/services/embeddings/text-embedding/text-embedding", base))
+        } else {
+            Some(format!("{}/api/v1/services/embeddings/text-embedding/text-embedding", base))
+        }
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {
