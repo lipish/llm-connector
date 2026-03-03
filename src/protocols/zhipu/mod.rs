@@ -55,7 +55,12 @@ impl Protocol for ZhipuProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
-        format!("{}/api/paas/v4/chat/completions", base_url)
+        let base = base_url.trim_end_matches('/');
+        if base.ends_with("/api/paas/v4") {
+            format!("{}/chat/completions", base)
+        } else {
+            format!("{}/api/paas/v4/chat/completions", base)
+        }
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {

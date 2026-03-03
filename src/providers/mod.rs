@@ -447,6 +447,12 @@ impl Provider for TencentProvider {
         ])
     }
 
+    async fn embed(&self, _request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        Err(LlmConnectorError::UnsupportedOperation(
+            "Tencent native embedding not implemented yet".to_string(),
+        ))
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

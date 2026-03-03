@@ -16,12 +16,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     println!("🤖 Aliyun Qwen Comprehensive Example\n");
 
-    let api_key = env::var("ALIYUN_API_KEY").or_else(|_| env::var("DASHSCOPE_API_KEY")).unwrap_or_else(|_| {
-        println!("❌ Please set ALIYUN_API_KEY in .env or environment");
-        std::process::exit(1);
-    });
+    let api_key = env::var("ALIYUN_API_KEY").expect("ALIYUN_API_KEY not set");
+    let base_url = env::var("ALIYUN_BASE_URL").unwrap_or_else(|_| "https://dashscope.aliyuncs.com".to_string());
 
-    let client = LlmClient::aliyun(&api_key, "https://dashscope.aliyuncs.com/api/v1")?;
+    let client = LlmClient::aliyun(&api_key, &base_url)?;
 
     println!("--- 1. Basic Chat ---");
     let request = ChatRequest::new("qwen-max")

@@ -16,11 +16,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     println!("🤖 Anthropic Claude Comprehensive Example\n");
 
-    let api_key = env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| {
-        println!("❌ Please set ANTHROPIC_API_KEY in .env or environment");
-        std::process::exit(1);
-    });
-    let base_url = env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com/v1".to_string());
+    let api_key = env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY not set");
+    let base_url = env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
     let client = LlmClient::anthropic(&api_key, &base_url)?;
 
     println!("--- 1. Chat with System Message ---");

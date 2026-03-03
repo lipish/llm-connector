@@ -124,7 +124,11 @@ impl Protocol for TencentNativeProtocol {
         if _base_url.is_empty() || _base_url == "https://api.openai.com" {
             "https://hunyuan.tencentcloudapi.com".to_string()
         } else {
-            _base_url.to_string()
+            if !_base_url.contains("://") {
+                format!("https://{}", _base_url)
+            } else {
+                _base_url.to_string()
+            }
         }
     }
 

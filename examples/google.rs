@@ -16,12 +16,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     println!("🤖 Google Gemini Comprehensive Example\n");
 
-    let api_key = env::var("GOOGLE_API_KEY").unwrap_or_else(|_| {
-        println!("❌ Please set GOOGLE_API_KEY in .env or environment");
-        std::process::exit(1);
-    });
+    let api_key = env::var("GOOGLE_API_KEY").expect("GOOGLE_API_KEY not set");
+    let base_url = env::var("GOOGLE_BASE_URL").unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string());
 
-    let client = LlmClient::google(&api_key, "https://generativelanguage.googleapis.com")?;
+    let client = LlmClient::google(&api_key, &base_url)?;
 
     println!("--- 1. Basic Chat ---");
     let request = ChatRequest::new("gemini-1.5-flash")

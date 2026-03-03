@@ -16,10 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     println!("🤖 OpenAI Comprehensive Example\n");
 
-    let api_key = env::var("OPENAI_API_KEY").unwrap_or_else(|_| {
-        println!("❌ Please set OPENAI_API_KEY in .env or environment");
-        std::process::exit(1);
-    });
+    let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
     let base_url = env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
     let client = LlmClient::openai(&api_key, &base_url)?;
 

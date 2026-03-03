@@ -29,8 +29,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("❌ Please set TENCENT_SECRET_KEY in .env or environment");
             std::process::exit(1);
         });
+        let base_url = env::var("TENCENT_BASE_URL").unwrap_or_else(|_| "hunyuan.tencentcloudapi.com".to_string());
 
-        let client = LlmClient::tencent(&secret_id, &secret_key, "hunyuan.tencentcloudapi.com")?;
+        let client = LlmClient::tencent(&secret_id, &secret_key, &base_url)?;
 
         println!("--- 1. Basic Chat ---");
         let request = ChatRequest::new("hunyuan-lite")

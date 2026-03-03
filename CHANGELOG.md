@@ -1,6 +1,15 @@
-## [1.0.0] - 2026-03-03
+## [1.0.1] - 2026-03-03
 
-### 🚀 Major Milestone - V2 Stage-Based Architecture
+### 🔧 Refinement - Transparent Protocol Architecture
+
+- **Removed Static Endpoints**: Deleted `src/endpoints.rs` and all internal hardcoded API URLs to ensure the library remains a pure, transparent protocol parser.
+- **Dynamic URL Configuration**: Updated all provider examples to use `_BASE_URL` environment variables, enabling seamless metadata discovery via `llm-providers`.
+- **Improved Provider Robustness**:
+  - Fixed Zhipu GLM 404 errors by preventing double-versioning in URL construction.
+  - Enhanced Tencent Native endpoint handling to ensure valid protocol schemes.
+  - Refined Aliyun DashScope URL logic for flexibility with versioned base URLs.
+- **New Examples**: Added dedicated `deepseek.rs` and `minimax.rs` examples for OpenAI-compatible testing.
+
 
 - **Stage-Based Protocol Decomposition**: Protocol handling is now split into 4 distinct, reusable stages:
   - **Schema Mapping**: Converting unified `ChatRequest` to provider-specific schemas.

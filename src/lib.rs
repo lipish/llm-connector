@@ -118,7 +118,6 @@ pub mod builder;
 pub mod client;
 pub mod config;
 pub mod core;
-pub mod endpoints;
 pub mod error;
 pub mod protocols;
 pub mod providers;
@@ -130,7 +129,6 @@ pub mod sse;
 // Re-exports for convenience (V2 Architecture)
 pub use client::LlmClient;
 pub use config::ProviderConfig;
-pub use endpoints::*;
 pub use error::LlmConnectorError;
 pub use types::{
     ChatRequest, ChatResponse, Choice, FunctionCall, JsonSchemaSpec, Message, ResponseFormat, Role,

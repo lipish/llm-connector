@@ -16,12 +16,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     println!("🤖 Zhipu GLM Comprehensive Example\n");
 
-    let api_key = env::var("ZHIPU_API_KEY").unwrap_or_else(|_| {
-        println!("❌ Please set ZHIPU_API_KEY in .env or environment");
-        std::process::exit(1);
-    });
+    let api_key = env::var("ZHIPU_API_KEY").expect("ZHIPU_API_KEY not set");
+    let base_url = env::var("ZHIPU_BASE_URL").unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".to_string());
 
-    let client = LlmClient::zhipu(&api_key, "https://open.bigmodel.cn/api/paas/v4")?;
+    let client = LlmClient::zhipu(&api_key, &base_url)?;
 
     println!("--- 1. Basic Chat ---");
     let request = ChatRequest::new("glm-4")
