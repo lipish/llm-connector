@@ -92,19 +92,18 @@ pub fn parse_openai_compatible_chat_response(
                 let mut reasoning_str = msg.reasoning_content;
 
                 // Handle providers like Minimax that embed thinking in <think> tags
-                if reasoning_str.is_none() && content_str.contains("<think>") {
-                    if let Some(start_idx) = content_str.find("<think>") {
-                        if let Some(end_idx) = content_str.find("</think>") {
-                            let extracted_reasoning =
-                                content_str[start_idx + 7..end_idx].to_string();
-                            reasoning_str = Some(extracted_reasoning);
+                if reasoning_str.is_none()
+                    && content_str.contains("<think>")
+                    && let Some(start_idx) = content_str.find("<think>")
+                    && let Some(end_idx) = content_str.find("</think>")
+                {
+                    let extracted_reasoning = content_str[start_idx + 7..end_idx].to_string();
+                    reasoning_str = Some(extracted_reasoning);
 
-                            // Remove the <think>...</think> block from the content
-                            let mut new_content = content_str[..start_idx].to_string();
-                            new_content.push_str(&content_str[end_idx + 8..]);
-                            content_str = new_content.trim().to_string();
-                        }
-                    }
+                    // Remove the <think>...</think> block from the content
+                    let mut new_content = content_str[..start_idx].to_string();
+                    new_content.push_str(&content_str[end_idx + 8..]);
+                    content_str = new_content.trim().to_string();
                 }
 
                 // Keep the first choice's content as main

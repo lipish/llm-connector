@@ -8,8 +8,6 @@ use crate::types::{ChatRequest, ChatResponse, Tool, ToolChoice};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Extract reasoning content from Zhipu response
-
 /// Zhipu GLM private protocol implementation
 #[derive(Clone, Debug)]
 pub struct ZhipuProtocol {

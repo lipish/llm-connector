@@ -356,18 +356,18 @@ impl From<&ChatRequest> for GoogleRequest {
                 }
 
                 // Handle tool responses
-                if msg.role == Role::Tool {
-                    if let Some(id) = &msg.tool_call_id {
-                        // In Gemini, FunctionResponse name must match the call
-                        // We use tool_call_id as the name if possible, or we might need more context
-                        final_parts.push(GooglePart::FunctionResponse {
-                            function_response: GoogleFunctionResponse {
-                                name: id.clone(),
-                                response: serde_json::from_str(&msg.content_as_text())
-                                    .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
-                            },
-                        });
-                    }
+                if msg.role == Role::Tool
+                    && let Some(id) = &msg.tool_call_id
+                {
+                    // In Gemini, FunctionResponse name must match the call
+                    // We use tool_call_id as the name if possible, or we might need more context
+                    final_parts.push(GooglePart::FunctionResponse {
+                        function_response: GoogleFunctionResponse {
+                            name: id.clone(),
+                            response: serde_json::from_str(&msg.content_as_text())
+                                .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+                        },
+                    });
                 }
 
                 GoogleContent {
@@ -542,39 +542,39 @@ impl From<GoogleResponse> for ChatResponse {
         let mut final_content = String::new();
         let mut finish_reason = None;
 
-        if let Some(candidates) = value.candidates {
-            if let Some(candidate) = candidates.into_iter().next() {
-                finish_reason = candidate.finish_reason;
-                if let Some(content) = candidate.content {
-                    for part in content.parts {
-                        match part {
-                            GooglePart::Text { text } => {
-                                if !final_content.is_empty() {
-                                    final_content.push('\n');
-                                }
-                                final_content.push_str(&text);
+        if let Some(candidates) = value.candidates
+            && let Some(candidate) = candidates.into_iter().next()
+        {
+            finish_reason = candidate.finish_reason;
+            if let Some(content) = candidate.content {
+                for part in content.parts {
+                    match part {
+                        GooglePart::Text { text } => {
+                            if !final_content.is_empty() {
+                                final_content.push('\n');
                             }
-                            GooglePart::FunctionCall {
-                                function_call,
-                                thought_signature,
-                            } => {
-                                tool_calls.push(crate::types::ToolCall {
-                                    id: function_call.name.clone(), // Use name as ID
-                                    call_type: "function".to_string(),
-                                    function: crate::types::FunctionCall {
-                                        name: function_call.name,
-                                        arguments: function_call.args.to_string(),
-                                        thought_signature: thought_signature.clone(),
-                                    },
-                                    index: Some(tool_calls.len()),
-                                    thought_signature,
-                                });
-                            }
-                            GooglePart::Thought { text, .. } => {
-                                reasoning_content = Some(text);
-                            }
-                            _ => {}
+                            final_content.push_str(&text);
                         }
+                        GooglePart::FunctionCall {
+                            function_call,
+                            thought_signature,
+                        } => {
+                            tool_calls.push(crate::types::ToolCall {
+                                id: function_call.name.clone(), // Use name as ID
+                                call_type: "function".to_string(),
+                                function: crate::types::FunctionCall {
+                                    name: function_call.name,
+                                    arguments: function_call.args.to_string(),
+                                    thought_signature: thought_signature.clone(),
+                                },
+                                index: Some(tool_calls.len()),
+                                thought_signature,
+                            });
+                        }
+                        GooglePart::Thought { text, .. } => {
+                            reasoning_content = Some(text);
+                        }
+                        _ => {}
                     }
                 }
             }
