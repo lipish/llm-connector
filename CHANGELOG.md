@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.0] - 2026-03-03
+## [0.9.1] - 2026-03-03
 
 ### ⚠️ Breaking Changes - Pure Protocol Engine Architecture
 
