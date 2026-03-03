@@ -744,6 +744,7 @@ impl ToolCall {
     ///     function: llm_connector::types::FunctionCall {
     ///         name: "get_weather".to_string(),
     ///         arguments: r#"{"location":"Beijing"}"#.to_string(),
+    ///         thought_signature: None,
     ///     },
     ///     ..Default::default()
     /// };

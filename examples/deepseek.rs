@@ -7,7 +7,6 @@ use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
-#[allow(unused_imports)]
 use std::env;
 
 #[tokio::main]
