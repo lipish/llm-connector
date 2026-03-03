@@ -2,49 +2,56 @@
 
 `llm-connector` supports 12+ LLM providers with a unified interface.
 
+All factory methods require **both** `api_key` and `base_url` — there are no hidden defaults.
+Pass `LlmClient::builder()` if you need timeout or proxy configuration.
+
 ## Provider Overview
 
-| Provider | Service Name | Struct | API Format |
-|----------|--------------|--------|------------|
-| **OpenAI** | openai | `OpenAIProvider` | Native |
-| **Anthropic Claude** | anthropic | `AnthropicProvider` | Native |
-| **Google Gemini** | google | `GoogleProvider` | Native |
-| **Aliyun DashScope** | aliyun | `AliyunProvider` | Custom |
-| **Zhipu GLM** | zhipu | `ZhipuProvider` | Native/OpenAI |
-| **Tencent Hunyuan** | tencent | `TencentProvider` | Native V3 |
-| **Volcengine** | volcengine | `VolcengineProvider` | OpenAI Compatible |
-| **DeepSeek** | deepseek | `DeepSeekProvider` | OpenAI Compatible |
-| **Moonshot** | moonshot | `MoonshotProvider` | OpenAI Compatible |
-| **Xiaomi MiMo** | xiaomi | `XiaomiProvider` | OpenAI Compatible |
-| **Ollama** | ollama | `OllamaProvider` | Native |
-| **LongCat** | longcat | `LongCatAnthropicProvider` | OpenAI/Anthropic |
+| Provider | Constructor | API Format |
+|----------|-------------|------------|
+| **OpenAI** | `LlmClient::openai(key, base_url)` | Native |
+| **Azure OpenAI** | `LlmClient::azure_openai(key, endpoint, api_version)` | Native |
+| **Anthropic Claude** | `LlmClient::anthropic(key, base_url)` | Native |
+| **Google Gemini** | `LlmClient::google(key, base_url)` | Native |
+| **Aliyun DashScope** | `LlmClient::aliyun(key, base_url)` | Native |
+| **Zhipu GLM** | `LlmClient::zhipu(key, base_url)` | Native |
+| **Zhipu (OpenAI compat)** | `LlmClient::zhipu_openai_compatible(key, base_url)` | OpenAI |
+| **Tencent Hunyuan** | `LlmClient::tencent(id, key, base_url)` | Native V3 |
+| **Volcengine** | `LlmClient::volcengine(key, base_url)` | OpenAI |
+| **DeepSeek** | `LlmClient::deepseek(key, base_url)` | OpenAI |
+| **Moonshot (Kimi)** | `LlmClient::moonshot(key, base_url)` | OpenAI |
+| **Xiaomi MiMo** | `LlmClient::xiaomi(key, base_url)` | OpenAI |
+| **Ollama** | `LlmClient::ollama(base_url)` | Native |
+| **LongCat** | `LlmClient::longcat_anthropic(key, base_url)` | Anthropic |
+| **Any OpenAI-compat** | `LlmClient::openai_compatible(key, base_url, name)` | OpenAI |
 
 ---
 
 ## OpenAI
 
-Standard OpenAI API support.
-
-### Usage
 ```rust
 use llm_connector::LlmClient;
 
-let client = LlmClient::openai("sk-...")?;
-// Or with custom base URL
-let client = LlmClient::openai_with_base_url("sk-...", "https://api.openai.com")?;
+let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
+```
+
+### Azure OpenAI
+```rust
+let client = LlmClient::azure_openai(
+    "your-api-key",
+    "https://your-resource.openai.azure.com",
+    "2024-02-15-preview"
+)?;
 ```
 
 ---
 
 ## Anthropic Claude
 
-Native support for Anthropic's Claude API.
-
-### Usage
 ```rust
 use llm_connector::LlmClient;
 
-let client = LlmClient::anthropic("sk-ant-...")?;
+let client = LlmClient::anthropic("sk-ant-...", "https://api.anthropic.com")?;
 ```
 
 ### AWS Bedrock / Google Vertex AI
@@ -60,143 +67,167 @@ let client = LlmClient::anthropic_vertex("project-id", "us-central1", "access-to
 
 ## Aliyun DashScope (Qwen)
 
-Support for Alibaba Cloud's Qwen models.
-
-### Usage
 ```rust
 use llm_connector::LlmClient;
 
-let client = LlmClient::aliyun("sk-...")?;
+let client = LlmClient::aliyun("sk-...", "https://dashscope.aliyuncs.com")?;
+```
+
+### Variants
+```rust
+// International region
+let client = LlmClient::aliyun_international("sk-...", "us-east-1")?;
+
+// Private cloud
+let client = LlmClient::aliyun_private("sk-...", "https://your-private.aliyun.com")?;
 ```
 
 ---
 
-## Zhipu GLM (Zhipu AI)
+## Zhipu GLM
 
-Support for ChatGLM models.
-
-### Usage
 ```rust
 use llm_connector::LlmClient;
 
 // Native SDK style
-let client = LlmClient::zhipu("your-api-key")?;
+let client = LlmClient::zhipu("your-api-key", "https://open.bigmodel.cn")?;
 
-// OpenAI Compatible Mode (Recommended for some models)
-let client = LlmClient::zhipu_openai_compatible("your-api-key")?;
-```
+// OpenAI Compatible Mode
+let client = LlmClient::zhipu_openai_compatible("your-api-key", "https://open.bigmodel.cn")?;
 
----
-
-## Tencent Hunyuan (Hunyuan)
-
-Native support for Tencent Cloud API v3 (TC3-HMAC-SHA256), including Streaming support.
-
-### Usage
-```rust
-use llm_connector::LlmClient;
-
-// Requires SecretId and SecretKey
-let client = LlmClient::tencent("AKID...", "SecretKey...")?;
-```
-
----
-
-## Volcengine
-
-Support for Doubao models via Volcengine Ark.
-
-### Usage
-```rust
-use llm_connector::LlmClient;
-
-// Uses API Key (UUID format)
-let client = LlmClient::volcengine("your-api-key")?;
-```
-
----
-
-## DeepSeek
-
-Support for DeepSeek-V3 and R1 reasoning models.
-
-### Usage
-```rust
-use llm_connector::LlmClient;
-
-let client = LlmClient::deepseek("sk-...")?;
-```
-
----
-
-## Moonshot
-
-Support for Kimi models.
-
-### Usage
-```rust
-use llm_connector::LlmClient;
-
-let client = LlmClient::moonshot("sk-...")?;
-```
-
----
-
-## Xiaomi MiMo
-
-Support for Xiaomi's MiMo LLM platform.
-
-### Usage
-```rust
-use llm_connector::LlmClient;
-
-let client = LlmClient::xiaomi("sk-...")?;
-```
-
----
-
-## Ollama
-
-Support for local models via Ollama.
-
-### Usage
-```rust
-use llm_connector::LlmClient;
-
-// Default (http://localhost:11434)
-let client = LlmClient::ollama()?;
-
-// Custom URL
-let client = LlmClient::ollama_with_base_url("http://192.168.1.100:11434")?;
+// Enterprise endpoint
+let client = LlmClient::zhipu_enterprise("your-api-key", "https://your-enterprise.bigmodel.cn")?;
 ```
 
 ---
 
 ## Google Gemini
 
-Support for Google's Gemini models.
-
-### Usage
 ```rust
 use llm_connector::LlmClient;
 
-let client = LlmClient::google("your-api-key")?;
+let client = LlmClient::google(
+    "your-api-key",
+    "https://generativelanguage.googleapis.com/v1beta"
+)?;
 ```
 
 ---
 
-## Generic/Custom Providers
+## Tencent Hunyuan
 
-For any other OpenAI-compatible provider:
+Native Tencent Cloud API v3 (`TC3-HMAC-SHA256`). Requires the `tencent` feature:
+
+```toml
+llm-connector = { version = "1.0.3", features = ["tencent"] }
+```
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::tencent(
+    "AKID...",
+    "SecretKey...",
+    "https://hunyuan.tencentcloudapi.com"
+)?;
+```
+
+---
+
+## Volcengine
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::volcengine(
+    "your-api-key",
+    "https://ark.cn-beijing.volces.com/api/v3"
+)?;
+```
+
+---
+
+## DeepSeek
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::deepseek("sk-...", "https://api.deepseek.com")?;
+```
+
+---
+
+## Moonshot (Kimi)
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::moonshot("sk-...", "https://api.moonshot.cn/v1")?;
+```
+
+---
+
+## Xiaomi MiMo
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::xiaomi("your-api-key", "https://api.xiaomimimo.com/v1")?;
+```
+
+---
+
+## Ollama
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::ollama("http://localhost:11434")?;
+```
+
+---
+
+## LongCat
+
+LongCat supports both OpenAI and Anthropic wire formats:
+
+```rust
+use llm_connector::LlmClient;
+
+// Anthropic format (Bearer auth)
+let client = LlmClient::longcat_anthropic("ak_...", "https://api.longcat.chat/anthropic")?;
+
+// OpenAI format
+let client = LlmClient::openai_compatible("ak_...", "https://api.longcat.chat/openai", "longcat")?;
+```
+
+---
+
+## Generic / Custom OpenAI-Compatible
 
 ```rust
 use llm_connector::LlmClient;
 
 let client = LlmClient::openai_compatible(
     "api-key",
-    "https://api.example.com",
-    "provider-name"
+    "https://api.example.com/v1",
+    "my-provider"
 )?;
+```
+
+---
+
+## Builder Pattern (Timeout / Proxy)
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::builder()
+    .openai("sk-...")
+    .base_url("https://api.openai.com/v1")
+    .timeout(120)
+    .proxy("http://proxy.example.com:8080")
+    .build()?;
 ```
 
 ---

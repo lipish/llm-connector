@@ -8,25 +8,41 @@
 
 ```toml
 [dependencies]
-llm-connector = "0.6.1"
+llm-connector = "1.0.3"
 tokio = { version = "1", features = ["full"] }
 ```
 
 ## First Request
 
 ```rust
-use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
+use llm_connector::{LlmClient, types::{ChatRequest, Message}};
 
-let client = LlmClient::openai("sk-...")?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
 
-let request = ChatRequest {
-    model: "gpt-4".to_string(),
-    messages: vec![Message::text(Role::User, "Hello!")],
-    ..Default::default()
-};
+    let request = ChatRequest::new("gpt-4o")
+        .add_message(Message::user("Hello!"));
 
-let response = client.chat(&request).await?;
-println!("{}", response.content);
+    let response = client.chat(&request).await?;
+    println!("{}", response.content);
+
+    Ok(())
+}
+```
+
+## Builder Pattern
+
+For more control (timeout, proxy, custom headers):
+
+```rust
+use llm_connector::LlmClient;
+
+let client = LlmClient::builder()
+    .openai("sk-...")
+    .base_url("https://api.openai.com/v1")
+    .timeout(60)
+    .build()?;
 ```
 
 ## Next

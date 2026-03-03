@@ -1,16 +1,40 @@
 # Examples
 
-Examples live in the repository under `examples/`.
+All examples live in the [`examples/`](https://github.com/lipish/llm-connector/tree/main/examples) directory.
+
+## Running
 
 ```bash
-cargo run --example openai_basic
-cargo run --example anthropic_streaming
-cargo run --example ollama_basic
-cargo run --example xiaomi_basic
+# Copy .env.example to .env and fill in your keys
+cargo run --example openai
+cargo run --example anthropic
+cargo run --example google
+cargo run --example ollama
+cargo run --example deepseek
+cargo run --example moonshot
+cargo run --example moonshot_tools
+cargo run --example moonshot_thinking
+cargo run --example zhipu
+cargo run --example zhipu_tools
+cargo run --example zhipu_thinking
+cargo run --example zhipu_vision
+cargo run --example aliyun
+cargo run --example tencent         # Requires `--features tencent`
+cargo run --example multi_modal
+cargo run --example tool_calling
+cargo run --example google_tools_thinking
+cargo run --example minimax
 ```
 
-**Per-request overrides** (API key, base URL, headers) are shown in the [Architecture guide](/guide/architecture#per-request-overrides-multi-tenant--gateway).
+## Per-Request Overrides
 
-More:
+API key, base URL, and headers can be overridden **per request** without creating a new client.
+See [Architecture → Per-Request Overrides](/guide/architecture#per-request-overrides-multi-tenant--gateway).
 
-- https://github.com/lipish/llm-connector/tree/main/examples
+## Connectivity Test
+
+Run all configured providers at once:
+
+```bash
+cargo run --example real_world_connectivity_test
+```

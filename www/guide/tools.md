@@ -1,13 +1,13 @@
 # Tools / Function Calling
 
-llm-connector supports OpenAI-compatible function calling (tools) with both streaming and non-streaming modes.
+`llm-connector` supports OpenAI-compatible function calling (tools) across all major providers.
 
 ## Basic Usage
 
 ```rust
-use llm_connector::{LlmClient, ChatRequest, Message, Tool, ToolChoice};
+use llm_connector::{LlmClient, types::{ChatRequest, Message, Tool, ToolChoice}};
 
-let client = LlmClient::openai("your-api-key")?;
+let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
 
 let tools = vec![Tool::function(
     "get_weather",
@@ -24,7 +24,7 @@ let tools = vec![Tool::function(
     }),
 )];
 
-let request = ChatRequest::new("gpt-4")
+let request = ChatRequest::new("gpt-4o")
     .add_message(Message::user("What's the weather in Beijing?"))
     .with_tools(tools)
     .with_tool_choice(ToolChoice::auto());
@@ -37,6 +37,27 @@ if response.is_tool_call() {
         println!("{} => {:?}", tc.function.name, args);
     }
 }
+```
+
+## Multi-Turn Tool Calls
+
+```rust
+use llm_connector::types::{Message, ToolCall, FunctionCall};
+
+// Step 1: Send initial request, get tool call response
+let response = client.chat(&request).await?;
+
+// Step 2: Execute the tool, then send the result back
+let tool_call = &response.tool_calls()[0];
+let tool_result = "sunny, 22°C"; // from your actual tool
+
+let follow_up = ChatRequest::new("gpt-4o")
+    .add_message(Message::user("What's the weather in Beijing?"))
+    .add_message(Message::assistant_with_tool_calls(response.tool_calls().to_vec()))
+    .add_message(Message::tool(tool_result, &tool_call.id));
+
+let final_response = client.chat(&follow_up).await?;
+println!("{}", final_response.content);
 ```
 
 ## Streaming Tool Calls
@@ -61,6 +82,8 @@ while let Some(chunk) = stream.next().await {
 ## Examples
 
 ```bash
-cargo run --example zhipu_tools
-cargo run --example zhipu_multiround_tools
+cargo run --example tool_calling       # OpenAI tool calling
+cargo run --example moonshot_tools     # Moonshot tool calling
+cargo run --example zhipu_tools        # Zhipu tool calling
+cargo run --example google_tools_thinking  # Google tools + thinking
 ```
