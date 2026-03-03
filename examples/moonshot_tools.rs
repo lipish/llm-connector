@@ -9,14 +9,13 @@ use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, Tool, ToolChoice},
 };
-use llm_providers;
 use serde::Deserialize;
 use std::env;
 
 #[derive(Deserialize, Debug)]
 struct WeatherArgs {
     location: String,
-    unit: Option<String>,
+    _unit: Option<String>,
 }
 
 #[tokio::main]

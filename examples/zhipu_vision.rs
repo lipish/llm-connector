@@ -9,7 +9,6 @@ use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, MessageBlock},
 };
-use llm_providers;
 use std::env;
 
 #[tokio::main]

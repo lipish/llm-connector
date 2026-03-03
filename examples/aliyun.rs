@@ -10,7 +10,6 @@ use llm_connector::{
     types::{ChatRequest, Message},
 };
 #[allow(unused_imports)]
-use llm_providers;
 use std::env;
 
 #[tokio::main]

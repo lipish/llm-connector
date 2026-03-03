@@ -1,6 +1,5 @@
 use dotenvy::dotenv;
 use llm_connector::{LlmClient, Message};
-use llm_providers;
 use std::env;
 
 #[tokio::main]
@@ -21,36 +20,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("❌ Anthropic Error: {:?}", e);
     }
 
-    if let Ok(zhipu_key) = env::var("ZHIPU_API_KEY") {
-        if !zhipu_key.contains("your_") {
-            println!("\n--- Testing Zhipu Native ---");
-            if let Err(e) = test_zhipu(&zhipu_key).await {
-                println!("❌ Zhipu Error: {:?}", e);
-            }
+    if let Ok(zhipu_key) = env::var("ZHIPU_API_KEY")
+        && !zhipu_key.contains("your_")
+    {
+        println!("\n--- Testing Zhipu Native ---");
+        if let Err(e) = test_zhipu(&zhipu_key).await {
+            println!("❌ Zhipu Error: {:?}", e);
         }
     }
 
-    if let Ok(aliyun_key) = env::var("ALIYUN_API_KEY") {
-        if !aliyun_key.contains("your_") {
-            let aliyun_url = env::var("ALIYUN_BASE_URL")
-                .unwrap_or_else(|_| "https://dashscope.aliyuncs.com".to_string());
-            println!("\n--- Testing Aliyun Native ---");
-            if let Err(e) = test_aliyun(&aliyun_key, &aliyun_url).await {
-                println!("❌ Aliyun Error: {:?}", e);
-            }
+    if let Ok(aliyun_key) = env::var("ALIYUN_API_KEY")
+        && !aliyun_key.contains("your_")
+    {
+        let aliyun_url = env::var("ALIYUN_BASE_URL")
+            .unwrap_or_else(|_| "https://dashscope.aliyuncs.com".to_string());
+        println!("\n--- Testing Aliyun Native ---");
+        if let Err(e) = test_aliyun(&aliyun_key, &aliyun_url).await {
+            println!("❌ Aliyun Error: {:?}", e);
         }
     }
 
-    if let Ok(tencent_id) = env::var("TENCENT_SECRET_ID") {
-        if let Ok(tencent_key) = env::var("TENCENT_SECRET_KEY") {
-            if !tencent_id.contains("your_") {
-                let tencent_url = env::var("TENCENT_BASE_URL")
-                    .unwrap_or_else(|_| "hunyuan.tencentcloudapi.com".to_string());
-                println!("\n--- Testing Tencent Native ---");
-                if let Err(e) = test_tencent(&tencent_id, &tencent_key, &tencent_url).await {
-                    println!("❌ Tencent Error: {:?}", e);
-                }
-            }
+    if let Ok(tencent_id) = env::var("TENCENT_SECRET_ID")
+        && let Ok(tencent_key) = env::var("TENCENT_SECRET_KEY")
+        && !tencent_id.contains("your_")
+    {
+        let tencent_url = env::var("TENCENT_BASE_URL")
+            .unwrap_or_else(|_| "hunyuan.tencentcloudapi.com".to_string());
+        println!("\n--- Testing Tencent Native ---");
+        if let Err(e) = test_tencent(&tencent_id, &tencent_key, &tencent_url).await {
+            println!("❌ Tencent Error: {:?}", e);
         }
     }
 

@@ -14,7 +14,6 @@ use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
-use llm_providers;
 use std::env;
 
 #[tokio::main]

@@ -9,7 +9,6 @@ use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message, Tool},
 };
-use llm_providers;
 use serde_json::json;
 use std::env;
 

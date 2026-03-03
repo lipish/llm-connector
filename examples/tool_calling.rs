@@ -11,7 +11,6 @@ use llm_connector::{
     types::{ChatRequest, Message, Tool, ToolChoice},
 };
 #[allow(unused_imports)]
-use llm_providers;
 use serde_json::json;
 use std::env;
 

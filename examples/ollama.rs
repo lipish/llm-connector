@@ -8,7 +8,6 @@ use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
-use llm_providers;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

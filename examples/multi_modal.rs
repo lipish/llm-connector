@@ -12,7 +12,6 @@ use llm_connector::{
     types::{ChatRequest, EmbedRequest, Message, MessageBlock, Role},
 };
 #[allow(unused_imports)]
-use llm_providers;
 use std::env;
 
 #[tokio::main]

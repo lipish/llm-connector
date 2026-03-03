@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Fetch endpoint from llm-providers
     let endpoint_id = format!("google:{}", region);
-    let (provider_id, endpoint) = llm_providers::get_endpoint(&endpoint_id)
+    let (_provider_id, endpoint) = llm_providers::get_endpoint(&endpoint_id)
         .ok_or_else(|| format!("Endpoint {} not found", endpoint_id))?;
 
     let base_url = env::var("GOOGLE_BASE_URL").unwrap_or_else(|_| endpoint.base_url.to_string());

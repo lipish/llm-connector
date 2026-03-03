@@ -15,7 +15,6 @@ use llm_connector::{
     LlmClient,
     types::{ChatRequest, Message},
 };
-use llm_providers;
 use std::env;
 
 #[tokio::main]
@@ -39,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(ref p) = proxy {
         println!("🌐 Using Proxy: {}", p);
     }
-    println!("");
+    println!();
 
     // 2. Build client using LlmClient::builder()
     let mut builder = LlmClient::builder()
