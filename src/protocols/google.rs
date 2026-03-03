@@ -1,126 +1,151 @@
-//! Google Gemini Service Provider Implementation
+//! Google Gemini Protocol Implementation
 //!
-//! This module provides Google Gemini service implementation.
-//! Since Google API uses model-specific endpoints, we implement Provider directly instead of using GenericProvider.
+//! This module provides the Google Gemini API protocol.
 
-use crate::core::{HttpClient, Provider};
+use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, MessageBlock, Role, Usage};
-use crate::types::{DocumentSource, ImageSource};
+use crate::types::{
+    ChatRequest, ChatResponse, Choice, DocumentSource, EmbedRequest, EmbedResponse, EmbeddingData,
+    ImageSource, Message, MessageBlock, Role, Usage,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::any::Any;
 
-#[cfg(feature = "streaming")]
-use crate::types::ChatStream;
+#[derive(Debug, Clone, Default)]
+pub struct GoogleProtocol;
 
-#[cfg(feature = "streaming")]
-use crate::sse::sse_events;
-
-#[cfg(feature = "streaming")]
-use crate::types::{Delta, StreamingChoice, StreamingResponse};
-
-#[cfg(feature = "streaming")]
-use futures_util::StreamExt;
-
-/// Google Gemini Service Provider
-#[derive(Clone, Debug)]
-pub struct GoogleProvider {
-    client: HttpClient,
-}
-
-impl GoogleProvider {
-    /// Create new Google provider
-    pub fn new(api_key: &str) -> Result<Self, LlmConnectorError> {
-        Self::with_config(api_key, None, None, None)
-    }
-
-    /// Create Google provider with custom configuration
-    pub fn with_config(
-        api_key: &str,
-        base_url: Option<&str>,
-        timeout_secs: Option<u64>,
-        proxy: Option<&str>,
-    ) -> Result<Self, LlmConnectorError> {
-        let base_url = base_url.unwrap_or("https://generativelanguage.googleapis.com/v1beta");
-        let client = HttpClient::with_config(base_url, timeout_secs, proxy)?
-            .with_header("x-goog-api-key".to_string(), api_key.to_string());
-
-        Ok(Self { client })
+impl GoogleProtocol {
+    pub fn new() -> Self {
+        Self
     }
 }
 
 #[async_trait]
-impl Provider for GoogleProvider {
+impl Protocol for GoogleProtocol {
+    type Request = GoogleRequest;
+    type Response = GoogleResponse;
+
     fn name(&self) -> &str {
         "google"
     }
 
-    async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
-        let url = format!(
+    fn chat_endpoint(&self, base_url: &str, model: &str) -> String {
+        format!(
             "{}/models/{}:generateContent",
-            self.client.base_url(),
-            request.model
-        );
-
-        let google_request = GoogleRequest::from(request);
-
-        let response = self.client.post(&url, &google_request).await?;
-        let status = response.status();
-        let text = response
-            .text()
-            .await
-            .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-
-        if !status.is_success() {
-            return Err(LlmConnectorError::ProviderError(format!(
-                "Google API error: {} - {}",
-                status, text
-            )));
-        }
-
-        // DEBUG: Print raw response if parsing fails or content is empty
-        // println!("DEBUG: Google Response: {}", text);
-
-        let google_response: GoogleResponse =
-            serde_json::from_str(&text).map_err(LlmConnectorError::JsonError)?;
-
-        Ok(google_response.into())
+            base_url.trim_end_matches('/'),
+            model
+        )
     }
 
     #[cfg(feature = "streaming")]
-    async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
-        let url = format!(
+    fn chat_stream_endpoint(&self, base_url: &str, model: &str) -> String {
+        format!(
             "{}/models/{}:streamGenerateContent?alt=sse",
-            self.client.base_url(),
-            request.model
-        );
+            base_url.trim_end_matches('/'),
+            model
+        )
+    }
 
-        let google_request = GoogleRequest::from(request);
+    fn models_endpoint(&self, base_url: &str) -> Option<String> {
+        Some(format!("{}/models", base_url.trim_end_matches('/')))
+    }
 
-        let response = self.client.stream(&url, &google_request).await?;
-        let status = response.status();
+    fn embed_endpoint(&self, base_url: &str, model: &str) -> Option<String> {
+        Some(format!(
+            "{}/models/{}:batchEmbedContents",
+            base_url.trim_end_matches('/'),
+            model
+        ))
+    }
 
-        if !status.is_success() {
-            let text = response
-                .text()
-                .await
-                .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-            return Err(LlmConnectorError::ProviderError(format!(
-                "Google API error: {} - {}",
-                status, text
-            )));
+    fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
+        Ok(GoogleRequest::from(request))
+    }
+
+    fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        let google_response: GoogleResponse =
+            serde_json::from_str(response).map_err(LlmConnectorError::JsonError)?;
+        Ok(google_response.into())
+    }
+
+    fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
+        let models_response: GoogleModelsResponse =
+            serde_json::from_str(response).map_err(LlmConnectorError::JsonError)?;
+
+        Ok(models_response
+            .models
+            .into_iter()
+            .map(|m| m.name.replace("models/", ""))
+            .collect())
+    }
+
+    fn build_embed_request(
+        &self,
+        request: &EmbedRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        let requests: Vec<GoogleEmbedRequest> = request
+            .input
+            .iter()
+            .map(|text| GoogleEmbedRequest {
+                model: format!("models/{}", request.model),
+                content: GoogleContent {
+                    role: String::new(),
+                    parts: vec![GooglePart::Text { text: text.clone() }],
+                },
+            })
+            .collect();
+
+        let req_body = GoogleBatchEmbedRequest { requests };
+        serde_json::to_value(req_body).map_err(LlmConnectorError::JsonError)
+    }
+
+    fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
+        let google_response: GoogleBatchEmbedResponse =
+            serde_json::from_str(response).map_err(LlmConnectorError::JsonError)?;
+
+        let mut data = Vec::new();
+        if let Some(embeddings) = google_response.embeddings {
+            for (index, emb) in embeddings.into_iter().enumerate() {
+                data.push(EmbeddingData {
+                    object: "embedding".to_string(),
+                    embedding: emb.values,
+                    index: index as u32,
+                });
+            }
         }
+
+        // We don't have model info in the raw response usually, but we can pass it if we want.
+        // Actually Protocol trait doesn't receive the model here.
+        // But EmbedResponse needs it.
+        Ok(EmbedResponse {
+            object: "list".to_string(),
+            data,
+            model: "google".to_string(), // Placeholder or we need to adjust trait
+            usage: Usage::default(),
+        })
+    }
+
+    fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
+        LlmConnectorError::ProviderError(format!("Google API error: {} - {}", status, body))
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn parse_stream_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        use crate::sse::sse_events;
+        use crate::types::{Delta, StreamingChoice, StreamingResponse};
+        use futures_util::StreamExt;
 
         // Gemini streaming returns SSE events where each `data:` payload is a JSON object
         // similar to the non-streaming response schema.
-        let model = request.model.clone();
 
-        // Track whether we already emitted the role in the first chunk.
+        // Note: GenericProvider doesn't pass model to this method yet.
+        // Let's assume we might need to update Protocol trait for this too if we want perfect model mapping in stream.
+
         let stream = sse_events(response)
             .scan(false, move |sent_role, event_result| {
-                let model = model.clone();
-
                 let mapped: Result<Option<StreamingResponse>, LlmConnectorError> =
                     match event_result {
                         Ok(json_str) => {
@@ -159,10 +184,7 @@ impl Provider for GoogleProvider {
                                     completion_tokens: u.candidates_token_count.unwrap_or(0)
                                         + u.thoughts_token_count.unwrap_or(0),
                                     total_tokens: u.total_token_count.unwrap_or(0),
-                                    prompt_cache_hit_tokens: None,
-                                    prompt_cache_miss_tokens: None,
-                                    prompt_tokens_details: None,
-                                    completion_tokens_details: None,
+                                    ..Default::default()
                                 });
 
                                 if content.is_empty() && finish_reason.is_none() && usage.is_none()
@@ -180,7 +202,7 @@ impl Provider for GoogleProvider {
                                         id: "google".to_string(),
                                         object: "chat.completion.chunk".to_string(),
                                         created: chrono::Utc::now().timestamp() as u64,
-                                        model: model.clone(),
+                                        model: "google".to_string(),
                                         choices: vec![StreamingChoice {
                                             index: 0,
                                             delta: Delta {
@@ -190,19 +212,14 @@ impl Provider for GoogleProvider {
                                                 } else {
                                                     Some(content.clone())
                                                 },
-                                                tool_calls: None,
-                                                reasoning_content: None,
-                                                reasoning: None,
-                                                thought: None,
-                                                thinking: None,
+                                                ..Default::default()
                                             },
                                             finish_reason,
                                             logprobs: None,
                                         }],
                                         content,
                                         usage,
-                                        reasoning_content: None,
-                                        system_fingerprint: None,
+                                        ..Default::default()
                                     }))
                                 }
                             }
@@ -222,37 +239,6 @@ impl Provider for GoogleProvider {
 
         Ok(Box::pin(stream))
     }
-
-    async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {
-        let url = format!("{}/models", self.client.base_url());
-
-        let response = self.client.get(&url).await?;
-        let status = response.status();
-        let text = response
-            .text()
-            .await
-            .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
-
-        if !status.is_success() {
-            return Err(LlmConnectorError::ProviderError(format!(
-                "Google API error: {} - {}",
-                status, text
-            )));
-        }
-
-        let models_response: GoogleModelsResponse =
-            serde_json::from_str(&text).map_err(LlmConnectorError::JsonError)?;
-
-        Ok(models_response
-            .models
-            .into_iter()
-            .map(|m| m.name.replace("models/", ""))
-            .collect())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // ============================================================================
@@ -260,10 +246,10 @@ impl Provider for GoogleProvider {
 // ============================================================================
 
 #[derive(Serialize)]
-struct GoogleRequest {
-    contents: Vec<GoogleContent>,
+pub struct GoogleRequest {
+    pub contents: Vec<GoogleContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    generation_config: Option<GoogleGenerationConfig>,
+    pub generation_config: Option<GoogleGenerationConfig>,
 }
 
 impl From<&ChatRequest> for GoogleRequest {
@@ -329,22 +315,22 @@ impl From<&ChatRequest> for GoogleRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-struct GoogleContent {
+pub struct GoogleContent {
     #[serde(default)]
-    role: String,
+    pub role: String,
     #[serde(default)]
-    parts: Vec<GooglePart>,
+    pub parts: Vec<GooglePart>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
-enum GooglePart {
+pub enum GooglePart {
     Text { text: String },
     InlineData { inline_data: GoogleInlineData },
 }
 
 impl GooglePart {
-    fn as_text(&self) -> Option<&str> {
+    pub fn as_text(&self) -> Option<&str> {
         match self {
             Self::Text { text } => Some(text),
             _ => None,
@@ -353,53 +339,53 @@ impl GooglePart {
 }
 
 #[derive(Serialize, Deserialize)]
-struct GoogleInlineData {
+pub struct GoogleInlineData {
     #[serde(rename = "mimeType")]
-    mime_type: String,
-    data: String,
+    pub mime_type: String,
+    pub data: String,
 }
 
 #[derive(Serialize)]
-struct GoogleGenerationConfig {
+pub struct GoogleGenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
+    pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    top_p: Option<f32>,
+    pub top_p: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    max_output_tokens: Option<u32>,
+    pub max_output_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    thinking_config: Option<GoogleThinkingConfig>,
+    pub thinking_config: Option<GoogleThinkingConfig>,
 }
 
 #[derive(Serialize)]
-struct GoogleThinkingConfig {
-    include_thoughts: bool,
+pub struct GoogleThinkingConfig {
+    pub include_thoughts: bool,
 }
 
 #[derive(Deserialize)]
-struct GoogleResponse {
-    candidates: Option<Vec<GoogleCandidate>>,
+pub struct GoogleResponse {
+    pub candidates: Option<Vec<GoogleCandidate>>,
     #[serde(rename = "usageMetadata")]
-    usage_metadata: Option<GoogleUsageMetadata>,
+    pub usage_metadata: Option<GoogleUsageMetadata>,
 }
 
 #[derive(Deserialize)]
-struct GoogleCandidate {
-    content: Option<GoogleContent>,
+pub struct GoogleCandidate {
+    pub content: Option<GoogleContent>,
     #[serde(rename = "finishReason")]
-    finish_reason: Option<String>,
+    pub finish_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
-struct GoogleUsageMetadata {
+pub struct GoogleUsageMetadata {
     #[serde(rename = "promptTokenCount")]
-    prompt_token_count: Option<u32>,
+    pub prompt_token_count: Option<u32>,
     #[serde(rename = "candidatesTokenCount")]
-    candidates_token_count: Option<u32>,
+    pub candidates_token_count: Option<u32>,
     #[serde(rename = "totalTokenCount")]
-    total_token_count: Option<u32>,
+    pub total_token_count: Option<u32>,
     #[serde(rename = "thoughtsTokenCount")]
-    thoughts_token_count: Option<u32>,
+    pub thoughts_token_count: Option<u32>,
 }
 
 impl From<GoogleResponse> for ChatResponse {
@@ -440,17 +426,14 @@ impl From<GoogleResponse> for ChatResponse {
             completion_tokens: u.candidates_token_count.unwrap_or(0)
                 + u.thoughts_token_count.unwrap_or(0),
             total_tokens: u.total_token_count.unwrap_or(0),
-            prompt_cache_hit_tokens: None,
-            prompt_cache_miss_tokens: None,
-            prompt_tokens_details: None,
-            completion_tokens_details: None,
+            ..Default::default()
         });
 
         ChatResponse {
-            id: "google".to_string(), // Google doesn't return ID?
+            id: "google".to_string(),
             object: "chat.completion".to_string(),
             created: 0,
-            model: "google".to_string(), // Should be passed from request?
+            model: "google".to_string(),
             choices: vec![choice.clone()],
             content: choice.message.content_as_text(),
             reasoning_content: None,
@@ -461,27 +444,34 @@ impl From<GoogleResponse> for ChatResponse {
 }
 
 #[derive(Deserialize)]
-struct GoogleModelsResponse {
-    models: Vec<GoogleModel>,
+pub struct GoogleModelsResponse {
+    pub models: Vec<GoogleModel>,
 }
 
 #[derive(Deserialize)]
-struct GoogleModel {
-    name: String,
+pub struct GoogleModel {
+    pub name: String,
 }
 
-// Public factory functions
-pub fn google(api_key: &str) -> Result<GoogleProvider, LlmConnectorError> {
-    GoogleProvider::new(api_key)
+#[derive(Serialize)]
+pub struct GoogleBatchEmbedRequest {
+    pub requests: Vec<GoogleEmbedRequest>,
 }
 
-pub fn google_with_config(
-    api_key: &str,
-    base_url: Option<&str>,
-    timeout_secs: Option<u64>,
-    proxy: Option<&str>,
-) -> Result<GoogleProvider, LlmConnectorError> {
-    GoogleProvider::with_config(api_key, base_url, timeout_secs, proxy)
+#[derive(Serialize)]
+pub struct GoogleEmbedRequest {
+    pub model: String,
+    pub content: GoogleContent,
+}
+
+#[derive(Deserialize)]
+pub struct GoogleBatchEmbedResponse {
+    pub embeddings: Option<Vec<GoogleEmbedding>>,
+}
+
+#[derive(Deserialize)]
+pub struct GoogleEmbedding {
+    pub values: Vec<f32>,
 }
 
 #[cfg(test)]

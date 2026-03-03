@@ -14,7 +14,7 @@ fn test_protocol_creation() {
     assert_eq!(openai_protocol.name(), "openai");
     assert_eq!(openai_protocol.api_key(), "sk-test");
     assert_eq!(
-        openai_protocol.chat_endpoint("https://api.openai.com"),
+        openai_protocol.chat_endpoint("https://api.openai.com", "gpt-4"),
         "https://api.openai.com/chat/completions"
     );
     assert_eq!(
@@ -27,7 +27,7 @@ fn test_protocol_creation() {
     assert_eq!(aliyun_protocol.name(), "aliyun");
     assert_eq!(aliyun_protocol.api_key(), "sk-test");
     assert_eq!(
-        aliyun_protocol.chat_endpoint("https://dashscope.aliyuncs.com"),
+        aliyun_protocol.chat_endpoint("https://dashscope.aliyuncs.com", "qwen-max"),
         "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
     );
 
@@ -36,7 +36,7 @@ fn test_protocol_creation() {
     assert_eq!(anthropic_protocol.name(), "anthropic");
     assert_eq!(anthropic_protocol.api_key(), "sk-ant-test");
     assert_eq!(
-        anthropic_protocol.chat_endpoint("https://api.anthropic.com"),
+        anthropic_protocol.chat_endpoint("https://api.anthropic.com", "claude-3"),
         "https://api.anthropic.com/v1/messages"
     );
 
@@ -53,31 +53,31 @@ fn test_protocol_creation() {
 #[test]
 fn test_provider_creation() {
     // Test OpenAI provider creation
-    let openai_provider = openai("sk-test");
+    let openai_provider = openai("sk-test", "https://api.openai.com/v1");
     assert!(openai_provider.is_ok());
     let provider = openai_provider.unwrap();
     assert_eq!(provider.protocol().name(), "openai");
 
     // Test Aliyun provider creation
-    let aliyun_provider = aliyun("sk-test");
+    let aliyun_provider = aliyun("sk-test", "https://dashscope.aliyuncs.com/api/v1");
     assert!(aliyun_provider.is_ok());
     let provider = aliyun_provider.unwrap();
     assert_eq!(provider.protocol().name(), "aliyun");
 
     // Test Anthropic provider creation
-    let anthropic_provider = anthropic("sk-ant-test");
+    let anthropic_provider = anthropic("sk-ant-test", "https://api.anthropic.com");
     assert!(anthropic_provider.is_ok());
     let provider = anthropic_provider.unwrap();
     assert_eq!(provider.protocol().name(), "anthropic");
 
     // Test Zhipu provider creation
-    let zhipu_provider = zhipu("test-key");
+    let zhipu_provider = zhipu("test-key", "https://open.bigmodel.cn/api/paas/v4/");
     assert!(zhipu_provider.is_ok());
     let provider = zhipu_provider.unwrap();
     assert_eq!(provider.protocol().name(), "zhipu");
 
     // Test Ollama provider creation
-    let ollama_provider = ollama();
+    let ollama_provider = ollama("http://localhost:11434");
     assert!(ollama_provider.is_ok());
     let provider = ollama_provider.unwrap();
     assert_eq!(provider.name(), "ollama");
@@ -86,8 +86,8 @@ fn test_provider_creation() {
 #[test]
 fn test_client_creation() {
     // Test all client constructors
-    assert!(LlmClient::openai("sk-test").is_ok());
-    assert!(LlmClient::openai_with_base_url("sk-test", "https://api.deepseek.com").is_ok());
+    assert!(LlmClient::openai("sk-test", "https://api.openai.com/v1").is_ok());
+    assert!(LlmClient::openai("sk-test", "https://api.deepseek.com").is_ok());
     assert!(
         LlmClient::azure_openai(
             "test-key",
@@ -100,44 +100,50 @@ fn test_client_creation() {
         LlmClient::openai_compatible("sk-test", "https://api.deepseek.com", "deepseek").is_ok()
     );
 
-    assert!(LlmClient::aliyun("sk-test").is_ok());
-    assert!(LlmClient::anthropic("sk-ant-test").is_ok());
-    assert!(LlmClient::zhipu("test-key").is_ok());
-    assert!(LlmClient::zhipu_openai_compatible("test-key").is_ok());
-    assert!(LlmClient::ollama().is_ok());
-    assert!(LlmClient::ollama_with_base_url("http://192.168.1.100:11434").is_ok());
+    assert!(LlmClient::aliyun("sk-test", "https://dashscope.aliyuncs.com/api/v1").is_ok());
+    assert!(LlmClient::anthropic("sk-ant-test", "https://api.anthropic.com").is_ok());
+    assert!(LlmClient::zhipu("test-key", "https://open.bigmodel.cn/api/paas/v4/").is_ok());
+    assert!(
+        LlmClient::zhipu_openai_compatible("test-key", "https://open.bigmodel.cn/api/paas/v4/")
+            .is_ok()
+    );
+    assert!(LlmClient::ollama("http://localhost:11434").is_ok());
+    assert!(LlmClient::ollama("http://192.168.1.100:11434").is_ok());
 }
 
 #[test]
 fn test_client_provider_name() {
-    let openai_client = LlmClient::openai("sk-test").unwrap();
+    let openai_client = LlmClient::openai("sk-test", "https://api.openai.com/v1").unwrap();
     assert_eq!(openai_client.provider_name(), "openai");
 
-    let aliyun_client = LlmClient::aliyun("sk-test").unwrap();
+    let aliyun_client =
+        LlmClient::aliyun("sk-test", "https://dashscope.aliyuncs.com/api/v1").unwrap();
     assert_eq!(aliyun_client.provider_name(), "aliyun");
 
-    let anthropic_client = LlmClient::anthropic("sk-ant-test").unwrap();
+    let anthropic_client =
+        LlmClient::anthropic("sk-ant-test", "https://api.anthropic.com").unwrap();
     assert_eq!(anthropic_client.provider_name(), "anthropic");
 
-    let zhipu_client = LlmClient::zhipu("test-key").unwrap();
+    let zhipu_client =
+        LlmClient::zhipu("test-key", "https://open.bigmodel.cn/api/paas/v4/").unwrap();
     assert_eq!(zhipu_client.provider_name(), "zhipu");
 
-    let ollama_client = LlmClient::ollama().unwrap();
+    let ollama_client = LlmClient::ollama("http://localhost:11434").unwrap();
     assert_eq!(ollama_client.provider_name(), "ollama");
 }
 
 #[test]
 fn test_ollama_special_access() {
-    let ollama_client = LlmClient::ollama().unwrap();
+    let ollama_client = LlmClient::ollama("http://localhost:11434").unwrap();
     assert!(ollama_client.as_ollama().is_some());
 
-    let openai_client = LlmClient::openai("sk-test").unwrap();
+    let openai_client = LlmClient::openai("sk-test", "https://api.openai.com/v1").unwrap();
     assert!(openai_client.as_ollama().is_none());
 }
 
 #[test]
 fn test_client_cloning() {
-    let client = LlmClient::openai("sk-test").unwrap();
+    let client = LlmClient::openai("sk-test", "https://api.openai.com/v1").unwrap();
     let cloned = client.clone();
 
     assert_eq!(client.provider_name(), cloned.provider_name());
@@ -292,7 +298,7 @@ fn test_performance_characteristics() {
     // Test client creation performance
     let start = Instant::now();
     for _ in 0..10 {
-        let _client = LlmClient::openai("sk-test").unwrap();
+        let _client = LlmClient::openai("sk-test", "https://api.openai.com/v1").unwrap();
     }
     let creation_time = start.elapsed();
 
@@ -300,7 +306,7 @@ fn test_performance_characteristics() {
     assert!(creation_time.as_millis() < 1000);
 
     // Test cloning performance
-    let client = LlmClient::openai("sk-test").unwrap();
+    let client = LlmClient::openai("sk-test", "https://api.openai.com/v1").unwrap();
     let start = Instant::now();
     for _ in 0..100 {
         let _cloned = client.clone();
@@ -317,7 +323,7 @@ fn test_performance_characteristics() {
 
 #[test]
 fn test_client_size() {
-    let client = LlmClient::openai("sk-test").unwrap();
+    let client = LlmClient::openai("sk-test", "https://api.openai.com/v1").unwrap();
     let size = std::mem::size_of_val(&client);
 
     // Client should be small (less than 100 bytes)

@@ -4,7 +4,7 @@
 
 use crate::core::Provider;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse};
+use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
 use std::sync::Arc;
 
 #[cfg(feature = "streaming")]
@@ -22,7 +22,7 @@ use crate::types::ChatStream;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // Create OpenAI client
-///     let client = LlmClient::openai("sk-...")?;
+///     let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
 ///
 ///     // Create request
 ///     let request = ChatRequest {
@@ -69,35 +69,16 @@ impl LlmClient {
     ///
     /// # Parameters
     /// - `api_key`: OpenAI API key
+    /// - `base_url`: Base URL (e.g., "https://api.openai.com/v1")
     ///
     /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::openai("sk-...").unwrap();
+    /// let client = LlmClient::openai("sk-...", "https://api.openai.com/v1").unwrap();
     /// ```
-    pub fn openai(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::openai(api_key)?;
-        Ok(Self::from_provider(Arc::new(provider)))
-    }
-
-    /// Create OpenAI client with custom base URL
-    ///
-    /// # Parameters
-    /// - `api_key`: API key
-    /// - `base_url`: Custom base URL
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use llm_connector::LlmClient;
-    ///
-    /// let client = LlmClient::openai_with_base_url(
-    ///     "sk-...",
-    ///     "https://api.deepseek.com"
-    /// ).unwrap();
-    /// ```
-    pub fn openai_with_base_url(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::openai_with_base_url(api_key, base_url)?;
+    pub fn openai(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -131,15 +112,16 @@ impl LlmClient {
     ///
     /// # Parameters
     /// - `api_key`: Aliyun DashScope API key
+    /// - `base_url`: Base URL (e.g., "https://dashscope.aliyuncs.com")
     ///
     /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::aliyun("sk-...").unwrap();
+    /// let client = LlmClient::aliyun("sk-...", "https://dashscope.aliyuncs.com").unwrap();
     /// ```
-    pub fn aliyun(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::aliyun(api_key)?;
+    pub fn aliyun(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::aliyun(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -147,15 +129,16 @@ impl LlmClient {
     ///
     /// # Parameters
     /// - `api_key`: Anthropic API key (Format: sk-ant-...)
+    /// - `base_url`: Base URL (e.g., "https://api.anthropic.com")
     ///
     /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::anthropic("sk-ant-...").unwrap();
+    /// let client = LlmClient::anthropic("sk-ant-...", "https://api.anthropic.com").unwrap();
     /// ```
-    pub fn anthropic(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::anthropic(api_key)?;
+    pub fn anthropic(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::anthropic(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -163,15 +146,16 @@ impl LlmClient {
     ///
     /// # Parameters
     /// - `api_key`: Zhipu GLM API key
+    /// - `base_url`: Base URL (e.g., "https://open.bigmodel.cn")
     ///
     /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::zhipu("your-api-key").unwrap();
+    /// let client = LlmClient::zhipu("your-api-key", "https://open.bigmodel.cn").unwrap();
     /// ```
-    pub fn zhipu(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::zhipu(api_key)?;
+    pub fn zhipu(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::zhipu(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -179,44 +163,35 @@ impl LlmClient {
     ///
     /// # Parameters
     /// - `api_key`: Zhipu GLM API key
+    /// - `base_url`: Base URL (e.g., "https://open.bigmodel.cn")
     ///
     /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::zhipu_openai_compatible("your-api-key").unwrap();
+    /// let client = LlmClient::zhipu_openai_compatible("your-api-key", "https://open.bigmodel.cn").unwrap();
     /// ```
-    pub fn zhipu_openai_compatible(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::zhipu_openai_compatible(api_key)?;
+    pub fn zhipu_openai_compatible(
+        api_key: &str,
+        base_url: &str,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::zhipu_openai_compatible(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create Ollama client (default local address)
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use llm_connector::LlmClient;
-    ///
-    /// let client = LlmClient::ollama().unwrap();
-    /// ```
-    pub fn ollama() -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::ollama()?;
-        Ok(Self::from_provider(Arc::new(provider)))
-    }
-
-    /// Create Ollama client with custom URL
+    /// Create Ollama client
     ///
     /// # Parameters
-    /// - `base_url`: Ollama service URL
+    /// - `base_url`: Ollama service URL (e.g., "http://localhost:11434")
     ///
     /// # Example
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::ollama_with_base_url("http://192.168.1.100:11434").unwrap();
+    /// let client = LlmClient::ollama("http://localhost:11434").unwrap();
     /// ```
-    pub fn ollama_with_base_url(base_url: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::ollama_with_base_url(base_url)?;
+    pub fn ollama(base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::ollama(base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -272,26 +247,27 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::longcat_anthropic("ak_...").unwrap();
+    /// let client = LlmClient::longcat_anthropic("ak_...", "https://api.longcat.chat/anthropic").unwrap();
     /// ```
-    pub fn longcat_anthropic(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::longcat_anthropic(api_key)?;
+    pub fn longcat_anthropic(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::anthropic_compatible(api_key, base_url, "longcat")?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create LongCat Anthropic client with custom configuration
     pub fn longcat_anthropic_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::longcat_anthropic_with_config(
-            api_key,
-            base_url,
-            timeout_secs,
-            proxy,
-        )?;
+        // Longcat uses Bearer auth, so we use a custom HttpClient construction here or a specialized helper
+        let protocol = crate::protocols::AnthropicProtocol::new(api_key);
+        let client = crate::core::HttpClient::with_config(base_url, timeout_secs, proxy)?
+            .with_header("Authorization".to_string(), format!("Bearer {}", api_key))
+            .with_header("anthropic-version".to_string(), "2023-06-01".to_string());
+
+        let provider = crate::core::GenericProvider::new(protocol, client);
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -306,22 +282,22 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::volcengine("your-volcengine-api-key").unwrap();
+    /// let client = LlmClient::volcengine("your-volcengine-api-key", "https://ark.cn-beijing.volces.com/api/v3").unwrap();
     /// ```
-    pub fn volcengine(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::volcengine(api_key)?;
+    pub fn volcengine(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai_compatible(api_key, base_url, "volcengine")?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create Volcengine client with custom configuration
     pub fn volcengine_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
         let provider =
-            crate::providers::volcengine_with_config(api_key, base_url, timeout_secs, proxy)?;
+            crate::providers::openai_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -340,8 +316,12 @@ impl LlmClient {
     /// let client = LlmClient::tencent("AKID...", "SecretKey...").unwrap();
     /// ```
     #[cfg(feature = "tencent")]
-    pub fn tencent(secret_id: &str, secret_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::tencent(secret_id, secret_key)?;
+    pub fn tencent(
+        secret_id: &str,
+        secret_key: &str,
+        base_url: &str,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::tencent(secret_id, secret_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -350,12 +330,17 @@ impl LlmClient {
     pub fn tencent_with_config(
         secret_id: &str,
         secret_key: &str,
-        _base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider =
-            crate::providers::tencent_with_config(secret_id, secret_key, timeout_secs, proxy)?;
+        let provider = crate::providers::tencent_with_config(
+            secret_id,
+            secret_key,
+            base_url,
+            timeout_secs,
+            proxy,
+        )?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -370,22 +355,22 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::moonshot("sk-...").unwrap();
+    /// let client = LlmClient::moonshot("sk-...", "https://api.moonshot.cn/v1").unwrap();
     /// ```
-    pub fn moonshot(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::moonshot(api_key)?;
+    pub fn moonshot(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai_compatible(api_key, base_url, "moonshot")?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create Moonshot client with custom configuration
     pub fn moonshot_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
         let provider =
-            crate::providers::moonshot_with_config(api_key, base_url, timeout_secs, proxy)?;
+            crate::providers::openai_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -400,22 +385,22 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::deepseek("sk-...").unwrap();
+    /// let client = LlmClient::deepseek("sk-...", "https://api.deepseek.com").unwrap();
     /// ```
-    pub fn deepseek(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::deepseek(api_key)?;
+    pub fn deepseek(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai_compatible(api_key, base_url, "deepseek")?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create DeepSeek client with custom configuration
     pub fn deepseek_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
         let provider =
-            crate::providers::deepseek_with_config(api_key, base_url, timeout_secs, proxy)?;
+            crate::providers::openai_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -430,22 +415,22 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::xiaomi("your-api-key").unwrap();
+    /// let client = LlmClient::xiaomi("your-api-key", "https://api.xiaomimimo.com/v1").unwrap();
     /// ```
-    pub fn xiaomi(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::xiaomi(api_key)?;
+    pub fn xiaomi(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::openai_compatible(api_key, base_url, "xiaomi")?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create Xiaomi MiMo client with custom configuration
     pub fn xiaomi_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
         let provider =
-            crate::providers::xiaomi_with_config(api_key, base_url, timeout_secs, proxy)?;
+            crate::providers::openai_with_config(api_key, base_url, timeout_secs, proxy)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -456,7 +441,7 @@ impl LlmClient {
     /// Create OpenAI client with custom configuration
     pub fn openai_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
@@ -468,7 +453,7 @@ impl LlmClient {
     /// Create Aliyun client with custom configuration
     pub fn aliyun_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
@@ -489,19 +474,10 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create Aliyun client with custom timeout
-    pub fn aliyun_with_timeout(
-        api_key: &str,
-        timeout_secs: u64,
-    ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::aliyun_with_timeout(api_key, timeout_secs)?;
-        Ok(Self::from_provider(Arc::new(provider)))
-    }
-
     /// Create Anthropic client with custom configuration
     pub fn anthropic_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
@@ -530,20 +506,11 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
-    /// Create Anthropic client with custom timeout
-    pub fn anthropic_with_timeout(
-        api_key: &str,
-        timeout_secs: u64,
-    ) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::anthropic_with_timeout(api_key, timeout_secs)?;
-        Ok(Self::from_provider(Arc::new(provider)))
-    }
-
     /// Create Zhipu client with custom configuration
     pub fn zhipu_with_config(
         api_key: &str,
         openai_compatible: bool,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
@@ -554,12 +521,6 @@ impl LlmClient {
             timeout_secs,
             proxy,
         )?;
-        Ok(Self::from_provider(Arc::new(provider)))
-    }
-
-    /// Create Zhipu client with custom timeout
-    pub fn zhipu_with_timeout(api_key: &str, timeout_secs: u64) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::zhipu_with_timeout(api_key, timeout_secs)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -583,15 +544,16 @@ impl LlmClient {
     ///
     /// # Parameters
     /// - `api_key`: Google API key
-    pub fn google(api_key: &str) -> Result<Self, LlmConnectorError> {
-        let provider = crate::providers::google(api_key)?;
+    /// - `base_url`: Base URL (e.g., "https://generativelanguage.googleapis.com/v1beta")
+    pub fn google(api_key: &str, base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::google(api_key, base_url)?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
     /// Create Google client with custom configuration
     pub fn google_with_config(
         api_key: &str,
-        base_url: Option<&str>,
+        base_url: &str,
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
@@ -634,7 +596,7 @@ impl LlmClient {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = LlmClient::openai("sk-...")?;
+    ///     let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
     ///
     ///     let request = ChatRequest {
     ///         model: "gpt-4".to_string(),
@@ -668,7 +630,7 @@ impl LlmClient {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = LlmClient::openai("sk-...")?;
+    ///     let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
     ///
     ///     let request = ChatRequest {
     ///         model: "gpt-4".to_string(),
@@ -696,6 +658,38 @@ impl LlmClient {
         self.provider.chat_stream(request).await
     }
 
+    /// Generate embeddings
+    ///
+    /// # Parameters
+    /// - `request`: Embedding request
+    ///
+    /// # Returns
+    /// Embedding response
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use llm_connector::LlmClient;
+    /// use llm_connector::types::EmbedRequest;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
+    ///
+    ///     let request = EmbedRequest::new(
+    ///         "text-embedding-3-small",
+    ///         "Hello, world!"
+    ///     );
+    ///
+    ///     let response = client.embed(&request).await?;
+    ///     println!("Embedding length: {}", response.data[0].embedding.len());
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        self.provider.embed(request).await
+    }
+
     /// Get available models list
     ///
     /// # Returns
@@ -707,7 +701,7 @@ impl LlmClient {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = LlmClient::openai("sk-...")?;
+    ///     let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
     ///
     ///     let models = client.models().await?;
     ///     for model in models {
@@ -727,7 +721,7 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::openai("sk-...").unwrap();
+    /// let client = LlmClient::openai("sk-...", "https://api.openai.com/v1").unwrap();
     /// let provider = client.provider();
     ///
     /// // Can perform type conversion to access provider-specific features
@@ -750,7 +744,7 @@ impl LlmClient {
     /// use llm_connector::LlmClient;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LlmClient::ollama()?;
+    /// let client = LlmClient::ollama("http://localhost:11434")?;
     /// if let Some(_ollama) = client.as_ollama() {
     ///     // Can access Ollama-specific features
     /// }

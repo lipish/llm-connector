@@ -1,13 +1,14 @@
 //! Core types for llm-connector
 
-mod message_block;
-mod request;
-mod response;
+pub mod message_block;
+pub mod request;
+pub mod response;
 
 #[cfg(feature = "streaming")]
-mod streaming;
+pub mod streaming;
 
-// Re-exports
+pub mod embedding;
+
 pub use message_block::*;
 pub use request::*;
 pub use response::*;
@@ -15,6 +16,6 @@ pub use response::*;
 #[cfg(feature = "streaming")]
 pub use streaming::*;
 
-// Compatibility alias for users expecting ChatMessage
+pub use embedding::*;
 // ChatMessage is the same as Message
 pub type ChatMessage = request::Message;

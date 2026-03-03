@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Note: Requires ANTHROPIC_API_KEY environment variable
     if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
         println!("--- Claude 3.7 Thinking Mode ---");
-        let client = LlmClient::anthropic(&key)?;
+        let client = LlmClient::anthropic(&key, "https://api.anthropic.com")?;
 
         let request = ChatRequest::new("claude-3-7-sonnet-20250219")
             .add_message(Message::user("How many R's are in the word Strawberry?"))
@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Note: Requires OPENAI_API_KEY environment variable
     if let Ok(key) = std::env::var("OPENAI_API_KEY") {
         println!("\n--- OpenAI o3-mini Reasoning ---");
-        let client = LlmClient::openai(&key)?;
+        let client = LlmClient::openai(&key, "https://api.openai.com/v1")?;
 
         let request = ChatRequest::new("o3-mini")
             .add_message(Message::user("Solve this logic puzzle..."))

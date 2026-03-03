@@ -22,7 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Create Aliyun client
-    let client = LlmClient::aliyun(&api_key).unwrap();
+    let client =
+        LlmClient::aliyun(&api_key, llm_connector::endpoints::ALIYUN_DASHSCOPE_V1).unwrap();
 
     // Build chat request
     let request = ChatRequest {

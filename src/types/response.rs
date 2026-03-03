@@ -90,9 +90,17 @@ pub struct Usage {
 /// Detailed prompt token usage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptTokensDetails {
-    /// Number of cached tokens
+    /// Number of cached tokens (OpenAI compatible)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cached_tokens: Option<u32>,
+
+    /// Number of tokens read from cache (Anthropic equivalent)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_read_input_tokens: Option<u32>,
+
+    /// Number of tokens used to create cache (Anthropic equivalent)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_creation_input_tokens: Option<u32>,
 }
 
 /// Detailed completion token usage

@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // 3. Use in request (Gateway Mode)
     // Create a generic client (or use connection pool)
     // We use a dummy key here because we'll override it per-request
-    let client = LlmClient::openai("sk-placeholder")?;
+    let client = LlmClient::openai("sk-placeholder", "https://api.openai.com/v1")?;
 
     let mut request =
         ChatRequest::new(&target.model).add_message(Message::user("Hello via dynamic routing!"));

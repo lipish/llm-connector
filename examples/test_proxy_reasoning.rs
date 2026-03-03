@@ -20,21 +20,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .add_message(Message::user("How many R's are in the word Strawberry?"));
 
     let claude_res = client.chat(&claude_req).await?;
-    
+
     if let Some(reasoning) = &claude_res.reasoning_content {
         println!("\n[Claude Reasoning (Extracted)]:\n{}", reasoning);
     }
-    println!("\n[Claude Response Mode] Content length: {}", claude_res.content.len());
+    println!(
+        "\n[Claude Response Mode] Content length: {}",
+        claude_res.content.len()
+    );
     if claude_res.reasoning_content.is_none() {
         println!("\n[Content with inline thinking?]:\n{}", claude_res.content);
     } else {
         println!("\n[Final Answer]:\n{}", claude_res.content);
     }
-    
-    // Test 2: Streaming Claude Thinking 
+
+    // Test 2: Streaming Claude Thinking
     println!("\n--- Testing Claude 4.5 Thinking STREAMING via Proxy ---");
     let mut claude_stream = client.chat_stream(&claude_req).await?;
-    
+
     let mut has_reasoning = false;
     print!("[Streaming output]: ");
     use tokio_stream::StreamExt;

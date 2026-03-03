@@ -263,108 +263,51 @@ impl LlmClientBuilder {
         })?;
 
         let api_key = self.api_key.as_deref().unwrap_or("");
-        let base_url = self.base_url.as_deref();
+        let base_url = self.base_url.as_deref().ok_or_else(|| {
+            LlmConnectorError::InvalidRequest(
+                "No base_url specified. Call .base_url() before .build()".into(),
+            )
+        })?;
         let timeout = self.timeout_secs;
         let proxy = self.proxy.as_deref();
 
-        let has_config = base_url.is_some() || timeout.is_some() || proxy.is_some();
-
         match provider {
             ProviderKind::OpenAI => {
-                if has_config {
-                    LlmClient::openai_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::openai(api_key)
-                }
+                LlmClient::openai_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::Anthropic => {
-                if has_config {
-                    LlmClient::anthropic_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::anthropic(api_key)
-                }
+                LlmClient::anthropic_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::Aliyun => {
-                if has_config {
-                    LlmClient::aliyun_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::aliyun(api_key)
-                }
+                LlmClient::aliyun_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::Zhipu => {
-                if has_config {
-                    LlmClient::zhipu_with_config(api_key, false, base_url, timeout, proxy)
-                } else {
-                    LlmClient::zhipu(api_key)
-                }
+                LlmClient::zhipu_with_config(api_key, false, base_url, timeout, proxy)
             }
             ProviderKind::ZhipuOpenAI => {
-                if has_config {
-                    LlmClient::zhipu_with_config(api_key, true, base_url, timeout, proxy)
-                } else {
-                    LlmClient::zhipu_openai_compatible(api_key)
-                }
+                LlmClient::zhipu_with_config(api_key, true, base_url, timeout, proxy)
             }
-            ProviderKind::Ollama => {
-                if has_config {
-                    LlmClient::ollama_with_config(
-                        base_url.unwrap_or("http://localhost:11434"),
-                        timeout,
-                        proxy,
-                    )
-                } else {
-                    LlmClient::ollama()
-                }
-            }
+            ProviderKind::Ollama => LlmClient::ollama_with_config(base_url, timeout, proxy),
             ProviderKind::DeepSeek => {
-                if has_config {
-                    LlmClient::deepseek_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::deepseek(api_key)
-                }
+                LlmClient::deepseek_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::Moonshot => {
-                if has_config {
-                    LlmClient::moonshot_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::moonshot(api_key)
-                }
+                LlmClient::moonshot_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::Volcengine => {
-                if has_config {
-                    LlmClient::volcengine_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::volcengine(api_key)
-                }
+                LlmClient::volcengine_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::Google => {
-                if has_config {
-                    LlmClient::google_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::google(api_key)
-                }
+                LlmClient::google_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::Xiaomi => {
-                if has_config {
-                    LlmClient::xiaomi_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::xiaomi(api_key)
-                }
+                LlmClient::xiaomi_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::LongcatAnthropic => {
-                if has_config {
-                    LlmClient::longcat_anthropic_with_config(api_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::longcat_anthropic(api_key)
-                }
+                LlmClient::longcat_anthropic_with_config(api_key, base_url, timeout, proxy)
             }
             ProviderKind::OpenAICompatible { service_name } => {
-                let url = base_url.ok_or_else(|| {
-                    LlmConnectorError::InvalidRequest(
-                        "OpenAI-compatible provider requires .base_url()".into(),
-                    )
-                })?;
-                LlmClient::openai_compatible(api_key, url, &service_name)
+                LlmClient::openai_compatible(api_key, base_url, &service_name)
             }
             ProviderKind::AzureOpenAI {
                 endpoint,
@@ -372,11 +315,7 @@ impl LlmClientBuilder {
             } => LlmClient::azure_openai(api_key, &endpoint, &api_version),
             #[cfg(feature = "tencent")]
             ProviderKind::Tencent { secret_key } => {
-                if has_config {
-                    LlmClient::tencent_with_config(api_key, &secret_key, base_url, timeout, proxy)
-                } else {
-                    LlmClient::tencent(api_key, &secret_key)
-                }
+                LlmClient::tencent_with_config(api_key, &secret_key, base_url, timeout, proxy)
             }
         }
     }

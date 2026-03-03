@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-03-03
+
+### ⚠️ Breaking Changes - Pure Protocol Engine Architecture
+
+- **Mandatory `base_url`**: All client constructors (`LlmClient::openai`, `LlmClient::anthropic`, `LlmClient::zhipu`, etc.) and provider factory functions now **mandatorily require** a `base_url` parameter. Hardcoded default URLs have been removed from the library core.
+- **Provider Consolidation**: Redundant provider modules (`deepseek.rs`, `moonshot.rs`, `volcengine.rs`, `xiaomi.rs`, `longcat.rs`) have been removed and consolidated into generic protocols (`OpenAIProtocol`, `AnthropicProtocol`).
+- **Removed Methods**: `openai_with_base_url()`, `ollama_with_base_url()`, and various `_with_timeout()` factory methods have been removed as their functionality is now covered by the mandatory `base_url` and consolidated `_with_config` methods.
+
+### 🚀 New Features
+
+- **Protocol-First Design**: Positioned as a standalone, "URL-Blind" protocol engine that focuses exclusively on protocol adaptation, streaming, and token counting.
+- **Reference Endpoints**: Added `src/endpoints.rs` featuring `pub const` official API endpoints for developer convenience.
+- **Standalone Library**: Explicitly decoupled core logic from endpoint management, ensuring zero dependencies on external URL management projects for core functionality.
+
+### 📝 Documentation
+
+- Updated `README.md` to reflect the new "Pure Gateway" positioning.
+- Updated all examples and tests to use explicit `base_url` parameters.
+
 ## [0.8.1] - 2026-02-27
 
 ### 🔧 Fixed
@@ -50,12 +69,25 @@ All notable changes to this project will be documented in this file.
 - Added comprehensive changelog and development status to website
 - Updated website configuration with new development section
 
-## [0.7.1] - 2026-02-23
+## [0.7.1] - 2026-03-02
 
-### 🔧 Maintenance
+### Added
 
-- Resolved clippy warnings and stabilized tests
-- Fixed cargo fmt issues in CI
+- **Embedding API Support**
+  - Unified `EmbedRequest` and `EmbedResponse` types
+  - Added `.embed()` method to `LlmClient`
+  - Support for 7+ providers: OpenAI, Anthropic, Google Gemini (`batchEmbedContents`), Ollama, Aliyun DashScope, Zhipu GLM, and MockProvider
+- **Multimodal Document Support**
+  - Added `MessageBlock::Document` and `MessageBlock::DocumentUrl` (e.g. for PDF support)
+  - Updated Zhipu and other providers to handle document blocks
+- **Enhanced Usage Tracking**
+  - Added `prompt_cache_hit_tokens` and `prompt_cache_miss_tokens` to `Usage` struct
+  - Robust mapping for Anthropic (`cache_read_input_tokens`, `cache_creation_input_tokens`) and OpenAI caching diagnostics
+
+### Fixed
+
+- **Zhipu Protocol**: Resolved non-exhaustive pattern matching for `MessageBlock`
+- **Documentation**: Added [`docs/PARAMETER_MAPPING.md`](file:///Users/mac-m4/github/llm-connector/docs/PARAMETER_MAPPING.md) for cross-provider parameter reference
 
 ## [0.7.0] - 2026-02-23
 

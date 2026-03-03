@@ -26,6 +26,7 @@ use crate::types::ChatStream;
 ///     endpoints: EndpointConfig {
 ///         chat_template: "{base_url}/v1/chat/completions".to_string(),
 ///         models_template: Some("{base_url}/v1/models".to_string()),
+///         embed_template: None,
 ///     },
 ///     auth: AuthConfig::Bearer,
 ///     extra_headers: vec![],
@@ -67,15 +68,16 @@ pub struct ProtocolConfig {
 pub struct EndpointConfig {
     /// Chat endpoint template
     ///
-    /// Supports variable: `{base_url}`
+    /// Supports variables: `{base_url}`, `{model}`
     ///
-    /// Example: `"{base_url}/v1/chat/completions"`
+    /// Example: `"{base_url}/v1/chat/completions"` or `"{base_url}/models/{model}:generateContent"`
     pub chat_template: String,
 
     /// Model list endpoint template (optional)
-    ///
-    /// Example: `"{base_url}/v1/models"`
     pub models_template: Option<String>,
+
+    /// Embed endpoint template (optional)
+    pub embed_template: Option<String>,
 }
 
 /// Authentication Configuration
@@ -156,6 +158,7 @@ impl<P: Protocol> ConfigurableProtocol<P> {
                 endpoints: EndpointConfig {
                     chat_template: "{base_url}/chat/completions".to_string(),
                     models_template: Some("{base_url}/models".to_string()),
+                    embed_template: Some("{base_url}/embeddings".to_string()),
                 },
                 auth: AuthConfig::Bearer,
                 extra_headers: vec![],
@@ -193,11 +196,12 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
         &self.config.name
     }
 
-    fn chat_endpoint(&self, base_url: &str) -> String {
+    fn chat_endpoint(&self, base_url: &str, model: &str) -> String {
         self.config
             .endpoints
             .chat_template
             .replace("{base_url}", base_url.trim_end_matches('/'))
+            .replace("{model}", model)
     }
 
     fn models_endpoint(&self, base_url: &str) -> Option<String> {
@@ -206,6 +210,18 @@ impl<P: Protocol> Protocol for ConfigurableProtocol<P> {
             .models_template
             .as_ref()
             .map(|template| template.replace("{base_url}", base_url.trim_end_matches('/')))
+    }
+
+    fn embed_endpoint(&self, base_url: &str, model: &str) -> Option<String> {
+        self.config
+            .endpoints
+            .embed_template
+            .as_ref()
+            .map(|template| {
+                template
+                    .replace("{base_url}", base_url.trim_end_matches('/'))
+                    .replace("{model}", model)
+            })
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
@@ -280,6 +296,7 @@ mod tests {
             endpoints: EndpointConfig {
                 chat_template: "{base_url}/v1/chat/completions".to_string(),
                 models_template: Some("{base_url}/v1/models".to_string()),
+                embed_template: Some("{base_url}/v1/embeddings".to_string()),
             },
             auth: AuthConfig::Bearer,
             extra_headers: vec![],
@@ -289,7 +306,7 @@ mod tests {
 
         assert_eq!(protocol.name(), "test");
         assert_eq!(
-            protocol.chat_endpoint("https://api.example.com"),
+            protocol.chat_endpoint("https://api.example.com", "gpt-4"),
             "https://api.example.com/v1/chat/completions"
         );
         assert_eq!(
@@ -305,7 +322,7 @@ mod tests {
 
         assert_eq!(protocol.name(), "custom");
         assert_eq!(
-            protocol.chat_endpoint("https://api.example.com"),
+            protocol.chat_endpoint("https://api.example.com", "any"),
             "https://api.example.com/chat/completions"
         );
     }
@@ -317,6 +334,7 @@ mod tests {
             endpoints: EndpointConfig {
                 chat_template: "{base_url}/api/v3/chat/completions".to_string(),
                 models_template: Some("{base_url}/api/v3/models".to_string()),
+                embed_template: Some("{base_url}/api/v3/embeddings".to_string()),
             },
             auth: AuthConfig::Bearer,
             extra_headers: vec![],
@@ -325,7 +343,7 @@ mod tests {
         let protocol = ConfigurableProtocol::new(OpenAIProtocol::new("sk-test"), config);
 
         assert_eq!(
-            protocol.chat_endpoint("https://api.example.com"),
+            protocol.chat_endpoint("https://api.example.com", "any"),
             "https://api.example.com/api/v3/chat/completions"
         );
     }
@@ -337,6 +355,7 @@ mod tests {
             endpoints: EndpointConfig {
                 chat_template: "{base_url}/v1/chat/completions".to_string(),
                 models_template: None,
+                embed_template: None,
             },
             auth: AuthConfig::Bearer,
             extra_headers: vec![

@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if let Ok(key) = std::env::var("OPENAI_API_KEY") {
-        let client = LlmClient::openai(&key)?;
+        let client = LlmClient::openai(&key, "https://api.openai.com/v1")?;
 
         // 1. Create message with file upload (one-liner)
         let request = ChatRequest::new("gpt-4o")

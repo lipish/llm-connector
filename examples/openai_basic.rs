@@ -21,7 +21,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Create OpenAI client
-    let client = LlmClient::openai(&api_key)?;
+    // Use official endpoint constant
+    let client = LlmClient::openai(&api_key, llm_connector::endpoints::OPENAI_API_V1)?;
 
     // Build chat request
     let request = ChatRequest {

@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key =
         std::env::var("XIAOMI_API_KEY").expect("XIAOMI_API_KEY environment variable not set");
 
-    let client = LlmClient::xiaomi(&api_key)?;
+    let client = LlmClient::xiaomi(&api_key, "https://api.mimo.ai/v1")?;
 
     println!("Provider: {}", client.provider_name());
 

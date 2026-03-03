@@ -5,7 +5,7 @@ use llm_connector::{ChatRequest, LlmClient, Message, ResponseFormat, Tool, ToolC
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = std::env::var("DEEPSEEK_API_KEY")
         .expect("Please set DEEPSEEK_API_KEY environment variable");
-    let client = LlmClient::deepseek(&api_key)?;
+    let client = LlmClient::deepseek(&api_key, llm_connector::endpoints::DEEPSEEK_API)?;
     let model = "deepseek-chat";
 
     // ========== 1. Tool Calling ==========

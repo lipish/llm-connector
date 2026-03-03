@@ -28,7 +28,7 @@ fn test_protocol_endpoints() {
     let base_url = "https://api.openai.com";
     assert!(
         openai_protocol
-            .chat_endpoint(base_url)
+            .chat_endpoint(base_url, "gpt-4")
             .contains("chat/completions")
     );
 
@@ -36,14 +36,14 @@ fn test_protocol_endpoints() {
     let base_url = "https://api.anthropic.com";
     assert!(
         anthropic_protocol
-            .chat_endpoint(base_url)
+            .chat_endpoint(base_url, "claude-3")
             .contains("messages")
     );
 
     let zhipu_protocol = ZhipuProtocol::new("test-key");
     assert!(
         zhipu_protocol
-            .chat_endpoint("https://open.bigmodel.cn")
+            .chat_endpoint("https://open.bigmodel.cn", "glm-4")
             .contains("chat/completions")
     );
 }

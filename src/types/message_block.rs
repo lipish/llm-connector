@@ -34,8 +34,11 @@ pub enum MessageBlock {
     /// Image URL block (OpenAI format)
     ImageUrl { image_url: ImageUrl },
 
-    /// Document block (Anthropic format)
+    /// Document block (Base64 PDF, etc. - Anthropic format / extending others)
     Document { source: DocumentSource },
+
+    /// Document URL block
+    DocumentUrl { document_url: DocumentUrl },
 }
 
 impl MessageBlock {
@@ -194,6 +197,18 @@ impl MessageBlock {
     pub fn is_image(&self) -> bool {
         matches!(self, Self::Image { .. } | Self::ImageUrl { .. })
     }
+
+    /// Check if is document block
+    pub fn is_document(&self) -> bool {
+        matches!(self, Self::Document { .. } | Self::DocumentUrl { .. })
+    }
+
+    /// Create Document URL block
+    pub fn document_url(url: impl Into<String>) -> Self {
+        Self::DocumentUrl {
+            document_url: DocumentUrl { url: url.into() },
+        }
+    }
 }
 
 /// Image source (Anthropic format)
@@ -228,10 +243,24 @@ pub struct ImageUrl {
     pub detail: Option<String>,
 }
 
+/// Document source
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum DocumentSource {
-    Base64 { media_type: String, data: String },
+    /// Base64 encoded document
+    Base64 {
+        /// Media type, such as "application/pdf"
+        media_type: String,
+        /// Base64 encoded document data
+        data: String,
+    },
+}
+
+/// Document URL
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DocumentUrl {
+    /// Document URL
+    pub url: String,
 }
 
 #[cfg(test)]

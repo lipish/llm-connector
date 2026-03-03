@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Create Google client
-    let client = LlmClient::google(&api_key)?;
+    let client = LlmClient::google(&api_key, llm_connector::endpoints::GOOGLE_GEMINI_V1BETA)?;
 
     // Build chat request
     let request = ChatRequest {

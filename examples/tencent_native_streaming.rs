@@ -16,7 +16,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let secret_key = std::env::var("TENCENT_SECRET_KEY")
             .expect("Please set environment variable TENCENT_SECRET_KEY");
 
-        let client = LlmClient::tencent(&secret_id, &secret_key)?;
+        let client = LlmClient::tencent(
+            &secret_id,
+            &secret_key,
+            "https://hunyuan.tencentcloudapi.com",
+        )?;
 
         let model = "hunyuan-standard"; // or hunyuan-lite, hunyuan-pro
 

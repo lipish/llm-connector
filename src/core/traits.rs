@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 // Reuse existing types, maintain compatibility
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse};
+use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
 
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
@@ -30,10 +30,21 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     fn name(&self) -> &str;
 
     /// Get chat completion endpoint URL
-    fn chat_endpoint(&self, base_url: &str) -> String;
+    fn chat_endpoint(&self, base_url: &str, model: &str) -> String;
+
+    /// Get chat stream endpoint URL (optional)
+    #[cfg(feature = "streaming")]
+    fn chat_stream_endpoint(&self, base_url: &str, model: &str) -> String {
+        self.chat_endpoint(base_url, model)
+    }
 
     /// Get model list endpoint URL (optional)
     fn models_endpoint(&self, _base_url: &str) -> Option<String> {
+        None
+    }
+
+    /// Get embeddings endpoint URL (optional)
+    fn embed_endpoint(&self, _base_url: &str, _model: &str) -> Option<String> {
         None
     }
 
@@ -47,6 +58,25 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     fn parse_models(&self, _response: &str) -> Result<Vec<String>, LlmConnectorError> {
         Err(LlmConnectorError::UnsupportedOperation(format!(
             "{} does not support model listing",
+            self.name()
+        )))
+    }
+
+    /// Build protocol-specific embedding request
+    fn build_embed_request(
+        &self,
+        _request: &EmbedRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support embeddings",
+            self.name()
+        )))
+    }
+
+    /// Parse protocol-specific embedding response
+    fn parse_embed_response(&self, _response: &str) -> Result<EmbedResponse, LlmConnectorError> {
+        Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support embeddings",
             self.name()
         )))
     }
@@ -89,6 +119,9 @@ pub trait Provider: Send + Sync {
     /// Get available models list
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError>;
 
+    /// Generate embeddings
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError>;
+
     /// Type conversion support (for special feature access)
     fn as_any(&self) -> &dyn Any;
 }
@@ -120,6 +153,7 @@ fn build_request_overrides(request: &ChatRequest) -> HashMap<String, String> {
 /// This struct provides generic implementation for most standard LLM APIs.
 /// It uses Protocol trait to handle API-specific format conversion,
 /// uses HttpClient to handle network communication.
+#[derive(Debug)]
 pub struct GenericProvider<P: Protocol> {
     protocol: P,
     client: super::HttpClient,
@@ -168,8 +202,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
-
-        let url = self.protocol.chat_endpoint(base_url);
+        let url = self.protocol.chat_endpoint(base_url, &request.model);
         let overrides = build_request_overrides(request);
 
         // Execute request with overrides
@@ -211,8 +244,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
-
-        let url = self.protocol.chat_endpoint(base_url);
+        let url = self.protocol.chat_stream_endpoint(base_url, &request.model);
         let overrides = build_request_overrides(request);
 
         let response = if overrides.is_empty() {
@@ -258,6 +290,32 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         }
 
         self.protocol.parse_models(&text)
+    }
+
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        let endpoint = self
+            .protocol
+            .embed_endpoint(self.client.base_url(), &request.model)
+            .ok_or_else(|| {
+                LlmConnectorError::UnsupportedOperation(format!(
+                    "{} does not support embeddings",
+                    self.protocol.name()
+                ))
+            })?;
+
+        let protocol_request = self.protocol.build_embed_request(request)?;
+        let response = self.client.post(&endpoint, &protocol_request).await?;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+
+        if !status.is_success() {
+            return Err(self.protocol.map_error(status.as_u16(), &text));
+        }
+
+        self.protocol.parse_embed_response(&text)
     }
 
     fn as_any(&self) -> &dyn Any {

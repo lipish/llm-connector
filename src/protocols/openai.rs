@@ -4,7 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, ReasoningEffort, Role, Usage};
+use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ReasoningEffort, Role};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -31,18 +31,22 @@ impl OpenAIProtocol {
 #[async_trait]
 impl Protocol for OpenAIProtocol {
     type Request = OpenAIRequest;
-    type Response = OpenAIResponse;
+    type Response = crate::protocols::utils::OpenAICompatibleResponse;
 
     fn name(&self) -> &str {
         "openai"
     }
 
-    fn chat_endpoint(&self, base_url: &str) -> String {
+    fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
         format!("{}/chat/completions", base_url.trim_end_matches('/'))
     }
 
     fn models_endpoint(&self, base_url: &str) -> Option<String> {
         Some(format!("{}/models", base_url.trim_end_matches('/')))
+    }
+
+    fn embed_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
+        Some(format!("{}/embeddings", base_url.trim_end_matches('/')))
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
@@ -134,109 +138,7 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        let openai_response: OpenAIResponse = serde_json::from_str(response).map_err(|e| {
-            LlmConnectorError::ParseError(format!("Failed to parse OpenAI response: {}", e))
-        })?;
-
-        if openai_response.choices.is_empty() {
-            return Err(LlmConnectorError::ParseError(
-                "No choices in response".to_string(),
-            ));
-        }
-
-        let choices: Vec<Choice> = openai_response
-            .choices
-            .into_iter()
-            .map(|choice| {
-                // Convert tool_calls
-                let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
-                    calls
-                        .iter()
-                        .filter_map(|call| {
-                            Some(crate::types::ToolCall {
-                                id: call.get("id")?.as_str()?.to_string(),
-                                call_type: call.get("type")?.as_str()?.to_string(),
-                                function: crate::types::FunctionCall {
-                                    name: call.get("function")?.get("name")?.as_str()?.to_string(),
-                                    arguments: call
-                                        .get("function")?
-                                        .get("arguments")?
-                                        .as_str()?
-                                        .to_string(),
-                                },
-                                index: None, // Non-streaming responses don't have index
-                            })
-                        })
-                        .collect()
-                });
-
-                // Convert content to MessageBlock
-                let content = if let Some(content_value) = &choice.message.content {
-                    if let Some(text) = content_value.as_str() {
-                        // Plain text
-                        vec![crate::types::MessageBlock::text(text)]
-                    } else if let Some(array) = content_value.as_array() {
-                        // Multi-modal array
-                        serde_json::from_value(serde_json::Value::Array(array.clone()))
-                            .unwrap_or_else(|_| vec![])
-                    } else {
-                        vec![]
-                    }
-                } else {
-                    vec![]
-                };
-
-                Choice {
-                    index: choice.index,
-                    message: Message {
-                        role: Role::Assistant,
-                        content,
-                        name: None,
-                        tool_calls,
-                        tool_call_id: None,
-                        reasoning_content: choice.message.reasoning_content.clone(),
-                        reasoning: None,
-                        thought: None,
-                        thinking: None,
-                    },
-                    finish_reason: choice.finish_reason,
-                    logprobs: None,
-                }
-            })
-            .collect();
-
-        let usage = openai_response.usage.map(|u| Usage {
-            prompt_tokens: u.prompt_tokens,
-            completion_tokens: u.completion_tokens,
-            total_tokens: u.total_tokens,
-            completion_tokens_details: None,
-            prompt_cache_hit_tokens: None,
-            prompt_cache_miss_tokens: None,
-            prompt_tokens_details: None,
-        });
-
-        // Extract first choice content as convenience field (plain text)
-        let content = choices
-            .first()
-            .map(|choice| choice.message.content_as_text())
-            .unwrap_or_default();
-
-        // Extract first choice reasoning_content
-        let reasoning_content = choices
-            .first()
-            .and_then(|c| c.message.reasoning_content.clone());
-
-        Ok(ChatResponse {
-            id: openai_response.id,
-            object: openai_response.object,
-            created: openai_response.created,
-            model: openai_response.model,
-            choices,
-            content,
-            reasoning_content,
-            usage,
-            system_fingerprint: openai_response.system_fingerprint,
-        })
+        crate::protocols::utils::parse_openai_compatible_chat_response(response, self.name())
     }
 
     fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
@@ -250,6 +152,25 @@ impl Protocol for OpenAIProtocol {
             .into_iter()
             .map(|model| model.id)
             .collect())
+    }
+
+    fn build_embed_request(
+        &self,
+        request: &EmbedRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        let req = OpenAIEmbedRequest {
+            model: request.model.clone(),
+            input: request.input.clone(),
+            encoding_format: request.encoding_format.clone(),
+            user: request.user.clone(),
+        };
+        serde_json::to_value(req).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to serialize embed request: {}", e))
+        })
+    }
+
+    fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
+        crate::protocols::utils::parse_openai_compatible_embed_response(response, self.name())
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
@@ -346,42 +267,7 @@ pub struct OpenAIMessage {
     pub name: Option<String>,
 }
 
-// OpenAIresponsetype
-#[derive(Deserialize, Debug)]
-pub struct OpenAIResponse {
-    pub id: String,
-    pub object: String,
-    pub created: u64,
-    pub model: String,
-    pub choices: Vec<OpenAIChoice>,
-    pub usage: Option<OpenAIUsage>,
-    pub system_fingerprint: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct OpenAIChoice {
-    pub index: u32,
-    pub message: OpenAIResponseMessage,
-    pub finish_reason: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct OpenAIResponseMessage {
-    pub content: Option<serde_json::Value>, // Support String or Array
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_calls: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reasoning_content: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct OpenAIUsage {
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub total_tokens: u32,
-}
-
-// modellistresponse
+// Model list response
 #[derive(Deserialize, Debug)]
 pub struct OpenAIModelsResponse {
     pub data: Vec<OpenAIModel>,
@@ -390,4 +276,15 @@ pub struct OpenAIModelsResponse {
 #[derive(Deserialize, Debug)]
 pub struct OpenAIModel {
     pub id: String,
+}
+
+// Embedding Data Structures
+#[derive(Serialize, Debug)]
+pub struct OpenAIEmbedRequest {
+    pub model: String,
+    pub input: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding_format: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
 }

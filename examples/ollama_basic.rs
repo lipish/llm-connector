@@ -13,8 +13,8 @@ use llm_connector::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Ollama Local Model Basic Chat Example\n");
 
-    // Create Ollama client (defaults to http://localhost:11434)
-    let client = LlmClient::ollama().unwrap();
+    // Create Ollama client
+    let client = LlmClient::ollama(llm_connector::endpoints::OLLAMA_LOCAL).unwrap();
 
     // Fetch available models
     println!("🔍 Fetching available models...");
