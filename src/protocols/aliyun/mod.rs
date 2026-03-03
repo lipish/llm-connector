@@ -4,7 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, Role};
+use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ impl AliyunProtocol {
 #[async_trait]
 impl Protocol for AliyunProtocol {
     type Request = AliyunRequest;
-    type Response = crate::protocols::openai_compatible::OpenAICompatibleResponse;
+    type Response = crate::protocols::common::openai::OpenAICompatibleResponse;
 
     fn name(&self) -> &str {
         "aliyun"
@@ -58,27 +58,11 @@ impl Protocol for AliyunProtocol {
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {
-        vec![(
-            "Authorization".to_string(),
-            format!("Bearer {}", self.api_key),
-        )]
+        crate::protocols::common::auth::bearer_auth(&self.api_key)
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let aliyun_messages: Vec<AliyunMessage> = request
-            .messages
-            .iter()
-            .map(|msg| AliyunMessage {
-                role: match msg.role {
-                    Role::System => "system".to_string(),
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    Role::Tool => "tool".to_string(),
-                },
-                content: msg.content_as_text(),
-                tool_calls: msg.tool_calls.clone(),
-            })
-            .collect();
+        let aliyun_messages = crate::protocols::common::request::openai_message_converter(&request.messages);
 
         Ok(AliyunRequest {
             model: request.model.clone(),
@@ -124,7 +108,7 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
-        crate::protocols::openai_compatible::parse_openai_compatible_embed_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_embed_response(response, self.name())
     }
 
     #[cfg(feature = "streaming")]
@@ -136,7 +120,7 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::openai_compatible::parse_openai_compatible_chat_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_chat_response(response, self.name())
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
@@ -161,7 +145,7 @@ pub struct AliyunRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AliyunInput {
-    pub messages: Vec<AliyunMessage>,
+    pub messages: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

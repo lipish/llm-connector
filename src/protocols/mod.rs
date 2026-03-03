@@ -1,17 +1,10 @@
 //! Protocol Module - Public Standard Protocols
 //!
-//! This module only contains industry-recognized standard LLM API protocols:
-//!
-//! ## standardprotocol
-//! - **OpenAI Protocol**: Standard OpenAI API specification - supported by multiple service providers
-//! - **Anthropic Protocol**: Standard Anthropic Claude API specification - official protocol
-//!
-//! ## Design Principles
-//! - Only contains public, standardized protocols
-//! - Other service providers may implement these protocols
-//! - Private protocols are defined in respective `providers` modules
-//!
-//! Note: Specific service provider implementations are in the `providers` module.
+//! Reorganized into V2 Architecture:
+//! - common/: Shared components (Auth, Streamers, OpenAI-base)
+//! - [provider]/: Implementation for each specific protocol
+
+pub mod common;
 
 pub mod aliyun;
 pub mod anthropic;
@@ -20,7 +13,6 @@ pub mod ollama;
 pub mod openai;
 #[cfg(feature = "tencent")]
 pub mod tencent;
-pub mod openai_compatible;
 pub mod zhipu;
 
 // Re-export standard protocol types

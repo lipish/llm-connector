@@ -4,7 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ReasoningEffort, Role};
+use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ReasoningEffort};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -31,7 +31,7 @@ impl OpenAIProtocol {
 #[async_trait]
 impl Protocol for OpenAIProtocol {
     type Request = OpenAIRequest;
-    type Response = crate::protocols::openai_compatible::OpenAICompatibleResponse;
+    type Response = crate::protocols::common::openai::OpenAICompatibleResponse;
 
     fn name(&self) -> &str {
         "openai"
@@ -50,47 +50,7 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let messages = request
-            .messages
-            .iter()
-            .map(|msg| {
-                // Convert MessageBlock to OpenAI format
-                let content = if msg.content.len() == 1 && msg.content[0].is_text() {
-                    // Plain text: use string format
-                    serde_json::json!(msg.content[0].as_text().unwrap())
-                } else {
-                    // Multi-modal: use array format
-                    serde_json::to_value(&msg.content).unwrap()
-                };
-
-                OpenAIMessage {
-                    role: match msg.role {
-                        Role::User => "user".to_string(),
-                        Role::Assistant => "assistant".to_string(),
-                        Role::System => "system".to_string(),
-                        Role::Tool => "tool".to_string(),
-                    },
-                    content,
-                    tool_calls: msg.tool_calls.as_ref().map(|calls| {
-                        calls
-                            .iter()
-                            .map(|call| {
-                                serde_json::json!({
-                                    "id": call.id,
-                                    "type": call.call_type,
-                                    "function": {
-                                        "name": call.function.name,
-                                        "arguments": call.function.arguments,
-                                    }
-                                })
-                            })
-                            .collect()
-                    }),
-                    tool_call_id: msg.tool_call_id.clone(),
-                    name: msg.name.clone(),
-                }
-            })
-            .collect();
+        let messages = crate::protocols::common::request::openai_message_converter(&request.messages);
 
         // Convert tools
         let tools = request.tools.as_ref().map(|tools| {
@@ -138,7 +98,7 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::openai_compatible::parse_openai_compatible_chat_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_chat_response(response, self.name())
     }
 
     fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
@@ -170,7 +130,7 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
-        crate::protocols::openai_compatible::parse_openai_compatible_embed_response(response, self.name())
+        crate::protocols::common::openai::parse_openai_compatible_embed_response(response, self.name())
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
@@ -211,13 +171,7 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                "Authorization".to_string(),
-                format!("Bearer {}", self.api_key),
-            ),
-            ("Content-Type".to_string(), "application/json".to_string()),
-        ]
+        crate::protocols::common::auth::bearer_auth(&self.api_key)
     }
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(
@@ -232,7 +186,7 @@ impl Protocol for OpenAIProtocol {
 #[derive(Serialize, Debug)]
 pub struct OpenAIRequest {
     pub model: String,
-    pub messages: Vec<OpenAIMessage>,
+    pub messages: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]

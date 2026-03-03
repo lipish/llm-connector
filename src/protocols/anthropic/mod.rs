@@ -225,11 +225,9 @@ impl Protocol for AnthropicProtocol {
     }
 
     fn auth_headers(&self) -> Vec<(String, String)> {
-        vec![
-            ("x-api-key".to_string(), self.api_key.clone()),
-            ("Content-Type".to_string(), "application/json".to_string()),
-            ("anthropic-version".to_string(), "2023-06-01".to_string()),
-        ]
+        let mut headers = crate::protocols::common::auth::api_key_header(&self.api_key, "x-api-key");
+        headers.push(("anthropic-version".to_string(), "2023-06-01".to_string()));
+        headers
     }
 
     /// Parse Anthropic streamingresponse
@@ -246,7 +244,7 @@ impl Protocol for AnthropicProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        use crate::types::{Delta, StreamingChoice, StreamingResponse, Usage};
+        use crate::types::{StreamingChoice, StreamingResponse, Usage};
         use futures_util::StreamExt;
         use std::sync::{Arc, Mutex};
 
@@ -282,130 +280,11 @@ impl Protocol for AnthropicProtocol {
                                         // message_start does not return content
                                         None
                                     }
-                                    "content_block_delta" => {
-                                        // Extract text delta
-                                        if let Some(text) = event
-                                            .get("delta")
-                                            .and_then(|d| d.get("text"))
-                                            .and_then(|t| t.as_str())
-                                        {
-                                            let id = message_id
-                                                .lock()
-                                                .ok()
-                                                .map(|id| id.clone())
-                                                .unwrap_or_default();
-
-                                            // Construct StreamingResponse
-                                            Some(Ok(StreamingResponse {
-                                                id,
-                                                object: "chat.completion.chunk".to_string(),
-                                                created: std::time::SystemTime::now()
-                                                    .duration_since(std::time::UNIX_EPOCH)
-                                                    .unwrap_or_default()
-                                                    .as_secs(),
-                                                model: "anthropic".to_string(),
-                                                choices: vec![StreamingChoice {
-                                                    index: 0,
-                                                    delta: Delta {
-                                                        role: Some(crate::types::Role::Assistant),
-                                                        content: Some(text.to_string()),
-                                                        tool_calls: None,
-                                                        reasoning_content: None,
-                                                        reasoning: None,
-                                                        thought: None,
-                                                        thinking: None,
-                                                    },
-                                                    finish_reason: None,
-                                                    logprobs: None,
-                                                }],
-                                                content: text.to_string(),
-                                                reasoning_content: None,
-                                                usage: None,
-                                                system_fingerprint: None,
-                                            }))
-                                        } else {
-                                            None
-                                        }
+                                    "content_block_delta" | "message_delta" => {
+                                        let id = message_id.lock().map(|id| id.clone()).unwrap_or_default();
+                                        crate::protocols::common::streamers::interpret_anthropic_event(&event, &id).transpose()
                                     }
-                                    "message_delta" => {
-                                        // Extract usage and stop_reason
-                                        let stop_reason = event
-                                            .get("delta")
-                                            .and_then(|d| d.get("stop_reason"))
-                                            .and_then(|s| s.as_str())
-                                            .map(|s| s.to_string());
 
-                                        let usage = event.get("usage").map(|u| {
-                                            let input_tokens = u
-                                                .get("input_tokens")
-                                                .and_then(|t| t.as_u64())
-                                                .unwrap_or(0)
-                                                as u32;
-                                            let output_tokens = u
-                                                .get("output_tokens")
-                                                .and_then(|t| t.as_u64())
-                                                .unwrap_or(0)
-                                                as u32;
-                                            let cache_creation = u
-                                                .get("cache_creation_input_tokens")
-                                                .and_then(|t| t.as_u64())
-                                                .map(|t| t as u32);
-                                            let cache_read = u
-                                                .get("cache_read_input_tokens")
-                                                .and_then(|t| t.as_u64())
-                                                .map(|t| t as u32);
-                                            Usage {
-                                                prompt_tokens: input_tokens,
-                                                completion_tokens: output_tokens,
-                                                total_tokens: input_tokens + output_tokens,
-                                                completion_tokens_details: None,
-                                                prompt_cache_hit_tokens: cache_read,
-                                                prompt_cache_miss_tokens: None,
-                                                prompt_tokens_details: Some(
-                                                    crate::types::PromptTokensDetails {
-                                                        cached_tokens: cache_read,
-                                                        cache_read_input_tokens: cache_read,
-                                                        cache_creation_input_tokens: cache_creation,
-                                                    },
-                                                ),
-                                            }
-                                        });
-
-                                        let id = message_id
-                                            .lock()
-                                            .ok()
-                                            .map(|id| id.clone())
-                                            .unwrap_or_default();
-
-                                        // Return final response (contains finish_reason and usage)
-                                        Some(Ok(StreamingResponse {
-                                            id,
-                                            object: "chat.completion.chunk".to_string(),
-                                            created: std::time::SystemTime::now()
-                                                .duration_since(std::time::UNIX_EPOCH)
-                                                .unwrap_or_default()
-                                                .as_secs(),
-                                            model: "anthropic".to_string(),
-                                            choices: vec![StreamingChoice {
-                                                index: 0,
-                                                delta: Delta {
-                                                    role: None,
-                                                    content: None,
-                                                    tool_calls: None,
-                                                    reasoning_content: None,
-                                                    reasoning: None,
-                                                    thought: None,
-                                                    thinking: None,
-                                                },
-                                                finish_reason: stop_reason,
-                                                logprobs: None,
-                                            }],
-                                            content: String::new(),
-                                            reasoning_content: None,
-                                            usage,
-                                            system_fingerprint: None,
-                                        }))
-                                    }
                                     _ => {
                                         // Ignore other event types
                                         None
