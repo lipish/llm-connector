@@ -20,7 +20,7 @@ pub mod ollama;
 pub mod openai;
 #[cfg(feature = "tencent")]
 pub mod tencent;
-pub mod utils;
+pub mod openai_compatible;
 pub mod zhipu;
 
 // Re-export standard protocol types

@@ -37,7 +37,7 @@ impl AliyunProtocol {
 #[async_trait]
 impl Protocol for AliyunProtocol {
     type Request = AliyunRequest;
-    type Response = crate::protocols::utils::OpenAICompatibleResponse;
+    type Response = crate::protocols::openai_compatible::OpenAICompatibleResponse;
 
     fn name(&self) -> &str {
         "aliyun"
@@ -124,7 +124,7 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
-        crate::protocols::utils::parse_openai_compatible_embed_response(response, self.name())
+        crate::protocols::openai_compatible::parse_openai_compatible_embed_response(response, self.name())
     }
 
     #[cfg(feature = "streaming")]
@@ -136,7 +136,7 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::utils::parse_openai_compatible_chat_response(response, self.name())
+        crate::protocols::openai_compatible::parse_openai_compatible_chat_response(response, self.name())
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
