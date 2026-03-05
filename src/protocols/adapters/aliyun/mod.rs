@@ -37,7 +37,7 @@ impl AliyunProtocol {
 #[async_trait]
 impl Protocol for AliyunProtocol {
     type Request = AliyunRequest;
-    type Response = crate::protocols::common::openai::OpenAICompatibleResponse;
+    type Response = crate::protocols::formats::chat_completions::ChatCompletionsResponse;
 
     fn name(&self) -> &str {
         "aliyun"
@@ -119,7 +119,7 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_embed_response(&self, response: &str) -> Result<EmbedResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_embed_response(
+        crate::protocols::formats::chat_completions::parse_chat_completions_embed_response(
             response,
             self.name(),
         )
@@ -134,7 +134,7 @@ impl Protocol for AliyunProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_chat_response(
+        crate::protocols::formats::chat_completions::parse_chat_completions_chat_response(
             response,
             self.name(),
         )

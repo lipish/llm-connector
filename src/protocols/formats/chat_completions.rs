@@ -14,13 +14,13 @@ use serde::Deserialize;
 // ============================================================================
 
 #[derive(Deserialize, Debug)]
-pub struct OpenAICompatibleResponse {
+pub struct ChatCompletionsResponse {
     pub id: Option<String>,
     pub object: Option<String>,
     pub created: Option<u64>,
     pub model: Option<String>,
-    pub choices: Option<Vec<OpenAICompatibleChoice>>,
-    pub usage: Option<OpenAICompatibleUsage>,
+    pub choices: Option<Vec<ChatCompletionsChoice>>,
+    pub usage: Option<ChatCompletionsUsage>,
     pub system_fingerprint: Option<String>,
 
     // Potentially proprietary fields we ignore or handle specially
@@ -29,15 +29,15 @@ pub struct OpenAICompatibleResponse {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct OpenAICompatibleChoice {
+pub struct ChatCompletionsChoice {
     pub index: Option<u32>,
-    pub message: Option<OpenAICompatibleMessage>,
-    pub delta: Option<OpenAICompatibleMessage>, // For streaming
+    pub message: Option<ChatCompletionsMessage>,
+    pub delta: Option<ChatCompletionsMessage>, // For streaming
     pub finish_reason: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct OpenAICompatibleMessage {
+pub struct ChatCompletionsMessage {
     #[allow(dead_code)]
     pub role: Option<String>,
     pub content: Option<String>,
@@ -47,7 +47,7 @@ pub struct OpenAICompatibleMessage {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct OpenAICompatibleUsage {
+pub struct ChatCompletionsUsage {
     pub prompt_tokens: Option<u32>,
     pub completion_tokens: Option<u32>,
     pub total_tokens: Option<u32>,
@@ -62,11 +62,11 @@ pub struct OpenAICompatibleUsage {
 // ============================================================================
 
 /// Parse a standard OpenAI-compatible JSON response into a ChatResponse
-pub fn parse_openai_compatible_chat_response(
+pub fn parse_chat_completions_chat_response(
     response: &str,
     provider_name: &str,
 ) -> Result<ChatResponse, LlmConnectorError> {
-    let raw: OpenAICompatibleResponse = serde_json::from_str(response)
+    let raw: ChatCompletionsResponse = serde_json::from_str(response)
         .map_err(|e| LlmConnectorError::ParseError(format!("{}: {}", provider_name, e)))?;
 
     // Extract usage
@@ -159,26 +159,26 @@ pub fn parse_openai_compatible_chat_response(
 // ============================================================================
 
 #[derive(Deserialize, Debug)]
-pub struct OpenAICompatibleEmbedResponse {
+pub struct ChatCompletionsEmbedResponse {
     pub object: Option<String>,
-    pub data: Option<Vec<OpenAICompatibleEmbedData>>,
+    pub data: Option<Vec<ChatCompletionsEmbedData>>,
     pub model: Option<String>,
-    pub usage: Option<OpenAICompatibleUsage>,
+    pub usage: Option<ChatCompletionsUsage>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct OpenAICompatibleEmbedData {
+pub struct ChatCompletionsEmbedData {
     pub object: Option<String>,
     pub embedding: Vec<f32>,
     pub index: u32,
 }
 
 /// Parse a standard OpenAI-compatible embedding JSON response into an EmbedResponse
-pub fn parse_openai_compatible_embed_response(
+pub fn parse_chat_completions_embed_response(
     response: &str,
     provider_name: &str,
 ) -> Result<EmbedResponse, LlmConnectorError> {
-    let raw: OpenAICompatibleEmbedResponse = serde_json::from_str(response)
+    let raw: ChatCompletionsEmbedResponse = serde_json::from_str(response)
         .map_err(|e| LlmConnectorError::ParseError(format!("{}: {}", provider_name, e)))?;
 
     // Extract usage

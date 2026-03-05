@@ -3,10 +3,10 @@
 //! Verified the correctness of request building and response parsing for each provider.
 
 use llm_connector::core::Protocol;
-use llm_connector::protocols::aliyun::AliyunProtocol;
-use llm_connector::protocols::anthropic::AnthropicProtocol;
-use llm_connector::protocols::openai::OpenAIProtocol;
-use llm_connector::protocols::zhipu::ZhipuProtocol;
+use llm_connector::protocols::adapters::aliyun::AliyunProtocol;
+use llm_connector::protocols::adapters::anthropic::AnthropicProtocol;
+use llm_connector::protocols::adapters::openai::OpenAIProtocol;
+use llm_connector::protocols::adapters::zhipu::ZhipuProtocol;
 use llm_connector::types::{ChatRequest, Message};
 
 #[test]

@@ -4,7 +4,7 @@
 
 use llm_connector::core::Protocol;
 use llm_connector::error::LlmConnectorError;
-use llm_connector::protocols::openai::OpenAIProtocol;
+use llm_connector::protocols::adapters::openai::OpenAIProtocol;
 
 #[test]
 fn test_from_status_code() {

@@ -46,7 +46,7 @@ impl ZhipuProtocol {
 #[async_trait::async_trait]
 impl Protocol for ZhipuProtocol {
     type Request = ZhipuRequest;
-    type Response = crate::protocols::common::openai::OpenAICompatibleResponse;
+    type Response = crate::protocols::formats::chat_completions::ChatCompletionsResponse;
 
     fn name(&self) -> &str {
         "zhipu"
@@ -82,7 +82,7 @@ impl Protocol for ZhipuProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::common::openai::parse_openai_compatible_chat_response(
+        crate::protocols::formats::chat_completions::parse_chat_completions_chat_response(
             response,
             self.name(),
         )
