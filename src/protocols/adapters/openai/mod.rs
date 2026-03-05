@@ -185,7 +185,10 @@ impl Protocol for OpenAIProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        Ok(crate::sse::sse_to_streaming_response(response))
+        Ok(crate::sse::sse_to_streaming_response_with_mode(
+            response,
+            crate::sse::StreamingParseMode::OpenAIOnly,
+        ))
     }
 }
 

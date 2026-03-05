@@ -1,13 +1,17 @@
 use dotenvy::dotenv;
-use llm_connector::{LlmClient, Message, types::{Tool, ToolChoice}};
-use std::env;
+use llm_connector::{
+    LlmClient, Message,
+    types::{Tool, ToolChoice},
+};
 use serde_json::json;
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let openai_url = env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+    let openai_url =
+        env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
     let openai_key = env::var("OPENAI_API_KEY").unwrap_or_default();
 
     println!("--- Testing OpenAI (Tool Calling) ---");
@@ -15,7 +19,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("❌ OpenAI Error: {:?}", e);
     }
 
-    let anthropic_url = env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
+    let anthropic_url =
+        env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
     let anthropic_key = env::var("ANTHROPIC_API_KEY").unwrap_or_default();
 
     println!("\n--- Testing Anthropic (Thinking) ---");
@@ -61,8 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let deepseek_url = env::var("DEEPSEEK_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepseek.com".to_string());
         println!("\n--- Testing DeepSeek (Reasoning) ---");
-        if let Err(e) = test_reasoning(&deepseek_url, &deepseek_key, "deepseek-reasoner").await
-        {
+        if let Err(e) = test_reasoning(&deepseek_url, &deepseek_key, "deepseek-reasoner").await {
             println!("❌ DeepSeek Error: {:?}", e);
         }
     }
@@ -109,7 +113,11 @@ async fn test_openai(url: &str, key: &str) -> Result<(), Box<dyn std::error::Err
     let response = client.chat(&request).await?;
     if let Some(choice) = response.choices.first() {
         if let Some(tool_calls) = &choice.message.tool_calls {
-            println!("🛠️ OpenAI requested {} tool call(s). Tool Name: {}", tool_calls.len(), tool_calls[0].function.name);
+            println!(
+                "🛠️ OpenAI requested {} tool call(s). Tool Name: {}",
+                tool_calls.len(),
+                tool_calls[0].function.name
+            );
         } else {
             println!("Response: {}", response.content);
         }
@@ -120,7 +128,9 @@ async fn test_openai(url: &str, key: &str) -> Result<(), Box<dyn std::error::Err
 async fn test_anthropic(url: &str, key: &str) -> Result<(), Box<dyn std::error::Error>> {
     let client = LlmClient::openai(key, url)?;
     let request = llm_connector::ChatRequest::new("claude-opus-4-5-20251101-thinking")
-        .add_message(Message::user("Which is heavier, 1kg of feathers or 1kg of steel? Please think out loud."))
+        .add_message(Message::user(
+            "Which is heavier, 1kg of feathers or 1kg of steel? Please think out loud.",
+        ))
         .with_enable_thinking(true);
 
     let response = client.chat(&request).await?;
@@ -178,8 +188,7 @@ async fn test_openai_compatible(
     model: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = LlmClient::openai(key, url)?;
-    let request =
-        llm_connector::ChatRequest::new(model)
+    let request = llm_connector::ChatRequest::new(model)
         .add_message(Message::user("Please think clearly: what is 25 * 4?"));
 
     let response = client.chat(&request).await?;
@@ -197,7 +206,9 @@ async fn test_reasoning(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = LlmClient::openai(key, url)?;
     let request = llm_connector::ChatRequest::new(model)
-        .add_message(Message::user("Think about this logically: Is 9.11 larger than 9.9?"))
+        .add_message(Message::user(
+            "Think about this logically: Is 9.11 larger than 9.9?",
+        ))
         .with_enable_thinking(true);
 
     let response = client.chat(&request).await?;
@@ -236,9 +247,17 @@ async fn test_tool_calling(
     let response = client.chat(&request).await?;
     if let Some(choice) = response.choices.first() {
         if let Some(tool_calls) = &choice.message.tool_calls {
-            println!("{}: 🛠️ AI requested {} tool call(s). Tool Name: {}", model, tool_calls.len(), tool_calls[0].function.name);
+            println!(
+                "{}: 🛠️ AI requested {} tool call(s). Tool Name: {}",
+                model,
+                tool_calls.len(),
+                tool_calls[0].function.name
+            );
         } else {
-            println!("{}: ⚠️ AI didn't use tools. Response: {}", model, response.content);
+            println!(
+                "{}: ⚠️ AI didn't use tools. Response: {}",
+                model, response.content
+            );
         }
     }
     Ok(())

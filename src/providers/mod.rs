@@ -6,7 +6,7 @@
 use crate::core::{GenericProvider, HttpClient, Protocol, Provider};
 use crate::error::LlmConnectorError;
 #[cfg(feature = "tencent")]
-use crate::protocols::tencent::TencentNativeProtocol;
+use crate::protocols::TencentNativeProtocol;
 use crate::protocols::{
     AliyunProtocol, AnthropicProtocol, GoogleProtocol, OllamaProtocol, OpenAIProtocol,
     ZhipuProtocol,

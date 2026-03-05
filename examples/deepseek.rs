@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let region = env::var("DEEPSEEK_REGION")
         .or_else(|_| env::var("REGION"))
         .unwrap_or_else(|_| "global".to_string());
-    
+
     let model = env::var("DEEPSEEK_MODEL").unwrap_or_else(|_| "deepseek-chat".to_string());
 
     // Fetch endpoint from llm-providers
@@ -33,8 +33,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = LlmClient::openai(&api_key, endpoint.base_url)?;
 
     println!("--- 1. Basic Chat ---");
-    let request = ChatRequest::new(&model)
-        .add_message(Message::user("Hello DeepSeek, what's new today?"));
+    let request =
+        ChatRequest::new(&model).add_message(Message::user("Hello DeepSeek, what's new today?"));
 
     let response = client.chat(&request).await?;
     println!("Response: {}\n", response.content);

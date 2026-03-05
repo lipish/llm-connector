@@ -22,6 +22,18 @@ pub enum StreamFormat {
     Auto,
 }
 
+/// Protocol-aware parsing mode for stream chunk payloads.
+#[cfg(feature = "streaming")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StreamingParseMode {
+    /// Try OpenAI shape first, then strict Ollama fallback.
+    Auto,
+    /// Only accept OpenAI-compatible streaming chunks.
+    OpenAIOnly,
+    /// Allow strict Ollama chunk fallback after OpenAI parse fails.
+    OllamaStrict,
+}
+
 /// Create a robust stream from a reqwest response
 ///
 /// This function automatically handles different streaming formats and normalizes them
@@ -177,7 +189,16 @@ pub fn parse_sse_line(line: &str) -> Result<Option<serde_json::Value>, LlmConnec
 /// Convert HTTP response to StreamingResponse stream with automatic format detection
 #[cfg(feature = "streaming")]
 pub fn sse_to_streaming_response(response: reqwest::Response) -> crate::types::ChatStream {
-    use crate::types::{StreamingResponse, ToolCall};
+    sse_to_streaming_response_with_mode(response, StreamingParseMode::Auto)
+}
+
+/// Convert HTTP response to StreamingResponse stream with protocol-aware parsing mode.
+#[cfg(feature = "streaming")]
+pub fn sse_to_streaming_response_with_mode(
+    response: reqwest::Response,
+    parse_mode: StreamingParseMode,
+) -> crate::types::ChatStream {
+    use crate::types::ToolCall;
     use std::collections::HashMap;
 
     // Use Auto detection by default
@@ -186,16 +207,9 @@ pub fn sse_to_streaming_response(response: reqwest::Response) -> crate::types::C
     // State for accumulating tool_calls across chunks
     let response_stream = string_stream.scan(
         HashMap::<usize, ToolCall>::new(),
-        |accumulated_tool_calls, result| {
+        move |accumulated_tool_calls, result| {
             let processed = result.and_then(|json_str| {
-                // Try to parse as StreamingResponse
-                let mut streaming_response = serde_json::from_str::<StreamingResponse>(&json_str)
-                    .map_err(|e| {
-                    crate::error::LlmConnectorError::ParseError(format!(
-                        "Failed to parse streaming response: {}. Content: {}",
-                        e, json_str
-                    ))
-                })?;
+                let mut streaming_response = parse_streaming_payload(&json_str, parse_mode)?;
 
                 // Populate convenience fields
                 populate_convenience_fields(&mut streaming_response);
@@ -211,6 +225,201 @@ pub fn sse_to_streaming_response(response: reqwest::Response) -> crate::types::C
     );
 
     Box::pin(response_stream)
+}
+
+#[cfg(feature = "streaming")]
+fn parse_streaming_payload(
+    json_str: &str,
+    parse_mode: StreamingParseMode,
+) -> Result<crate::types::StreamingResponse, crate::error::LlmConnectorError> {
+    use crate::types::StreamingResponse;
+
+    // First try OpenAI-compatible chunk format.
+    if let Ok(mut response) = serde_json::from_str::<StreamingResponse>(json_str) {
+        if let Ok(raw) = serde_json::from_str::<serde_json::Value>(json_str) {
+            response.populate_reasoning_synonyms(&raw);
+        }
+        return Ok(response);
+    }
+
+    // If caller only accepts OpenAI-style chunks, fail fast.
+    if parse_mode == StreamingParseMode::OpenAIOnly {
+        return Err(crate::error::LlmConnectorError::ParseError(format!(
+            "Failed to parse streaming response as OpenAI-compatible chunk. Content: {}",
+            json_str
+        )));
+    }
+
+    // Fallback for Ollama /api/chat NDJSON chunk format.
+    let raw: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+        crate::error::LlmConnectorError::ParseError(format!(
+            "Failed to parse streaming response: {}. Content: {}",
+            e, json_str
+        ))
+    })?;
+
+    if let Some(response) = parse_ollama_chunk(&raw, parse_mode) {
+        return Ok(response);
+    }
+
+    Err(crate::error::LlmConnectorError::ParseError(format!(
+        "Failed to parse streaming response: unsupported chunk format. Content: {}",
+        json_str
+    )))
+}
+
+#[cfg(feature = "streaming")]
+fn parse_ollama_chunk(
+    raw: &serde_json::Value,
+    parse_mode: StreamingParseMode,
+) -> Option<crate::types::StreamingResponse> {
+    use crate::types::{Delta, Role, StreamingChoice, StreamingResponse, Usage};
+
+    if parse_mode == StreamingParseMode::OpenAIOnly || !is_strict_ollama_chunk(raw) {
+        return None;
+    }
+
+    let model = raw.get("model")?.as_str()?.to_string();
+    let message = raw.get("message")?.as_object()?;
+
+    let role = message
+        .get("role")
+        .and_then(|v| v.as_str())
+        .and_then(|r| match r {
+            "system" => Some(Role::System),
+            "user" => Some(Role::User),
+            "assistant" => Some(Role::Assistant),
+            "tool" => Some(Role::Tool),
+            _ => None,
+        });
+
+    let content = message
+        .get("content")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+
+    let delta = Delta {
+        role,
+        content: if content.is_empty() {
+            None
+        } else {
+            Some(content.clone())
+        },
+        tool_calls: None,
+        reasoning_content: message
+            .get("reasoning_content")
+            .and_then(|v| v.as_str())
+            .map(ToString::to_string),
+        reasoning: message
+            .get("reasoning")
+            .and_then(|v| v.as_str())
+            .map(ToString::to_string),
+        thought: message
+            .get("thought")
+            .and_then(|v| v.as_str())
+            .map(ToString::to_string),
+        thinking: message
+            .get("thinking")
+            .and_then(|v| v.as_str())
+            .map(ToString::to_string),
+    };
+
+    let done = raw.get("done").and_then(|v| v.as_bool()).unwrap_or(false);
+    let finish_reason = if done {
+        Some(
+            raw.get("done_reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("stop")
+                .to_string(),
+        )
+    } else {
+        None
+    };
+
+    let usage = if done {
+        let prompt_tokens = raw
+            .get("prompt_eval_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32;
+        let completion_tokens = raw.get("eval_count").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        if prompt_tokens > 0 || completion_tokens > 0 {
+            Some(Usage {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens: prompt_tokens + completion_tokens,
+                ..Default::default()
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let created = raw
+        .get("created_at")
+        .and_then(|v| v.as_str())
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.timestamp() as u64)
+        .unwrap_or_else(|| chrono::Utc::now().timestamp() as u64);
+
+    let mut response = StreamingResponse {
+        id: format!("ollama-{}", created),
+        object: "chat.completion.chunk".to_string(),
+        created,
+        model,
+        choices: vec![StreamingChoice {
+            index: 0,
+            delta,
+            finish_reason,
+            logprobs: None,
+        }],
+        content,
+        reasoning_content: None,
+        usage,
+        system_fingerprint: None,
+    };
+
+    response.populate_reasoning_synonyms(raw);
+    Some(response)
+}
+
+#[cfg(feature = "streaming")]
+fn is_strict_ollama_chunk(raw: &serde_json::Value) -> bool {
+    let message = match raw.get("message").and_then(|v| v.as_object()) {
+        Some(m) => m,
+        None => return false,
+    };
+
+    if raw.get("model").and_then(|v| v.as_str()).is_none() {
+        return false;
+    }
+    if raw.get("done").and_then(|v| v.as_bool()).is_none() {
+        return false;
+    }
+    if message.get("role").and_then(|v| v.as_str()).is_none() {
+        return false;
+    }
+    if !message
+        .get("content")
+        .map(|v| v.is_string())
+        .unwrap_or(false)
+    {
+        return false;
+    }
+
+    // Require at least one Ollama-specific marker to avoid accidental misclassification.
+    raw.get("created_at").and_then(|v| v.as_str()).is_some()
+        || raw.get("done_reason").and_then(|v| v.as_str()).is_some()
+        || raw
+            .get("prompt_eval_count")
+            .and_then(|v| v.as_u64())
+            .is_some()
+        || raw.get("eval_count").and_then(|v| v.as_u64()).is_some()
+        || raw.get("total_duration").and_then(|v| v.as_u64()).is_some()
+        || raw.get("remote_model").and_then(|v| v.as_str()).is_some()
+        || raw.get("remote_host").and_then(|v| v.as_str()).is_some()
 }
 
 #[cfg(feature = "streaming")]
@@ -267,6 +476,41 @@ fn accumulate_tool_calls(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_parse_ollama_chunk_with_thinking() {
+        let chunk = r#"{"model":"kimi-k2.5:cloud","created_at":"2026-03-05T08:32:36.674615034Z","message":{"role":"assistant","content":"","thinking":"step-by-step"},"done":false}"#;
+
+        let parsed = super::parse_streaming_payload(chunk, super::StreamingParseMode::OllamaStrict)
+            .expect("should parse ollama chunk");
+        assert_eq!(parsed.model, "kimi-k2.5:cloud");
+        assert_eq!(parsed.choices.len(), 1);
+        assert_eq!(
+            parsed.choices[0].delta.thinking.as_deref(),
+            Some("step-by-step")
+        );
+    }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_parse_ollama_done_chunk_with_usage() {
+        let chunk = r#"{"model":"kimi-k2.5:cloud","created_at":"2026-03-05T08:32:36.674615034Z","message":{"role":"assistant","content":"done"},"done":true,"done_reason":"stop","prompt_eval_count":10,"eval_count":20}"#;
+
+        let parsed = super::parse_streaming_payload(chunk, super::StreamingParseMode::OllamaStrict)
+            .expect("should parse ollama done chunk");
+        assert_eq!(parsed.choices[0].finish_reason.as_deref(), Some("stop"));
+        assert_eq!(parsed.usage.as_ref().map(|u| u.total_tokens), Some(30));
+    }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_openai_only_mode_rejects_ollama_chunk() {
+        let chunk = r#"{"model":"kimi-k2.5:cloud","created_at":"2026-03-05T08:32:36.674615034Z","message":{"role":"assistant","content":""},"done":false}"#;
+
+        let result = super::parse_streaming_payload(chunk, super::StreamingParseMode::OpenAIOnly);
+        assert!(result.is_err());
+    }
+
     #[tokio::test]
     async fn test_sse_detection() {
         // Mock SSE response

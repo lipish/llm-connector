@@ -1,3 +1,13 @@
+## [1.1.2] - 2026-03-05
+
+### Fixes
+
+- **Ollama Cloud streaming compatibility**: Added strict Ollama NDJSON chunk fallback parsing for `/api/chat` streaming chunks that do not include OpenAI-style fields like `id`.
+- **Protocol-layer stream routing**: Added protocol-aware streaming parse modes so Ollama explicitly uses `OllamaStrict` and OpenAI-compatible adapters use `OpenAIOnly`, reducing cross-protocol misclassification risk.
+- **Streaming parser hardening**: Added strict Ollama shape checks and tests for `thinking` chunks and final usage chunks.
+- **Ollama example reliability**: Updated `examples/ollama.rs` to auto-select an available model and avoid hardcoded `llama3` failures in cloud-backed local setups.
+- **Tencent import path cleanup**: Included provider import path adjustment in `src/providers/mod.rs`.
+
 ## [1.1.1] - 2026-03-05
 
 ### 🔧 Improvements & Fixes

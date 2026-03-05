@@ -164,11 +164,10 @@ impl Protocol for OllamaProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        // Ollama uses JSONL format instead of SSE for its native /api/chat endpoint
-        // However, our sse_to_streaming_response might need adjustment for JSONL or we use a custom parser.
-        // Actually, Ollama's /api/chat with stream: true returns a sequence of JSON objects.
-
-        Ok(crate::sse::sse_to_streaming_response(response))
+        Ok(crate::sse::sse_to_streaming_response_with_mode(
+            response,
+            crate::sse::StreamingParseMode::OllamaStrict,
+        ))
     }
 }
 
