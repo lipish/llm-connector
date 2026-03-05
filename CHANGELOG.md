@@ -1,6 +1,23 @@
-## [1.0.1] - 2026-03-03
+## [1.1.1] - 2026-03-05
 
-### 🔧 Refinement - Transparent Protocol Architecture
+### 🔧 Improvements & Fixes
+
+- **Updated `llm-providers`**: Bumped `llm_providers` dev-dependency to `0.7.4` to natively support `deepseek:global` and `moonshot:global` automatic discovery.
+- **Enhanced Integration Testing**: Refactored `real_world_connectivity_test.rs` to comprehensively test `tool_calling` (Moonshot, Anthropic, OpenAI) and advanced `reasoning` block extracting (DeepSeek, MiniMax, Anthropic) across all major providers.
+- **Dynamic Region Reliability**: Fixed Moonshot, Zhipu, and MiniMax examples to gracefully fallback from provider-specific `_REGION` vars to generic `REGION` environment variables.
+
+## [1.1.0] - 2026-03-05
+
+### 🚀 V2 Pure Protocol Engine Architecture
+
+- **Anti-Corruption Layer**: Providers are now strictly adapters (`src/protocols/adapters/`).
+- **Standardized Chat Formats**: Introduced `src/protocols/formats/chat_completions.rs` to unify parsing logic for all OpenAI-compatible providers, eliminating massive code duplication.
+- **Native Reasoning Output Extraction**:
+  - Full support for DeepSeek and Gemini reasoning streams.
+  - Automatically identifies and extracts `<think>` blocks from models like MiniMax into the unified `reasoning_content` field.
+- **Dynamic Discovery Ready**: The core is now a transparent gateway. Hardcoded URLs are eradicated. Integrated examples heavily with `llm-providers` for automatic capability reading.
+
+## [1.0.1] - 2026-03-03
 
 - **Removed Static Endpoints**: Deleted `src/endpoints.rs` and all internal hardcoded API URLs to ensure the library remains a pure, transparent protocol parser.
 - **Dynamic URL Configuration**: Updated all provider examples to use `_BASE_URL` environment variables, enabling seamless metadata discovery via `llm-providers`.

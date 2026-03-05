@@ -23,7 +23,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Zhipu GLM Comprehensive Multi-Region Example\n");
 
     let api_key = env::var("ZHIPU_API_KEY").expect("ZHIPU_API_KEY not set");
-    let region = env::var("ZHIPU_REGION").unwrap_or_else(|_| "cn".to_string());
+    let region = env::var("ZHIPU_REGION")
+        .or_else(|_| env::var("REGION"))
+        .unwrap_or_else(|_| "cn".to_string());
     let model = env::var("ZHIPU_MODEL").unwrap_or_else(|_| "glm-4.5-flash".to_string());
     let proxy = env::var("ZHIPU_PROXY").ok();
 

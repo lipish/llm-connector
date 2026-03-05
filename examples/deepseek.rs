@@ -12,16 +12,28 @@ use std::env;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    println!("🤖 DeepSeek Example\n");
+    println!("🤖 DeepSeek Multi-Region Example\n");
 
     let api_key = env::var("DEEPSEEK_API_KEY").expect("DEEPSEEK_API_KEY not set");
-    let base_url =
-        env::var("DEEPSEEK_BASE_URL").unwrap_or_else(|_| "https://api.deepseek.com".to_string());
+    let region = env::var("DEEPSEEK_REGION")
+        .or_else(|_| env::var("REGION"))
+        .unwrap_or_else(|_| "global".to_string());
+    
+    let model = env::var("DEEPSEEK_MODEL").unwrap_or_else(|_| "deepseek-chat".to_string());
 
-    let client = LlmClient::openai(&api_key, &base_url)?;
+    // Fetch endpoint from llm-providers
+    let endpoint_id = format!("deepseek:{}", region);
+    let (_, endpoint) = llm_providers::get_endpoint(&endpoint_id)
+        .ok_or_else(|| format!("Endpoint {} not found in llm-providers", endpoint_id))?;
+
+    println!("📍 Testing Region: {}", endpoint.label);
+    println!("🔗 Base URL: {}", endpoint.base_url);
+    println!("🤖 Model: {}\n", model);
+
+    let client = LlmClient::openai(&api_key, endpoint.base_url)?;
 
     println!("--- 1. Basic Chat ---");
-    let request = ChatRequest::new("deepseek-chat")
+    let request = ChatRequest::new(&model)
         .add_message(Message::user("Hello DeepSeek, what's new today?"));
 
     let response = client.chat(&request).await?;

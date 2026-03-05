@@ -20,7 +20,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Minimax Multi-Region Example\n");
 
     let api_key = env::var("MINIMAX_API_KEY").expect("MINIMAX_API_KEY not set");
-    let region = env::var("MINIMAX_REGION").unwrap_or_else(|_| "global".to_string());
+    let region = env::var("MINIMAX_REGION")
+        .or_else(|_| env::var("REGION"))
+        .unwrap_or_else(|_| "global".to_string());
     let model = env::var("MINIMAX_MODEL").unwrap_or_else(|_| "MiniMax-M2.5".to_string());
 
     // Fetch endpoint from llm-providers

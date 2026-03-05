@@ -1,22 +1,25 @@
 use dotenvy::dotenv;
-use llm_connector::{LlmClient, Message};
+use llm_connector::{LlmClient, Message, types::{Tool, ToolChoice}};
 use std::env;
+use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let proxy_url =
-        env::var("PROXY_BASE_URL").unwrap_or_else(|_| "http://123.129.219.111:3000/v1".to_string());
-    let proxy_key = env::var("PROXY_API_KEY").unwrap_or_default();
+    let openai_url = env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+    let openai_key = env::var("OPENAI_API_KEY").unwrap_or_default();
 
-    println!("--- Testing OpenAI (via Proxy) ---");
-    if let Err(e) = test_openai(&proxy_url, &proxy_key).await {
+    println!("--- Testing OpenAI (Tool Calling) ---");
+    if let Err(e) = test_openai(&openai_url, &openai_key).await {
         println!("❌ OpenAI Error: {:?}", e);
     }
 
-    println!("\n--- Testing Anthropic (via Proxy) ---");
-    if let Err(e) = test_anthropic(&proxy_url, &proxy_key).await {
+    let anthropic_url = env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
+    let anthropic_key = env::var("ANTHROPIC_API_KEY").unwrap_or_default();
+
+    println!("\n--- Testing Anthropic (Thinking) ---");
+    if let Err(e) = test_anthropic(&anthropic_url, &anthropic_key).await {
         println!("❌ Anthropic Error: {:?}", e);
     }
 
@@ -53,11 +56,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // DeepSeek via OpenAI compatible client
+    // DeepSeek via OpenAI compatible client
     if let Ok(deepseek_key) = env::var("DEEPSEEK_API_KEY") {
         let deepseek_url = env::var("DEEPSEEK_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepseek.com".to_string());
-        println!("\n--- Testing DeepSeek ---");
-        if let Err(e) = test_openai_compatible(&deepseek_url, &deepseek_key, "deepseek-chat").await
+        println!("\n--- Testing DeepSeek (Reasoning) ---");
+        if let Err(e) = test_reasoning(&deepseek_url, &deepseek_key, "deepseek-reasoner").await
         {
             println!("❌ DeepSeek Error: {:?}", e);
         }
@@ -67,9 +71,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(minimax_key) = env::var("MINIMAX_API_KEY") {
         let minimax_url = env::var("MINIMAX_BASE_URL")
             .unwrap_or_else(|_| "https://api.minimax.io/v1".to_string());
-        println!("\n--- Testing MiniMax ---");
-        if let Err(e) = test_openai_compatible(&minimax_url, &minimax_key, "abab6.5s-chat").await {
+        println!("\n--- Testing MiniMax (Reasoning Extraction) ---");
+        if let Err(e) = test_openai_compatible(&minimax_url, &minimax_key, "MiniMax-M2.5").await {
             println!("❌ MiniMax Error: {:?}", e);
+        }
+    }
+
+    // Moonshot
+    if let Ok(moonshot_key) = env::var("MOONSHOT_API_KEY") {
+        let moonshot_url = env::var("MOONSHOT_BASE_URL")
+            .unwrap_or_else(|_| "https://api.moonshot.ai/v1".to_string());
+        println!("\n--- Testing Moonshot (Tool Calling) ---");
+        if let Err(e) = test_tool_calling(&moonshot_url, &moonshot_key, "kimi-k2.5").await {
+            println!("❌ Moonshot Error: {:?}", e);
         }
     }
 
@@ -78,25 +92,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn test_openai(url: &str, key: &str) -> Result<(), Box<dyn std::error::Error>> {
     let client = LlmClient::openai(key, url)?;
-    let request =
-        llm_connector::ChatRequest::new("gpt-4o").add_message(Message::user("Hello, who are you?"));
+    let weather_tool = Tool::function(
+        "get_weather",
+        Some("Get current weather".to_string()),
+        json!({
+            "type": "object",
+            "properties": { "location": { "type": "string" } },
+            "required": ["location"]
+        }),
+    );
+    let request = llm_connector::ChatRequest::new("gpt-5.2-2025-12-11")
+        .add_message(Message::user("Hello, what's the weather in Seattle?"))
+        .with_tools(vec![weather_tool])
+        .with_tool_choice(ToolChoice::Mode("auto".to_string()));
 
     let response = client.chat(&request).await?;
-    println!("Response: {}", response.content);
+    if let Some(choice) = response.choices.first() {
+        if let Some(tool_calls) = &choice.message.tool_calls {
+            println!("🛠️ OpenAI requested {} tool call(s). Tool Name: {}", tool_calls.len(), tool_calls[0].function.name);
+        } else {
+            println!("Response: {}", response.content);
+        }
+    }
     Ok(())
 }
 
 async fn test_anthropic(url: &str, key: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // Note: The proxy might expect OpenAI format even for Claude models,
-    // or it might pass through the Anthropic protocol.
-    // Usually these proxies are OpenAI-compatible gateways.
-    // If the proxy is OpenAI-compatible, we should use LlmClient::openai even for Claude models.
-
     let client = LlmClient::openai(key, url)?;
-    let request = llm_connector::ChatRequest::new("claude-sonnet-4-20250514")
-        .add_message(Message::user("Hello Claude, what's your version?"));
+    let request = llm_connector::ChatRequest::new("claude-opus-4-5-20251101-thinking")
+        .add_message(Message::user("Which is heavier, 1kg of feathers or 1kg of steel? Please think out loud."))
+        .with_enable_thinking(true);
 
     let response = client.chat(&request).await?;
+    if let Some(reasoning) = response.reasoning_content {
+        println!("🧠 Anthropic Thinking:\n{}\n", reasoning);
+    }
     println!("Response: {}", response.content);
     Ok(())
 }
@@ -105,7 +135,7 @@ async fn test_zhipu(key: &str) -> Result<(), Box<dyn std::error::Error>> {
     let url = env::var("ZHIPU_BASE_URL")
         .unwrap_or_else(|_| "https://open.bigmodel.cn/api/paas/v4".to_string());
     let client = LlmClient::zhipu(key, &url)?;
-    let request = llm_connector::ChatRequest::new("glm-4")
+    let request = llm_connector::ChatRequest::new("glm-4.5-flash")
         .add_message(Message::user("Hello Zhipu, are you there?"));
 
     let response = client.chat(&request).await?;
@@ -149,9 +179,67 @@ async fn test_openai_compatible(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = LlmClient::openai(key, url)?;
     let request =
-        llm_connector::ChatRequest::new(model).add_message(Message::user("Hello, simple test."));
+        llm_connector::ChatRequest::new(model)
+        .add_message(Message::user("Please think clearly: what is 25 * 4?"));
 
     let response = client.chat(&request).await?;
+    if let Some(reasoning) = response.reasoning_content {
+        println!("{}: 🧠 Thinking:\n{}\n", model, reasoning);
+    }
     println!("{}: Response: {}", model, response.content);
+    Ok(())
+}
+
+async fn test_reasoning(
+    url: &str,
+    key: &str,
+    model: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = LlmClient::openai(key, url)?;
+    let request = llm_connector::ChatRequest::new(model)
+        .add_message(Message::user("Think about this logically: Is 9.11 larger than 9.9?"))
+        .with_enable_thinking(true);
+
+    let response = client.chat(&request).await?;
+    if let Some(reasoning) = response.reasoning_content {
+        println!("{}: 🧠 Reasoning:\n{}\n", model, reasoning);
+    } else {
+        println!("{}: ⚠️ No reasoning content returned", model);
+    }
+    println!("{}: Response: {}", model, response.content);
+    Ok(())
+}
+
+async fn test_tool_calling(
+    url: &str,
+    key: &str,
+    model: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = LlmClient::openai(key, url)?;
+    let weather_tool = Tool::function(
+        "get_weather",
+        Some("Get current weather".to_string()),
+        json!({
+            "type": "object",
+            "properties": {
+                "location": { "type": "string" }
+            },
+            "required": ["location"]
+        }),
+    );
+
+    let request = llm_connector::ChatRequest::new(model)
+        .add_message(Message::user("What's the weather in Seattle?"))
+        .with_tools(vec![weather_tool])
+        .with_tool_choice(ToolChoice::Mode("auto".to_string()));
+
+    let response = client.chat(&request).await?;
+    if let Some(choice) = response.choices.first() {
+        if let Some(tool_calls) = &choice.message.tool_calls {
+            println!("{}: 🛠️ AI requested {} tool call(s). Tool Name: {}", model, tool_calls.len(), tool_calls[0].function.name);
+        } else {
+            println!("{}: ⚠️ AI didn't use tools. Response: {}", model, response.content);
+        }
+    }
     Ok(())
 }
