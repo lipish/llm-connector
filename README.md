@@ -43,6 +43,16 @@ This decoupling ensures that `llm-connector` remains a stable, logic-only librar
 | **Self-Hosted** | ✅ Native. Any URL works. | ⚠️ Often requires hacky overrides. |
 | **SaaS Gateway** | ✅ Optimized. Perfect for proxies. | ❌ Often inflexible. |
 
+## 🏗️ Protocol Layer Architecture (V2)
+
+The `src/protocols/` directory is designed as a strict **Anti-Corruption Layer (ACL)** and implements the **Adapter Pattern**. It isolates the core engine from the chaotic variations of vendor APIs.
+
+1. **`formats/` (The Standard)**: Defines universal protocol shapes (e.g., `chat_completions.rs`). We strip away vendor-specific biases (like "OpenAI Compatible") in favor of neutral, industry-standard structures.
+2. **`adapters/` (The Vendors)**: Contains the actual provider implementations (`anthropic`, `google`, `zhipu`, etc.). Each adapter maps incoming unified `ChatRequest`s into the vendor's specific JSON dialect, and maps responses back to `ChatResponse`.
+3. **`common/` (The Toolbox)**: Shared infrastructure like SSE streamers, generic authentication strategies, and request manipulation.
+
+*Extending the crate for a new provider is often as simple as dropping a 50-line adapter into `src/protocols/adapters/` that delegates to a standard `format`.*
+
 ## 🛠️ Installation
 
 **MSRV**: Rust 1.85+ (Rust 2024 edition)
