@@ -45,6 +45,8 @@ This decoupling ensures that `llm-connector` remains a stable, logic-only librar
 
 ## 🏗️ Protocol Layer Architecture (V2)
 
+![Protocol Layer Architecture](docs/protocolArch.png)
+
 The `src/protocols/` directory is designed as a strict **Anti-Corruption Layer (ACL)** and implements the **Adapter Pattern**. It isolates the core engine from the chaotic variations of vendor APIs.
 
 1. **`formats/` (The Standard)**: Defines universal protocol shapes (e.g., `chat_completions.rs`). We strip away vendor-specific biases (like "OpenAI Compatible") in favor of neutral, industry-standard structures.
