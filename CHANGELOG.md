@@ -1129,7 +1129,7 @@ let response = client.chat(&request).await?;
    - Supports non-streaming and streaming responses
    - Fully compatible with llm-connector
    - Works seamlessly with llm-connector
- 
+
  2. **LongCat Anthropic Format Support** - ✅ Non-streaming Available
     - Create `LongCatAnthropicProtocol` adapter
     - Uses `Authorization: Bearer` auth (instead of standard Anthropic `x-api-key`)
@@ -1173,11 +1173,11 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 - Non-streaming: `LlmClient::longcat_anthropic("ak_...")` or the OpenAI format
 
  ### 🐛 Bug Fixes
- 
+
 #### **Fix Missing Methods in AliyunProviderImpl**
- 
+
 **Issue**: Tests call `provider.protocol()` and `provider.client()`, but these methods did not exist.
- 
+
 **Fix**:
 - Add `protocol()` to return a reference to the protocol instance
 - Add `client()` to return a reference to the HTTP client
@@ -1185,7 +1185,7 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 - Fix calls to non-existent methods in the `as_ollama()` doctest
 
  ### 📝 Documentation
- 
+
 - Add `docs/LONGCAT_TESTING_REPORT.md` - Full LongCat API testing report
 - Update `src/client.rs` - Add LongCat usage examples
 
@@ -1231,7 +1231,7 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 3. `tests/test_aliyun_streaming_format.sh` - API raw response test
 
 ### 📝 Documentation
- 
+
  - Add `docs/ALIYUN_FIXES_SUMMARY.md` - Aliyun fixes summary
  - Add `docs/CHATRESPONSE_DESIGN_ANALYSIS.md` - ChatResponse design analysis
  - Add `docs/ALIYUN_RESPONSE_VERIFICATION.md` - Aliyun response verification report
@@ -1328,11 +1328,11 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 1. **Remove calls to non-existent methods** (`examples/test_openai_tool_streaming.rs`)
    - Remove calls to `LlmClient::openrouter()` (non-existent)
    - Use `LlmClient::openai()` instead
- 
+
 2. **Fix type errors** (`examples/test_openai_tool_streaming.rs`)
    - Fix tool_calls reference type issues
    - Replace `&tool_calls_buffer[0]` with `tool_calls_buffer[0].clone()`
- 
+
 3. **Reduce unused import warnings** (7 example files)
    - Move streaming imports under `#[cfg(feature = "streaming")]`
    - Avoid unused import warnings when streaming is disabled
@@ -1347,13 +1347,13 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
 
 4. **Reduce unused field warnings** (`examples/test_all_providers_tool_streaming.rs`)
    - Add `#[allow(dead_code)]` to `TestResult`
- 
+
 5. **Fix clippy warnings**
    - Fix doc comment empty-line warnings
    - Replace `len() > 0` with `!is_empty()`
 
 ### Documentation
- 
+
 - Add `docs/EXAMPLES_AND_TESTS_REVIEW.md` - Examples and tests review report
 - Add `docs/RELEASE_v0.4.14.md` - v0.4.14 release summary
 
@@ -1508,12 +1508,12 @@ let client = LlmClient::longcat_anthropic("ak_...")?;
    - Implement Zhipu-specific `parse_stream_response()`
    - Support single-newline SSE
    - Populate `content` from `delta.content`
-   
+
 2. **Request fields** (`src/providers/zhipu.rs:216-234`)
    - Add `stream: Option<bool>`
    - Add `tools: Option<Vec<Tool>>`
    - Add `tool_choice: Option<ToolChoice>`
-   
+
 3. **Response parsing** (`src/providers/zhipu.rs:240-264`)
    - Use `#[serde(default)]` for `ZhipuMessage.content` (may be empty for tool calls)
    - Support `ZhipuMessage.tool_calls`
@@ -1587,7 +1587,7 @@ Zhipu API uses single-newline SSE events (`data: {...}\n`) rather than the stand
   - `LlmClient::as_aliyun()` → `Option<&AliyunProvider>`
   - `LlmClient::as_anthropic()` → `Option<&AnthropicProvider>`
   - `LlmClient::as_zhipu()` → `Option<&ZhipuProvider>`
-  
+
 - **API Key Validation Functions**
   - `validate_openai_key()`
   - `validate_aliyun_key()`

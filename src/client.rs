@@ -195,6 +195,24 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
+    /// Create Xinference client (OpenAI-compatible API, no auth by default)
+    ///
+    /// # Parameters
+    /// - `base_url`: Xinference OpenAI-compatible base URL (e.g., "http://127.0.0.1:9997/v1")
+    pub fn xinference(base_url: &str) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::xinference(base_url)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
+    /// Create Xinference client with API key
+    pub fn xinference_with_api_key(
+        api_key: &str,
+        base_url: &str,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::xinference_with_api_key(api_key, base_url)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     /// Create OpenAI-compatible service client
     ///
     /// # Parameters
@@ -540,6 +558,16 @@ impl LlmClient {
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
+    /// Create Xinference client with custom configuration (no auth by default)
+    pub fn xinference_with_config(
+        base_url: &str,
+        timeout_secs: Option<u64>,
+        proxy: Option<&str>,
+    ) -> Result<Self, LlmConnectorError> {
+        let provider = crate::providers::xinference_with_config(base_url, timeout_secs, proxy)?;
+        Ok(Self::from_provider(Arc::new(provider)))
+    }
+
     /// Create Google client
     ///
     /// # Parameters
@@ -574,6 +602,7 @@ impl LlmClient {
             "anthropic",
             "zhipu",
             "ollama",
+            "xinference",
             "volcengine",
             "longcat_anthropic",
             "azure_openai",

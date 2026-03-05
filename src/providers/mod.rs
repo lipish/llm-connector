@@ -71,6 +71,29 @@ pub fn openai_compatible(
     Ok(GenericProvider::new(protocol, client))
 }
 
+pub fn xinference(base_url: &str) -> Result<OpenAIProvider, LlmConnectorError> {
+    xinference_with_config(base_url, None, None)
+}
+
+pub fn xinference_with_api_key(
+    api_key: &str,
+    base_url: &str,
+) -> Result<OpenAIProvider, LlmConnectorError> {
+    openai_with_config(api_key, base_url, None, None)
+}
+
+pub fn xinference_with_config(
+    base_url: &str,
+    timeout_secs: Option<u64>,
+    proxy: Option<&str>,
+) -> Result<OpenAIProvider, LlmConnectorError> {
+    // Xinference local deployments commonly run without auth.
+    // Keep protocol shape OpenAI-compatible but do not inject Authorization by default.
+    let protocol = OpenAIProtocol::new("");
+    let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
+    Ok(GenericProvider::new(protocol, client))
+}
+
 pub fn validate_openai_key(api_key: &str) -> bool {
     api_key.starts_with("sk-") && api_key.len() > 20
 }

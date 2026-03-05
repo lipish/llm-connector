@@ -156,6 +156,7 @@ pub use providers::{
     ollama,
     // Convenience functions
     openai,
+    xinference,
     zhipu,
 };
 

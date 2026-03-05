@@ -48,6 +48,7 @@ enum ProviderKind {
     Zhipu,
     ZhipuOpenAI,
     Ollama,
+    Xinference,
     DeepSeek,
     Moonshot,
     Volcengine,
@@ -141,6 +142,12 @@ impl LlmClientBuilder {
     /// Use Ollama as the provider (no API key needed)
     pub fn ollama(mut self) -> Self {
         self.provider = Some(ProviderKind::Ollama);
+        self
+    }
+
+    /// Use Xinference as the provider (OpenAI-compatible, no API key by default)
+    pub fn xinference(mut self) -> Self {
+        self.provider = Some(ProviderKind::Xinference);
         self
     }
 
@@ -288,6 +295,7 @@ impl LlmClientBuilder {
                 LlmClient::zhipu_with_config(api_key, true, base_url, timeout, proxy)
             }
             ProviderKind::Ollama => LlmClient::ollama_with_config(base_url, timeout, proxy),
+            ProviderKind::Xinference => LlmClient::xinference_with_config(base_url, timeout, proxy),
             ProviderKind::DeepSeek => {
                 LlmClient::deepseek_with_config(api_key, base_url, timeout, proxy)
             }
