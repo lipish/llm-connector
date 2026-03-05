@@ -1,3 +1,11 @@
+## [1.1.4] - 2026-03-05
+
+### Fixes
+
+- **Anthropic Thinking Block**: Fixed `missing field 'text'` error when Anthropic returns pure `thinking` blocks without text content.
+- **OpenAI Compatible Downgrade**: Added automatic content format downgrade (array -> string) for providers that do not support complex content blocks (e.g. DeepSeek, Moonshot, MiniMax), fixing `400 Bad Request` errors.
+- **DeepSeek/Moonshot/MiniMax Support**: Verified compatibility with these providers using the new downgrade logic.
+
 ## [1.1.2] - 2026-03-05
 
 ### Fixes

@@ -126,19 +126,35 @@ impl Protocol for AnthropicProtocol {
                 LlmConnectorError::ParseError(format!("Failed to parse Anthropic response: {}", e))
             })?;
 
-        // Anthropic returns single content chunk
-        // Convert Anthropic content to MessageBlock
-        let message_blocks: Vec<crate::types::MessageBlock> = anthropic_response
-            .content
-            .iter()
-            .map(|c| crate::types::MessageBlock::text(&c.text))
-            .collect();
+        // Extract content blocks and thinking
+        let mut message_blocks = Vec::new();
+        let mut thinking_content = String::new();
+        let mut text_content = String::new();
 
-        let content = anthropic_response
-            .content
-            .first()
-            .map(|c| c.text.clone())
-            .unwrap_or_default();
+        for block in &anthropic_response.content {
+            match block.content_type.as_str() {
+                "text" => {
+                    if let Some(text) = &block.text {
+                        message_blocks.push(crate::types::MessageBlock::text(text));
+                        text_content.push_str(text);
+                    }
+                }
+                "thinking" => {
+                    if let Some(thinking) = &block.thinking {
+                        thinking_content.push_str(thinking);
+                    }
+                }
+                _ => {
+                    // Ignore unknown blocks
+                }
+            }
+        }
+
+        let thinking = if !thinking_content.is_empty() {
+            Some(thinking_content)
+        } else {
+            None
+        };
 
         let choices = vec![Choice {
             index: 0,
@@ -151,7 +167,7 @@ impl Protocol for AnthropicProtocol {
                 reasoning_content: None,
                 reasoning: None,
                 thought: None,
-                thinking: None,
+                thinking,
             },
             finish_reason: Some(
                 anthropic_response
@@ -185,7 +201,7 @@ impl Protocol for AnthropicProtocol {
                 .as_secs(),
             model: anthropic_response.model,
             choices,
-            content,
+            content: text_content,
             reasoning_content: None,
             usage,
             system_fingerprint: None,
@@ -356,7 +372,9 @@ pub struct AnthropicResponse {
 pub struct AnthropicContent {
     #[serde(rename = "type")]
     pub content_type: String,
-    pub text: String,
+    pub text: Option<String>,
+    pub thinking: Option<String>,
+    pub signature: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -365,4 +383,77 @@ pub struct AnthropicUsage {
     pub output_tokens: u32,
     pub cache_creation_input_tokens: Option<u32>,
     pub cache_read_input_tokens: Option<u32>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_anthropic_parsing_with_thinking_and_text() {
+        let response_json = r#"
+        {
+            "id": "msg_123",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-3-5-sonnet-20241022",
+            "content": [
+                {
+                    "type": "thinking",
+                    "thinking": "This is a thinking block",
+                    "signature": "sig_123"
+                },
+                {
+                    "type": "text",
+                    "text": "Hello there, nice to meet."
+                }
+            ],
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 20
+            }
+        }
+        "#;
+
+        let protocol = AnthropicProtocol::new("test-key");
+        let result = protocol.parse_response(response_json).unwrap();
+
+        assert_eq!(result.content, "Hello there, nice to meet.");
+        assert_eq!(result.choices[0].message.content[0].as_text().unwrap(), "Hello there, nice to meet.");
+        assert_eq!(result.choices[0].message.thinking.as_deref(), Some("This is a thinking block"));
+    }
+
+    #[test]
+    fn test_anthropic_parsing_only_thinking() {
+        let response_json = r#"
+        {
+            "id": "msg_124",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-3-5-sonnet-20241022",
+            "content": [
+                {
+                    "type": "thinking",
+                    "thinking": "Just thinking...",
+                    "signature": "sig_124"
+                }
+            ],
+            "stop_reason": "max_tokens",
+            "stop_sequence": null,
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 20
+            }
+        }
+        "#;
+
+        let protocol = AnthropicProtocol::new("test-key");
+        let result = protocol.parse_response(response_json).unwrap();
+
+        assert_eq!(result.content, "");
+        assert!(result.choices[0].message.content.is_empty());
+        assert_eq!(result.choices[0].message.thinking.as_deref(), Some("Just thinking..."));
+    }
 }
