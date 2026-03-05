@@ -23,6 +23,16 @@ LlmClient
         └── MockProvider                  ← testing
 ```
 
+## 🏗️ Protocol Layer Architecture (V2)
+
+![Protocol Layer Architecture](/docs/protocolArch.jpg)
+
+The `src/protocols/` directory is designed as a strict **Anti-Corruption Layer (ACL)** and implements the **Adapter Pattern**. It isolates the core engine from the chaotic variations of vendor APIs.
+
+1. **`formats/`**: Defines universal protocol shapes (e.g., `chat_completions.rs`). We strip away vendor-specific biases in favor of neutral, industry-standard structures.
+2. **`adapters/`**: Contains the actual provider implementations (`anthropic`, `google`, `zhipu`, etc.). Each adapter maps incoming unified `ChatRequest`s into the vendor's specific JSON dialect, and maps responses back to `ChatResponse`.
+3. **`common/`**: Shared infrastructure like SSE streamers, generic authentication strategies, and request manipulation.
+
 ## Per-Request Overrides (Multi-Tenant / Gateway)
 
 Override API key, base URL, and headers **per request** without creating a new client:

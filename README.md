@@ -45,7 +45,7 @@ This decoupling ensures that `llm-connector` remains a stable, logic-only librar
 
 ## 🏗️ Protocol Layer Architecture (V2)
 
-![Protocol Layer Architecture](docs/protocolArch.png)
+![Protocol Layer Architecture](docs/protocolArch.jpg)
 
 The `src/protocols/` directory is designed as a strict **Anti-Corruption Layer (ACL)** and implements the **Adapter Pattern**. It isolates the core engine from the chaotic variations of vendor APIs.
 
