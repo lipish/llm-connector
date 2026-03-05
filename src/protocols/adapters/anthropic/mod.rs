@@ -252,6 +252,10 @@ impl Protocol for AnthropicProtocol {
         headers
     }
 
+    fn build_auth_headers_for_override(&self, api_key: &str) -> Vec<(String, String)> {
+        crate::protocols::common::auth::api_key_header(api_key, "x-api-key")
+    }
+
     /// Parse Anthropic streamingresponse
     ///
     /// Anthropic uses different streaming format:

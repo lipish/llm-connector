@@ -226,14 +226,37 @@ impl HttpClient {
         body: &T,
         overrides: &HashMap<String, String>,
     ) -> Result<reqwest::Response, LlmConnectorError> {
-        let mut request = self.client.post(url).json(body);
+        // Construct final headers map to avoid duplicates
+        let mut final_headers = reqwest::header::HeaderMap::new();
 
-        // Base headers first, then overrides (overrides take precedence)
+        // 1. Add base headers
         for (key, value) in &self.headers {
-            request = request.header(key, value);
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
+                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
+                    final_headers.insert(header_name, header_value);
+                }
+            }
         }
+
+        // 2. Apply overrides (overwrite existing keys)
         for (key, value) in overrides {
-            request = request.header(key, value);
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
+                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
+                    final_headers.insert(header_name, header_value);
+                }
+            }
+        }
+
+        let request = self.client.post(url).json(body).headers(final_headers);
+
+        // Debug outbound request if enabled
+        #[cfg(debug_assertions)]
+        if std::env::var("LLM_DEBUG_OUTBOUND").is_ok() {
+            println!("[LLM-DEBUG] POST {}", url);
+            // Print request headers
+            // We need to clone the request to inspect it, but reqwest::RequestBuilder doesn't support cloning easily in this context
+            // So we'll rely on what we just built
+            // Note: This debug block is a best-effort logging
         }
 
         request.send().await.map_err(|e| {
@@ -255,17 +278,47 @@ impl HttpClient {
         body: &T,
         overrides: &HashMap<String, String>,
     ) -> Result<reqwest::Response, LlmConnectorError> {
-        let mut request = self.client.post(url).json(body);
+        // Construct final headers map
+        let mut final_headers = reqwest::header::HeaderMap::new();
 
-        request = request.header("Accept", "text/event-stream");
-        request = request.header("Cache-Control", "no-cache");
-        request = request.header("Connection", "keep-alive");
+        // 1. Add default streaming headers
+        final_headers.insert(
+            reqwest::header::ACCEPT,
+            reqwest::header::HeaderValue::from_static("text/event-stream"),
+        );
+        final_headers.insert(
+            reqwest::header::CACHE_CONTROL,
+            reqwest::header::HeaderValue::from_static("no-cache"),
+        );
+        final_headers.insert(
+            reqwest::header::CONNECTION,
+            reqwest::header::HeaderValue::from_static("keep-alive"),
+        );
 
+        // 2. Add base headers
         for (key, value) in &self.headers {
-            request = request.header(key, value);
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
+                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
+                    final_headers.insert(header_name, header_value);
+                }
+            }
         }
+
+        // 3. Apply overrides (overwrite existing keys)
         for (key, value) in overrides {
-            request = request.header(key, value);
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
+                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
+                    final_headers.insert(header_name, header_value);
+                }
+            }
+        }
+
+        let request = self.client.post(url).json(body).headers(final_headers);
+
+        // Debug outbound request if enabled
+        #[cfg(debug_assertions)]
+        if std::env::var("LLM_DEBUG_OUTBOUND").is_ok() {
+            println!("[LLM-DEBUG] STREAM POST {}", url);
         }
 
         request.send().await.map_err(|e| {

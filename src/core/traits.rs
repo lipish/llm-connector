@@ -89,6 +89,14 @@ pub trait Protocol: Send + Sync + Clone + 'static {
         Vec::new()
     }
 
+    /// Build authentication headers for request overrides
+    ///
+    /// This allows protocols to specify which headers should be injected when an API key is provided in the request.
+    /// Default implementation returns empty list to avoid duplicate header injection.
+    fn build_auth_headers_for_override(&self, _api_key: &str) -> Vec<(String, String)> {
+        Vec::new()
+    }
+
     /// Parse streaming response (optional)
     #[cfg(feature = "streaming")]
     async fn parse_stream_response(
@@ -127,17 +135,18 @@ pub trait Provider: Send + Sync {
 }
 
 /// Helper to build request overrides map
-fn build_request_overrides(request: &ChatRequest) -> HashMap<String, String> {
+fn build_request_overrides<P: Protocol>(
+    protocol: &P,
+    request: &ChatRequest,
+) -> HashMap<String, String> {
     let mut overrides = HashMap::new();
 
     // 1. API Key override
     if let Some(ref key) = request.api_key {
-        // Most providers use Bearer token, but some use x-api-key.
-        // We set both common headers here to cover most cases.
-        // Providers that need specific handling should implement custom logic.
-        overrides.insert("Authorization".to_string(), format!("Bearer {}", key));
-        overrides.insert("x-api-key".to_string(), key.clone());
-        overrides.insert("api-key".to_string(), key.clone()); // Azure style
+        let auth_headers = protocol.build_auth_headers_for_override(key);
+        for (k, v) in auth_headers {
+            overrides.insert(k, v);
+        }
     }
 
     // 2. Extra headers override
@@ -203,7 +212,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
         let url = self.protocol.chat_endpoint(base_url, &request.model);
-        let overrides = build_request_overrides(request);
+        let overrides = build_request_overrides(&self.protocol, request);
 
         // Execute request with overrides
         let response = if overrides.is_empty() {
@@ -245,7 +254,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
         let url = self.protocol.chat_stream_endpoint(base_url, &request.model);
-        let overrides = build_request_overrides(request);
+        let overrides = build_request_overrides(&self.protocol, request);
 
         let response = if overrides.is_empty() {
             self.client.stream(&url, &protocol_request).await?

@@ -71,6 +71,10 @@ impl Protocol for AliyunProtocol {
         crate::protocols::common::auth::bearer_auth(&self.api_key)
     }
 
+    fn build_auth_headers_for_override(&self, api_key: &str) -> Vec<(String, String)> {
+        crate::protocols::common::auth::bearer_auth(api_key)
+    }
+
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         let aliyun_messages =
             crate::protocols::common::request::openai_message_converter(&request.messages);

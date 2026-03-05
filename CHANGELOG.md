@@ -1,3 +1,12 @@
+## [1.1.5] - 2026-03-05
+
+### Fixes
+
+- **Header Duplication Fix**: Resolved duplicate authentication headers (`Authorization`, `x-api-key`) when using per-request API key overrides.
+- **Selective Auth Injection**: Refactored `build_request_overrides` to inject only protocol-specific auth headers instead of all known types.
+- **Header Overwrite Logic**: Updated `HttpClient` to use `HeaderMap` overwrite semantics instead of append semantics for request overrides.
+- **Debug Logging**: Added `LLM_DEBUG_OUTBOUND` environment variable support for inspecting outbound request URLs.
+
 ## [1.1.4] - 2026-03-05
 
 ### Fixes
