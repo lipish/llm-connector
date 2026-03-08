@@ -23,15 +23,16 @@ LlmClient
         └── MockProvider                  ← testing
 ```
 
-## 🏗️ Protocol Layer Architecture (V2)
+## 🏗️ Protocol Layer Architecture
 
-![Protocol Layer Architecture](/docs/protocolArch.jpg)
+![Protocol Layer Architecture](/docs/arch.jpg)
 
-The `src/protocols/` directory is designed as a strict **Anti-Corruption Layer (ACL)** and implements the **Adapter Pattern**. It isolates the core engine from the chaotic variations of vendor APIs.
+The `src/protocols/` module is a strict **Anti-Corruption Layer (ACL)** built with the **Adapter Pattern**.
+It isolates your application from vendor-specific API drift by enforcing a single internal contract (`ChatRequest`/`ChatResponse`) and translating it into each vendor's JSON dialect.
 
-1. **`formats/`**: Defines universal protocol shapes (e.g., `chat_completions.rs`). We strip away vendor-specific biases in favor of neutral, industry-standard structures.
-2. **`adapters/`**: Contains the actual provider implementations (`anthropic`, `google`, `zhipu`, etc.). Each adapter maps incoming unified `ChatRequest`s into the vendor's specific JSON dialect, and maps responses back to `ChatResponse`.
-3. **`common/`**: Shared infrastructure like SSE streamers, generic authentication strategies, and request manipulation.
+1. **`formats/`**: Protocol-agnostic structures (chat completions / embeddings) used as internal neutral shapes.
+2. **`adapters/`**: Vendor dialect translators that map unified requests to vendor payloads and map vendor responses back.
+3. **`common/`**: Shared conversion utilities, auth helpers, and SSE/stream tooling.
 
 ## Per-Request Overrides (Multi-Tenant / Gateway)
 
@@ -104,7 +105,7 @@ pub enum MessageBlock {
 
 ## Reverse Proxy / Middleware Support
 
-Since v1.0.3, all protocol request structs (`OpenAIRequest`, `AnthropicRequest`, `GoogleRequest`, etc.) derive both `Serialize` and `Deserialize`. This means a proxy or middleware can:
+All protocol request structs (`OpenAIRequest`, `AnthropicRequest`, `GoogleRequest`, etc.) derive both `Serialize` and `Deserialize`. This means a proxy or middleware can:
 
 ```rust
 // Deserialize incoming wire-format body
