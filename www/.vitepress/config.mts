@@ -38,7 +38,7 @@ export default defineConfig({
       { text: 'Blog', link: '/blog/' },
       { text: 'Dev', link: '/dev/' },
       {
-        text: 'v1.0.3',
+        text: 'v1.1.5',
         items: [
           { text: 'Changelog', link: 'https://github.com/lipish/llm-connector/blob/main/CHANGELOG.md' },
           { text: 'Contributing', link: '/guide/contributing' }
@@ -77,7 +77,6 @@ export default defineConfig({
         {
           text: 'API Analysis',
           items: [
-            { text: 'OpenAI vs Anthropic Comparison & Adaptation', link: '/guide/api-comparison-and-adaptation-plan' },
             { text: 'OpenAI Responses API Analysis & Plan', link: '/guide/openai-responses-api-analysis-and-plan' }
           ]
         }

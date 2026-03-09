@@ -11,7 +11,7 @@
 
 **The Blind Protocol Engine** - A pure, URL-agnostic adapter for LLM services.
 
-[Installation](#installation) • [Usage](#usage) • [Philosophy](#philosophy) • [Documentation](#documentation) • [Synergy](#synergy-with-llm-providers)
+[Installation](#installation) • [Protocol Architecture](#protocol-layer-architecture) • [Usage](#usage)
 
 </div>
 
@@ -27,33 +27,25 @@
 
 ## 🤝 Ecosystem Decoupling
 
-While `llm-connector` is the **engine (Protocol)**, it is designed to work seamlessly with (but not depend on) configuration managers like [llm-providers](https://github.com/lipish/llm-providers). 
+While `llm-connector` is the **engine (Protocol)**, it is designed to work seamlessly with (but not depend on) configuration managers like [llm-providers](https://github.com/lipish/llm-providers).
 
 - **llm-connector**: Handles *how* to talk (Request/Response logic).
 - **llm-providers**: (External) Handles *where* to talk (URL/Region discovery).
 
 This decoupling ensures that `llm-connector` remains a stable, logic-only library while the rapidly changing landscape of AI endpoints is managed elsewhere.
 
-## 📊 Comparison
+## 🏗️ Protocol Layer Architecture
 
-| Feature | `llm-connector` (Protocol Engine) | Traditional SDKs / Libraries |
-| :--- | :--- | :--- |
-| **Endpoint Logic** | ❌ None. Mandatory `base_url`. | ✅ Hardcoded/Default URLs. |
-| **Maintenance** | 🛠️ Low. Logic-only updates. | ⚠️ High. Constant URL/Region list syncing. |
-| **Self-Hosted** | ✅ Native. Any URL works. | ⚠️ Often requires hacky overrides. |
-| **SaaS Gateway** | ✅ Optimized. Perfect for proxies. | ❌ Often inflexible. |
+![Protocol Layer Architecture](docs/arch.jpg)
 
-## 🏗️ Protocol Layer Architecture (V2)
+The `src/protocols/` module is a strict **Anti-Corruption Layer (ACL)** built with the **Adapter Pattern**.
+It isolates your application from vendor-specific API drift by enforcing a single internal contract (`ChatRequest`/`ChatResponse`) and translating it into each vendor's JSON dialect.
 
-![Protocol Layer Architecture](docs/protocolArch.jpg)
+- **`formats/` (Neutral shapes)**: Protocol-agnostic structures (e.g. chat completions / embeddings) used as internal “truth”.
+- **`adapters/` (Vendor dialects)**: Each adapter translates unified requests into vendor payloads and maps vendor responses back.
+- **`common/` (Shared tools)**: Reusable conversion helpers, auth header strategies, and SSE/stream utilities.
 
-The `src/protocols/` directory is designed as a strict **Anti-Corruption Layer (ACL)** and implements the **Adapter Pattern**. It isolates the core engine from the chaotic variations of vendor APIs.
-
-1. **`formats/` (The Standard)**: Defines universal protocol shapes (e.g., `chat_completions.rs`). We strip away vendor-specific biases (like "OpenAI Compatible") in favor of neutral, industry-standard structures.
-2. **`adapters/` (The Vendors)**: Contains the actual provider implementations (`anthropic`, `google`, `zhipu`, etc.). Each adapter maps incoming unified `ChatRequest`s into the vendor's specific JSON dialect, and maps responses back to `ChatResponse`.
-3. **`common/` (The Toolbox)**: Shared infrastructure like SSE streamers, generic authentication strategies, and request manipulation.
-
-*Extending the crate for a new provider is often as simple as dropping a 50-line adapter into `src/protocols/adapters/` that delegates to a standard `format`.*
+In most cases, adding a new provider is “add an adapter + reuse generic execution”, without touching application code.
 
 ## 🛠️ Installation
 
@@ -68,6 +60,7 @@ tokio = { version = "1", features = ["full"] }
 ## 📖 Usage
 
 ### Unified Chat
+
 All client constructions now **mandatorily require** a `base_url`.
 
 ```rust
@@ -90,7 +83,7 @@ use llm_connector::{LlmClient, types::{ChatRequest, Message, Role}};
 use futures_util::StreamExt;
 
 let client = LlmClient::anthropic("sk-ant-...", "https://api.anthropic.com")?;
-let request = ChatRequest::new("claude-3-5-sonnet-20240620").stream(true);
+let request = ChatRequest::new("claude-3-5-sonnet-20240620").with_stream(true);
 
 let mut stream = client.chat_stream(&request).await?;
 while let Some(chunk) = stream.next().await {
@@ -108,17 +101,6 @@ let client = LlmClient::builder()
     .base_url("https://api.deepseek.com") // Mandatory
     .timeout(60)
     .build()?;
-```
-
-### Per-Request Overrides (Gateway Pattern)
-Ideal for building unified AI gateways or multi-tenant proxies.
-
-```rust
-let request = ChatRequest::new("gpt-4o")
-    .with_api_key("dynamic-tenant-key")
-    .with_base_url("https://my-proxy.internal/v1");
-
-let response = client.chat(&request).await?;
 ```
 
 ## Advanced Features
@@ -153,18 +135,6 @@ let target = resolver.resolve("claude-3-opus").await?;
 // Use target.api_key and target.endpoint to configure your request
 ```
 
-### Request Overrides (Gateway Mode)
-
-For gateway scenarios, you can override the API Key and Base URL per request without creating a new client.
-
-```rust
-let request = ChatRequest::new("gpt-4")
-    .with_api_key("sk-new-key") // Override API Key
-    .with_base_url("https://my-gateway/v1"); // Override Endpoint
-
-let response = client.chat(&request).await?;
-```
-
 ### File & Image Upload
 
 Easily upload local files (Images, PDFs) with automatic Base64 encoding and MIME type detection.
@@ -178,23 +148,6 @@ let request = ChatRequest::new("claude-3-5-sonnet")
 
 let response = client.chat(&request).await?;
 ```
-
-## 📂 Recent Changelogs
-
-- **v1.0.2 (2026-03-03)**
-    - `+` **Google Gemini support**: Full tool calling and reasoning (`thinking`) for Gemini 2.x and 3.x models.
-    - `+` **Gemini 3.x `thoughtSignature`**: Automatically captures and replays the mandatory `thoughtSignature` field required by Gemini 3.x for multi-turn tool conversations.
-    - `+` **Gemini role mapping**: Tool (function) responses correctly mapped to the `user` role required by the `v1beta` API.
-    - `^` **`ToolCall` / `FunctionCall`**: Added optional `thought_signature` field for cross-provider extensibility.
-- **v1.0.1 (2026-03-02)**
-    - `!` **BREAKING**: Rebranded as a **Pure Protocol Engine**.
-    - `!` **BREAKING**: Removed all default/hardcoded URLs. `base_url` is now **mandatory** for all client constructors.
-    - `!` **BREAKING**: Removed redundant provider files (`deepseek`, `moonshot`, `volcengine`, etc.) in favor of generic Protocol adapters.
-    - `+` **Endpoints Module**: Added `llm_connector::endpoints` constants for common API addresses (optional reference only).
-- **v0.7.1**
-    - `+` **Embedding API**: Unified `.embed()` support for major providers.
-    - `+` **Document Support**: Added `MessageBlock::Document` for PDFs and files.
-    - `^` **Usage**: Added `prompt_cache_hit_tokens` support.
 
 ## 📜 License
 

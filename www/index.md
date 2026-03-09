@@ -41,7 +41,7 @@ Or in `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "1.0.3"
+llm-connector = "1.1.5"
 tokio = { version = "1", features = ["full"] }
 ```
 
