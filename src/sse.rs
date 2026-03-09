@@ -7,9 +7,12 @@
 //! - NDJSON (Newline Delimited JSON) (e.g. Ollama)
 //! - Automatic format detection
 
-use crate::error::LlmConnectorError;
-use futures_util::{Stream, StreamExt};
-use std::pin::Pin;
+use {
+    crate::error::LlmConnectorError,
+    futures_util::{Stream, StreamExt},
+    serde_json::Value,
+    std::pin::Pin,
+};
 
 /// Stream format type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,7 +168,7 @@ pub fn json_lines_events(
 /// - `Ok(Some(Value))` if line contains valid JSON data
 /// - `Ok(None)` if line is empty, comment, or "[DONE]"
 /// - `Err` if line contains invalid JSON
-pub fn parse_sse_line(line: &str) -> Result<Option<serde_json::Value>, LlmConnectorError> {
+pub fn parse_sse_line(line: &str) -> Result<Option<Value>, LlmConnectorError> {
     let line = line.trim();
     if line.is_empty() || line.starts_with(':') {
         return Ok(None);
@@ -177,7 +180,7 @@ pub fn parse_sse_line(line: &str) -> Result<Option<serde_json::Value>, LlmConnec
             return Ok(None);
         }
 
-        let value: serde_json::Value = serde_json::from_str(payload).map_err(|e| {
+        let value: Value = serde_json::from_str(payload).map_err(|e| {
             LlmConnectorError::ParseError(format!("Failed to parse SSE JSON: {}", e))
         })?;
         Ok(Some(value))
@@ -236,7 +239,7 @@ fn parse_streaming_payload(
 
     // First try OpenAI-compatible chunk format.
     if let Ok(mut response) = serde_json::from_str::<StreamingResponse>(json_str) {
-        if let Ok(raw) = serde_json::from_str::<serde_json::Value>(json_str) {
+        if let Ok(raw) = serde_json::from_str::<Value>(json_str) {
             response.populate_reasoning_synonyms(&raw);
         }
         return Ok(response);
@@ -251,7 +254,7 @@ fn parse_streaming_payload(
     }
 
     // Fallback for Ollama /api/chat NDJSON chunk format.
-    let raw: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+    let raw: Value = serde_json::from_str(json_str).map_err(|e| {
         crate::error::LlmConnectorError::ParseError(format!(
             "Failed to parse streaming response: {}. Content: {}",
             e, json_str
@@ -270,10 +273,12 @@ fn parse_streaming_payload(
 
 #[cfg(feature = "streaming")]
 fn parse_ollama_chunk(
-    raw: &serde_json::Value,
+    raw: &Value,
     parse_mode: StreamingParseMode,
 ) -> Option<crate::types::StreamingResponse> {
-    use crate::types::{Delta, Role, StreamingChoice, StreamingResponse, Usage};
+    use crate::types::{
+        Delta, FunctionCall, Role, StreamingChoice, StreamingResponse, ToolCall, Usage,
+    };
 
     if parse_mode == StreamingParseMode::OpenAIOnly || !is_strict_ollama_chunk(raw) {
         return None;
@@ -298,6 +303,45 @@ fn parse_ollama_chunk(
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string();
+    let tool_calls = message.get("tool_calls").map_or(None, |i| {
+        i.as_array().map_or(None, |i| {
+            Some(
+                i.into_iter()
+                    .map(|i| {
+                        let f = i.get("function");
+                        ToolCall {
+                            call_type: "function".into(),
+                            id: i
+                                .get("id")
+                                .and_then(|i| i.as_str())
+                                .unwrap_or_default()
+                                .into(),
+                            index: f
+                                .and_then(|i| i.get("index"))
+                                .and_then(|i| i.as_u64())
+                                .map(|i| i as _),
+                            function: f
+                                .and_then(|i| {
+                                    if let Some(name) = i.get("name")
+                                        && let Some(arguments) = i.get("arguments")
+                                    {
+                                        Some(FunctionCall {
+                                            name: name.as_str().unwrap_or_default().into(),
+                                            arguments: arguments.to_string(),
+                                            ..Default::default()
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap_or_default(),
+                            ..Default::default()
+                        }
+                    })
+                    .collect(),
+            )
+        })
+    });
 
     let delta = Delta {
         role,
@@ -306,7 +350,7 @@ fn parse_ollama_chunk(
         } else {
             Some(content.clone())
         },
-        tool_calls: None,
+        tool_calls,
         reasoning_content: message
             .get("reasoning_content")
             .and_then(|v| v.as_str())
@@ -386,7 +430,7 @@ fn parse_ollama_chunk(
 }
 
 #[cfg(feature = "streaming")]
-fn is_strict_ollama_chunk(raw: &serde_json::Value) -> bool {
+fn is_strict_ollama_chunk(raw: &Value) -> bool {
     let message = match raw.get("message").and_then(|v| v.as_object()) {
         Some(m) => m,
         None => return false,
