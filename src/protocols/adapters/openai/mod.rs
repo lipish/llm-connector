@@ -53,9 +53,15 @@ impl Protocol for OpenAIProtocol {
         // Determine if provider supports content parts (array of blocks) based on model name
         // This is a heuristic to avoid sending array content to providers that don't support it (e.g. Deepseek, Moonshot)
         let model_lower = request.model.to_lowercase();
-        let supports_content_parts = if model_lower.contains("gpt-") || model_lower.contains("o1-") || model_lower.contains("o3-") {
+        let supports_content_parts = if model_lower.contains("gpt-")
+            || model_lower.contains("o1-")
+            || model_lower.contains("o3-")
+        {
             true
-        } else if model_lower.contains("deepseek") || model_lower.contains("moonshot") || model_lower.contains("abab") {
+        } else if model_lower.contains("deepseek")
+            || model_lower.contains("moonshot")
+            || model_lower.contains("abab")
+        {
             false
         } else {
             // Default to true for unknown models to maintain backward compatibility
@@ -65,7 +71,9 @@ impl Protocol for OpenAIProtocol {
         let messages = if supports_content_parts {
             crate::protocols::common::request::openai_message_converter(&request.messages)
         } else {
-            crate::protocols::common::request::openai_message_converter_downgrade(&request.messages)?
+            crate::protocols::common::request::openai_message_converter_downgrade(
+                &request.messages,
+            )?
         };
 
         // Convert tools
@@ -283,22 +291,17 @@ mod tests {
         let protocol = OpenAIProtocol::new("test-key");
         let request = ChatRequest {
             model: "deepseek-chat".to_string(),
-            messages: vec![
-                Message {
-                    role: Role::User,
-                    content: vec![
-                        MessageBlock::text("Part 1"),
-                        MessageBlock::text("Part 2"),
-                    ],
-                    ..Default::default()
-                }
-            ],
+            messages: vec![Message {
+                role: Role::User,
+                content: vec![MessageBlock::text("Part 1"), MessageBlock::text("Part 2")],
+                ..Default::default()
+            }],
             ..Default::default()
         };
 
         let req = protocol.build_request(&request).unwrap();
         let content = req.messages[0].get("content").unwrap();
-        
+
         // Should be downgraded to a single string
         assert!(content.is_string());
         assert_eq!(content.as_str().unwrap(), "Part 1Part 2");
@@ -309,22 +312,17 @@ mod tests {
         let protocol = OpenAIProtocol::new("test-key");
         let request = ChatRequest {
             model: "gpt-4".to_string(),
-            messages: vec![
-                Message {
-                    role: Role::User,
-                    content: vec![
-                        MessageBlock::text("Part 1"),
-                        MessageBlock::text("Part 2"),
-                    ],
-                    ..Default::default()
-                }
-            ],
+            messages: vec![Message {
+                role: Role::User,
+                content: vec![MessageBlock::text("Part 1"), MessageBlock::text("Part 2")],
+                ..Default::default()
+            }],
             ..Default::default()
         };
 
         let req = protocol.build_request(&request).unwrap();
         let content = req.messages[0].get("content").unwrap();
-        
+
         // Should be kept as array
         assert!(content.is_array());
         let arr = content.as_array().unwrap();
@@ -336,15 +334,11 @@ mod tests {
         let protocol = OpenAIProtocol::new("test-key");
         let request = ChatRequest {
             model: "deepseek-chat".to_string(),
-            messages: vec![
-                Message {
-                    role: Role::User,
-                    content: vec![
-                        MessageBlock::image_base64("image/png", "base64data"),
-                    ],
-                    ..Default::default()
-                }
-            ],
+            messages: vec![Message {
+                role: Role::User,
+                content: vec![MessageBlock::image_base64("image/png", "base64data")],
+                ..Default::default()
+            }],
             ..Default::default()
         };
 

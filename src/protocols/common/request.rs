@@ -1,7 +1,7 @@
 //! Common Request Assembly Logic
 
-use crate::types::{Message, Role};
 use crate::error::LlmConnectorError;
+use crate::types::{Message, Role};
 
 /// Generic message converter for OpenAI-compatible protocols
 pub fn openai_message_converter(messages: &[Message]) -> Vec<serde_json::Value> {
@@ -44,7 +44,9 @@ pub fn openai_message_converter(messages: &[Message]) -> Vec<serde_json::Value> 
 }
 
 /// Downgrade message content for providers that only support text content
-pub fn openai_message_converter_downgrade(messages: &[Message]) -> Result<Vec<serde_json::Value>, LlmConnectorError> {
+pub fn openai_message_converter_downgrade(
+    messages: &[Message],
+) -> Result<Vec<serde_json::Value>, LlmConnectorError> {
     messages
         .iter()
         .map(|msg| {

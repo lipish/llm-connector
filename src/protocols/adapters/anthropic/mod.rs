@@ -425,8 +425,14 @@ mod tests {
         let result = protocol.parse_response(response_json).unwrap();
 
         assert_eq!(result.content, "Hello there, nice to meet.");
-        assert_eq!(result.choices[0].message.content[0].as_text().unwrap(), "Hello there, nice to meet.");
-        assert_eq!(result.choices[0].message.thinking.as_deref(), Some("This is a thinking block"));
+        assert_eq!(
+            result.choices[0].message.content[0].as_text().unwrap(),
+            "Hello there, nice to meet."
+        );
+        assert_eq!(
+            result.choices[0].message.thinking.as_deref(),
+            Some("This is a thinking block")
+        );
     }
 
     #[test]
@@ -458,6 +464,9 @@ mod tests {
 
         assert_eq!(result.content, "");
         assert!(result.choices[0].message.content.is_empty());
-        assert_eq!(result.choices[0].message.thinking.as_deref(), Some("Just thinking..."));
+        assert_eq!(
+            result.choices[0].message.thinking.as_deref(),
+            Some("Just thinking...")
+        );
     }
 }
