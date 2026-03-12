@@ -7,9 +7,12 @@
 //! - NDJSON (Newline Delimited JSON) (e.g. Ollama)
 //! - Automatic format detection
 
-use crate::error::LlmConnectorError;
-use futures_util::{Stream, StreamExt};
-use std::pin::Pin;
+use {
+    crate::error::LlmConnectorError,
+    futures_util::{Stream, StreamExt},
+    serde_json::Value,
+    std::pin::Pin,
+};
 
 /// Stream format type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,7 +168,7 @@ pub fn json_lines_events(
 /// - `Ok(Some(Value))` if line contains valid JSON data
 /// - `Ok(None)` if line is empty, comment, or "[DONE]"
 /// - `Err` if line contains invalid JSON
-pub fn parse_sse_line(line: &str) -> Result<Option<serde_json::Value>, LlmConnectorError> {
+pub fn parse_sse_line(line: &str) -> Result<Option<Value>, LlmConnectorError> {
     let line = line.trim();
     if line.is_empty() || line.starts_with(':') {
         return Ok(None);
@@ -177,7 +180,7 @@ pub fn parse_sse_line(line: &str) -> Result<Option<serde_json::Value>, LlmConnec
             return Ok(None);
         }
 
-        let value: serde_json::Value = serde_json::from_str(payload).map_err(|e| {
+        let value: Value = serde_json::from_str(payload).map_err(|e| {
             LlmConnectorError::ParseError(format!("Failed to parse SSE JSON: {}", e))
         })?;
         Ok(Some(value))
@@ -236,7 +239,7 @@ fn parse_streaming_payload(
 
     // First try OpenAI-compatible chunk format.
     if let Ok(mut response) = serde_json::from_str::<StreamingResponse>(json_str) {
-        if let Ok(raw) = serde_json::from_str::<serde_json::Value>(json_str) {
+        if let Ok(raw) = serde_json::from_str::<Value>(json_str) {
             response.populate_reasoning_synonyms(&raw);
         }
         return Ok(response);
@@ -251,7 +254,7 @@ fn parse_streaming_payload(
     }
 
     // Fallback for Ollama /api/chat NDJSON chunk format.
-    let raw: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+    let raw: Value = serde_json::from_str(json_str).map_err(|e| {
         crate::error::LlmConnectorError::ParseError(format!(
             "Failed to parse streaming response: {}. Content: {}",
             e, json_str
@@ -270,10 +273,12 @@ fn parse_streaming_payload(
 
 #[cfg(feature = "streaming")]
 fn parse_ollama_chunk(
-    raw: &serde_json::Value,
+    raw: &Value,
     parse_mode: StreamingParseMode,
 ) -> Option<crate::types::StreamingResponse> {
-    use crate::types::{Delta, Role, StreamingChoice, StreamingResponse, Usage};
+    use crate::types::{
+        Delta, FunctionCall, Role, StreamingChoice, StreamingResponse, ToolCall, Usage,
+    };
 
     if parse_mode == StreamingParseMode::OpenAIOnly || !is_strict_ollama_chunk(raw) {
         return None;
@@ -299,6 +304,47 @@ fn parse_ollama_chunk(
         .unwrap_or_default()
         .to_string();
 
+    let tool_calls = message.get("tool_calls").map_or(None, |tool_calls_value| {
+        tool_calls_value.as_array().map_or(None, |tool_calls_array| {
+            Some(
+                tool_calls_array
+                    .iter()
+                    .map(|tool_call| {
+                        let f = tool_call.get("function");
+                        ToolCall {
+                            call_type: "function".into(),
+                            id: tool_call
+                                .get("id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .into(),
+                            index: tool_call
+                                .get("index")
+                                .and_then(|v| v.as_u64())
+                                .map(|v| v as _),
+                            function: f
+                                .and_then(|func| {
+                                    if let Some(name) = func.get("name")
+                                        && let Some(arguments) = func.get("arguments")
+                                    {
+                                        Some(FunctionCall {
+                                            name: name.as_str().unwrap_or_default().into(),
+                                            arguments: arguments.to_string(),
+                                            ..Default::default()
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap_or_default(),
+                            ..Default::default()
+                        }
+                    })
+                    .collect(),
+            )
+        })
+    });
+
     let delta = Delta {
         role,
         content: if content.is_empty() {
@@ -306,7 +352,7 @@ fn parse_ollama_chunk(
         } else {
             Some(content.clone())
         },
-        tool_calls: None,
+        tool_calls,
         reasoning_content: message
             .get("reasoning_content")
             .and_then(|v| v.as_str())
@@ -386,7 +432,7 @@ fn parse_ollama_chunk(
 }
 
 #[cfg(feature = "streaming")]
-fn is_strict_ollama_chunk(raw: &serde_json::Value) -> bool {
+fn is_strict_ollama_chunk(raw: &Value) -> bool {
     let message = match raw.get("message").and_then(|v| v.as_object()) {
         Some(m) => m,
         None => return false,
@@ -510,6 +556,40 @@ mod tests {
         let result = super::parse_streaming_payload(chunk, super::StreamingParseMode::OpenAIOnly);
         assert!(result.is_err());
     }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_parse_ollama_chunk_with_tool_calls() {
+        let chunk = r#"{"model":"llama3.2:latest","created_at":"2026-03-05T08:32:36.674615034Z","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"get_weather","arguments":{"location":"Paris"}}}]},"done":false}"#;
+
+        let parsed = super::parse_streaming_payload(chunk, super::StreamingParseMode::OllamaStrict)
+            .expect("should parse ollama chunk with tool calls");
+        assert_eq!(parsed.model, "llama3.2:latest");
+        assert_eq!(parsed.choices.len(), 1);
+        let tool_calls = parsed.choices[0]
+            .delta
+            .tool_calls
+            .as_ref()
+            .expect("should have tool calls");
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].function.name, "get_weather");
+        assert_eq!(tool_calls[0].call_type, "function");
+    }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_parse_ollama_chunk_without_tool_calls() {
+        let chunk = r#"{"model":"llama3.2:latest","created_at":"2026-03-05T08:32:36.674615034Z","message":{"role":"assistant","content":"Hello!"},"done":false}"#;
+
+        let parsed = super::parse_streaming_payload(chunk, super::StreamingParseMode::OllamaStrict)
+            .expect("should parse ollama chunk without tool calls");
+        assert!(parsed.choices[0].delta.tool_calls.is_none());
+        assert_eq!(
+            parsed.choices[0].delta.content.as_deref(),
+            Some("Hello!")
+        );
+    }
+
 
     #[tokio::test]
     async fn test_sse_detection() {
