@@ -231,19 +231,19 @@ impl HttpClient {
 
         // 1. Add base headers
         for (key, value) in &self.headers {
-            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
-                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
-                    final_headers.insert(header_name, header_value);
-                }
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                && let Ok(header_value) = reqwest::header::HeaderValue::from_str(value)
+            {
+                final_headers.insert(header_name, header_value);
             }
         }
 
         // 2. Apply overrides (overwrite existing keys)
         for (key, value) in overrides {
-            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
-                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
-                    final_headers.insert(header_name, header_value);
-                }
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                && let Ok(header_value) = reqwest::header::HeaderValue::from_str(value)
+            {
+                final_headers.insert(header_name, header_value);
             }
         }
 
@@ -297,19 +297,19 @@ impl HttpClient {
 
         // 2. Add base headers
         for (key, value) in &self.headers {
-            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
-                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
-                    final_headers.insert(header_name, header_value);
-                }
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                && let Ok(header_value) = reqwest::header::HeaderValue::from_str(value)
+            {
+                final_headers.insert(header_name, header_value);
             }
         }
 
         // 3. Apply overrides (overwrite existing keys)
         for (key, value) in overrides {
-            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
-                if let Ok(header_value) = reqwest::header::HeaderValue::from_str(value) {
-                    final_headers.insert(header_name, header_value);
-                }
+            if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                && let Ok(header_value) = reqwest::header::HeaderValue::from_str(value)
+            {
+                final_headers.insert(header_name, header_value);
             }
         }
 

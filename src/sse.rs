@@ -303,43 +303,41 @@ fn parse_ollama_chunk(
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string();
-    let tool_calls = message.get("tool_calls").map_or(None, |i| {
-        i.as_array().map_or(None, |i| {
-            Some(
-                i.into_iter()
-                    .map(|i| {
-                        let f = i.get("function");
-                        ToolCall {
-                            call_type: "function".into(),
-                            id: i
-                                .get("id")
-                                .and_then(|i| i.as_str())
-                                .unwrap_or_default()
-                                .into(),
-                            index: f
-                                .and_then(|i| i.get("index"))
-                                .and_then(|i| i.as_u64())
-                                .map(|i| i as _),
-                            function: f
-                                .and_then(|i| {
-                                    if let Some(name) = i.get("name")
-                                        && let Some(arguments) = i.get("arguments")
-                                    {
-                                        Some(FunctionCall {
-                                            name: name.as_str().unwrap_or_default().into(),
-                                            arguments: arguments.to_string(),
-                                            ..Default::default()
-                                        })
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .unwrap_or_default(),
-                            ..Default::default()
-                        }
-                    })
-                    .collect(),
-            )
+    let tool_calls = message.get("tool_calls").and_then(|i| {
+        i.as_array().map(|i| {
+            i.iter()
+                .map(|i| {
+                    let f = i.get("function");
+                    ToolCall {
+                        call_type: "function".into(),
+                        id: i
+                            .get("id")
+                            .and_then(|i| i.as_str())
+                            .unwrap_or_default()
+                            .into(),
+                        index: f
+                            .and_then(|i| i.get("index"))
+                            .and_then(|i| i.as_u64())
+                            .map(|i| i as _),
+                        function: f
+                            .and_then(|i| {
+                                if let Some(name) = i.get("name")
+                                    && let Some(arguments) = i.get("arguments")
+                                {
+                                    Some(FunctionCall {
+                                        name: name.as_str().unwrap_or_default().into(),
+                                        arguments: arguments.to_string(),
+                                        ..Default::default()
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or_default(),
+                        ..Default::default()
+                    }
+                })
+                .collect()
         })
     });
 

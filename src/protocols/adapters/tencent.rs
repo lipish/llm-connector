@@ -3,8 +3,6 @@
 //! Implements Tencent Cloud API v3 signature (TC3-HMAC-SHA256).
 //! Reference: https://cloud.tencent.com/document/api/1729/101837
 
-#![cfg(feature = "tencent")]
-
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
 #[cfg(feature = "streaming")]
@@ -123,12 +121,10 @@ impl Protocol for TencentNativeProtocol {
         // Official endpoint: https://hunyuan.tencentcloudapi.com
         if _base_url.is_empty() || _base_url == "https://api.openai.com" {
             "https://hunyuan.tencentcloudapi.com".to_string()
+        } else if !_base_url.contains("://") {
+            format!("https://{}", _base_url)
         } else {
-            if !_base_url.contains("://") {
-                format!("https://{}", _base_url)
-            } else {
-                _base_url.to_string()
-            }
+            _base_url.to_string()
         }
     }
 
