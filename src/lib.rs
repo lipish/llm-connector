@@ -162,7 +162,7 @@ pub use providers::{
 
 #[cfg(feature = "streaming")]
 pub use types::{
-    ChatStream, Delta, OllamaChatStream, OllamaMessage, OllamaStreamChunk, StreamChunk,
-    StreamFormat, StreamingChoice, StreamingConfig, StreamingFormat, StreamingResponse,
-    UniversalChatStream,
+    AnthropicSseAdapter, ChatStream, Delta, OllamaChatStream, OllamaMessage, OllamaStreamChunk,
+    StreamChunk, StreamFormat, StreamingChoice, StreamingConfig, StreamingFormat,
+    StreamingResponse, UniversalChatStream,
 };
