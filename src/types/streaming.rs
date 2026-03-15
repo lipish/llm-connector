@@ -705,57 +705,57 @@ impl AnthropicSseAdapter {
 
         if let Some(delta) = delta {
             // Handle thinking/reasoning content
-            if let Some(thinking) = delta.reasoning_any() {
-                if !thinking.is_empty() {
-                    if self.current_block_type.as_deref() != Some("thinking") {
-                        self.close_current_block(&mut events);
-                        self.current_block_index += 1;
-                        self.current_block_type = Some("thinking".to_string());
-                        events.push(format_anthropic_event(
-                            "content_block_start",
-                            &serde_json::json!({
-                                "type": "content_block_start",
-                                "index": self.current_block_index,
-                                "content_block": { "type": "thinking", "thinking": "" }
-                            }),
-                        ));
-                    }
+            if let Some(thinking) = delta.reasoning_any()
+                && !thinking.is_empty()
+            {
+                if self.current_block_type.as_deref() != Some("thinking") {
+                    self.close_current_block(&mut events);
+                    self.current_block_index += 1;
+                    self.current_block_type = Some("thinking".to_string());
                     events.push(format_anthropic_event(
-                        "content_block_delta",
+                        "content_block_start",
                         &serde_json::json!({
-                            "type": "content_block_delta",
+                            "type": "content_block_start",
                             "index": self.current_block_index,
-                            "delta": { "type": "thinking_delta", "thinking": thinking }
+                            "content_block": { "type": "thinking", "thinking": "" }
                         }),
                     ));
                 }
+                events.push(format_anthropic_event(
+                    "content_block_delta",
+                    &serde_json::json!({
+                        "type": "content_block_delta",
+                        "index": self.current_block_index,
+                        "delta": { "type": "thinking_delta", "thinking": thinking }
+                    }),
+                ));
             }
 
             // Handle text content
-            if let Some(text) = &delta.content {
-                if !text.is_empty() {
-                    if self.current_block_type.as_deref() != Some("text") {
-                        self.close_current_block(&mut events);
-                        self.current_block_index += 1;
-                        self.current_block_type = Some("text".to_string());
-                        events.push(format_anthropic_event(
-                            "content_block_start",
-                            &serde_json::json!({
-                                "type": "content_block_start",
-                                "index": self.current_block_index,
-                                "content_block": { "type": "text", "text": "" }
-                            }),
-                        ));
-                    }
+            if let Some(text) = &delta.content
+                && !text.is_empty()
+            {
+                if self.current_block_type.as_deref() != Some("text") {
+                    self.close_current_block(&mut events);
+                    self.current_block_index += 1;
+                    self.current_block_type = Some("text".to_string());
                     events.push(format_anthropic_event(
-                        "content_block_delta",
+                        "content_block_start",
                         &serde_json::json!({
-                            "type": "content_block_delta",
+                            "type": "content_block_start",
                             "index": self.current_block_index,
-                            "delta": { "type": "text_delta", "text": text }
+                            "content_block": { "type": "text", "text": "" }
                         }),
                     ));
                 }
+                events.push(format_anthropic_event(
+                    "content_block_delta",
+                    &serde_json::json!({
+                        "type": "content_block_delta",
+                        "index": self.current_block_index,
+                        "delta": { "type": "text_delta", "text": text }
+                    }),
+                ));
             }
         }
 
