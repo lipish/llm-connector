@@ -9,10 +9,17 @@ use std::collections::HashMap;
 
 // Reuse existing types, maintain compatibility
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
+use crate::types::{
+    ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ResponsesRequest, ResponsesResponse,
+    ResponsesStreamEvent, ResponsesUsage, chat_response_to_responses_response,
+    responses_request_to_chat_request,
+};
 
 #[cfg(feature = "streaming")]
-use crate::types::ChatStream;
+use crate::types::{ChatStream, ResponsesStream};
+
+#[cfg(feature = "streaming")]
+use futures_util::StreamExt;
 
 /// Protocol trait - Defines pure API specification
 ///
@@ -48,6 +55,11 @@ pub trait Protocol: Send + Sync + Clone + 'static {
         None
     }
 
+    /// Get responses endpoint URL (optional)
+    fn responses_endpoint(&self, _base_url: &str, _model: &str) -> Option<String> {
+        None
+    }
+
     /// Build protocol-specific request
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError>;
 
@@ -79,6 +91,33 @@ pub trait Protocol: Send + Sync + Clone + 'static {
             "{} does not support embeddings",
             self.name()
         )))
+    }
+
+    /// Build protocol-specific responses request
+    fn build_responses_request(
+        &self,
+        _request: &ResponsesRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support responses API",
+            self.name()
+        )))
+    }
+
+    /// Parse protocol-specific responses response
+    fn parse_responses_response(
+        &self,
+        response: &str,
+    ) -> Result<ResponsesResponse, LlmConnectorError> {
+        let mut parsed = serde_json::from_str::<ResponsesResponse>(response).map_err(|e| {
+            LlmConnectorError::ParseError(format!(
+                "{}: failed to parse responses response: {}",
+                self.name(),
+                e
+            ))
+        })?;
+        parsed.populate_output_text();
+        Ok(parsed)
     }
 
     /// Map HTTP errors to unified error type
@@ -130,6 +169,27 @@ pub trait Provider: Send + Sync {
     /// Generate embeddings
     async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError>;
 
+    /// OpenAI Responses API (non-stream)
+    async fn invoke_responses(
+        &self,
+        _request: &ResponsesRequest,
+    ) -> Result<ResponsesResponse, LlmConnectorError> {
+        Err(LlmConnectorError::UnsupportedOperation(
+            "responses API is not supported by this provider".to_string(),
+        ))
+    }
+
+    /// OpenAI Responses API (stream)
+    #[cfg(feature = "streaming")]
+    async fn invoke_responses_stream(
+        &self,
+        _request: &ResponsesRequest,
+    ) -> Result<ResponsesStream, LlmConnectorError> {
+        Err(LlmConnectorError::UnsupportedOperation(
+            "responses streaming API is not supported by this provider".to_string(),
+        ))
+    }
+
     /// Type conversion support (for special feature access)
     fn as_any(&self) -> &dyn Any;
 }
@@ -155,6 +215,89 @@ fn build_request_overrides<P: Protocol>(
     }
 
     overrides
+}
+
+fn build_responses_request_overrides<P: Protocol>(
+    protocol: &P,
+    request: &ResponsesRequest,
+) -> HashMap<String, String> {
+    let mut overrides = HashMap::new();
+
+    if let Some(ref key) = request.api_key {
+        let auth_headers = protocol.build_auth_headers_for_override(key);
+        for (k, v) in auth_headers {
+            overrides.insert(k, v);
+        }
+    }
+
+    if let Some(ref extra) = request.extra_headers {
+        overrides.extend(extra.clone());
+    }
+
+    overrides
+}
+
+fn safe_body_snippet(body: &str) -> String {
+    body.chars().take(240).collect()
+}
+
+fn should_fallback_to_chat(status: u16, body: &str) -> bool {
+    if status == 404 {
+        return true;
+    }
+    let body_lower = body.to_ascii_lowercase();
+    body_lower.contains("not found") && body_lower.contains("response")
+}
+
+fn enrich_endpoint_error(
+    err: LlmConnectorError,
+    provider: &str,
+    endpoint: &str,
+    status: Option<u16>,
+    body: Option<&str>,
+) -> LlmConnectorError {
+    let status_txt = status
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "n/a".to_string());
+    let body_txt = body.map(safe_body_snippet).unwrap_or_default();
+    let prefix = format!(
+        "provider={} endpoint={} status={} body={} ",
+        provider, endpoint, status_txt, body_txt
+    );
+
+    match err {
+        LlmConnectorError::AuthenticationError(msg) => {
+            LlmConnectorError::AuthenticationError(format!("{}{}", prefix, msg))
+        }
+        LlmConnectorError::RateLimitError(msg) => {
+            LlmConnectorError::RateLimitError(format!("{}{}", prefix, msg))
+        }
+        LlmConnectorError::InvalidRequest(msg) => {
+            LlmConnectorError::InvalidRequest(format!("{}{}", prefix, msg))
+        }
+        LlmConnectorError::NotFoundError(msg) => {
+            LlmConnectorError::NotFoundError(format!("{}{}", prefix, msg))
+        }
+        LlmConnectorError::ServerError(msg) => {
+            LlmConnectorError::ServerError(format!("{}{}", prefix, msg))
+        }
+        LlmConnectorError::ParseError(msg) => {
+            LlmConnectorError::ParseError(format!("{}{}", prefix, msg))
+        }
+        LlmConnectorError::ApiError(msg) => {
+            LlmConnectorError::ApiError(format!("{}{}", prefix, msg))
+        }
+        other => LlmConnectorError::ApiError(format!("{}{}", prefix, other)),
+    }
+}
+
+fn usage_to_responses_usage(usage: Option<&crate::types::Usage>) -> Option<ResponsesUsage> {
+    usage.map(|u| ResponsesUsage {
+        input_tokens: Some(u.prompt_tokens),
+        output_tokens: Some(u.completion_tokens),
+        total_tokens: Some(u.total_tokens),
+        extra: HashMap::new(),
+    })
 }
 
 /// Generic provider implementation
@@ -325,6 +468,293 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         }
 
         self.protocol.parse_embed_response(&text)
+    }
+
+    async fn invoke_responses(
+        &self,
+        request: &ResponsesRequest,
+    ) -> Result<ResponsesResponse, LlmConnectorError> {
+        let base_url = request
+            .base_url
+            .as_deref()
+            .unwrap_or_else(|| self.client.base_url());
+
+        if let Some(url) = self.protocol.responses_endpoint(base_url, &request.model) {
+            log::info!(
+                "llm-connector responses path=direct provider={} endpoint={}",
+                self.protocol.name(),
+                url
+            );
+
+            let protocol_request = self
+                .protocol
+                .build_responses_request(request)
+                .map_err(|e| {
+                    enrich_endpoint_error(
+                        e,
+                        self.protocol.name(),
+                        "/v1/responses",
+                        None,
+                        Some("build_responses_request_failed"),
+                    )
+                })?;
+
+            let overrides = build_responses_request_overrides(&self.protocol, request);
+            let response = if overrides.is_empty() {
+                self.client.post(&url, &protocol_request).await?
+            } else {
+                self.client
+                    .post_with_overrides(&url, &protocol_request, &overrides)
+                    .await?
+            };
+
+            let status = response.status();
+            let text = response
+                .text()
+                .await
+                .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+
+            if status.is_success() {
+                return self.protocol.parse_responses_response(&text).map_err(|e| {
+                    enrich_endpoint_error(
+                        e,
+                        self.protocol.name(),
+                        "/v1/responses",
+                        Some(status.as_u16()),
+                        Some(&text),
+                    )
+                });
+            }
+
+            if should_fallback_to_chat(status.as_u16(), &text) {
+                log::warn!(
+                    "llm-connector responses path=fallback provider={} reason=endpoint_unsupported status={} body={}",
+                    self.protocol.name(),
+                    status.as_u16(),
+                    safe_body_snippet(&text)
+                );
+            } else {
+                let err = self.protocol.map_error(status.as_u16(), &text);
+                return Err(enrich_endpoint_error(
+                    err,
+                    self.protocol.name(),
+                    "/v1/responses",
+                    Some(status.as_u16()),
+                    Some(&text),
+                ));
+            }
+        }
+
+        log::info!(
+            "llm-connector responses path=fallback provider={} reason=no_direct_endpoint",
+            self.protocol.name()
+        );
+
+        let chat_request = responses_request_to_chat_request(request).map_err(|e| {
+            enrich_endpoint_error(
+                e,
+                self.protocol.name(),
+                "responses->chat mapping",
+                None,
+                None,
+            )
+        })?;
+        let chat_response = self.chat(&chat_request).await.map_err(|e| {
+            enrich_endpoint_error(
+                e,
+                self.protocol.name(),
+                "/v1/chat/completions",
+                None,
+                None,
+            )
+        })?;
+
+        Ok(chat_response_to_responses_response(&chat_response))
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn invoke_responses_stream(
+        &self,
+        request: &ResponsesRequest,
+    ) -> Result<ResponsesStream, LlmConnectorError> {
+        let base_url = request
+            .base_url
+            .as_deref()
+            .unwrap_or_else(|| self.client.base_url());
+
+        if let Some(url) = self.protocol.responses_endpoint(base_url, &request.model) {
+            log::info!(
+                "llm-connector responses_stream path=direct provider={} endpoint={}",
+                self.protocol.name(),
+                url
+            );
+
+            let mut stream_request = request.clone();
+            stream_request.stream = Some(true);
+            let protocol_request = self
+                .protocol
+                .build_responses_request(&stream_request)
+                .map_err(|e| {
+                    enrich_endpoint_error(
+                        e,
+                        self.protocol.name(),
+                        "/v1/responses",
+                        None,
+                        Some("build_responses_stream_request_failed"),
+                    )
+                })?;
+
+            let overrides = build_responses_request_overrides(&self.protocol, &stream_request);
+            let response = if overrides.is_empty() {
+                self.client.stream(&url, &protocol_request).await?
+            } else {
+                self.client
+                    .stream_with_overrides(&url, &protocol_request, &overrides)
+                    .await?
+            };
+
+            let status = response.status();
+            if status.is_success() {
+                let provider = self.protocol.name().to_string();
+                let endpoint = "/v1/responses".to_string();
+                let stream = crate::sse::create_text_stream(response, crate::sse::StreamFormat::Auto)
+                    .map(move |item| {
+                        let payload = item?;
+                        serde_json::from_str::<ResponsesStreamEvent>(&payload).map_err(|e| {
+                            enrich_endpoint_error(
+                                LlmConnectorError::ParseError(format!(
+                                    "Failed to parse responses stream event: {}",
+                                    e
+                                )),
+                                &provider,
+                                &endpoint,
+                                None,
+                                Some(&payload),
+                            )
+                        })
+                    });
+                return Ok(Box::pin(stream));
+            }
+
+            let text = response
+                .text()
+                .await
+                .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
+
+            if should_fallback_to_chat(status.as_u16(), &text) {
+                log::warn!(
+                    "llm-connector responses_stream path=fallback provider={} reason=endpoint_unsupported status={} body={}",
+                    self.protocol.name(),
+                    status.as_u16(),
+                    safe_body_snippet(&text)
+                );
+            } else {
+                let err = self.protocol.map_error(status.as_u16(), &text);
+                return Err(enrich_endpoint_error(
+                    err,
+                    self.protocol.name(),
+                    "/v1/responses",
+                    Some(status.as_u16()),
+                    Some(&text),
+                ));
+            }
+        }
+
+        log::info!(
+            "llm-connector responses_stream path=fallback provider={} reason=no_direct_endpoint",
+            self.protocol.name()
+        );
+
+        let mut chat_request = responses_request_to_chat_request(request).map_err(|e| {
+            enrich_endpoint_error(
+                e,
+                self.protocol.name(),
+                "responses->chat mapping",
+                None,
+                None,
+            )
+        })?;
+        chat_request.stream = Some(true);
+
+        let chat_stream = self.chat_stream(&chat_request).await.map_err(|e| {
+            enrich_endpoint_error(
+                e,
+                self.protocol.name(),
+                "/v1/chat/completions",
+                None,
+                None,
+            )
+        })?;
+
+        struct FallbackState {
+            created: bool,
+            response_id: String,
+            model: Option<String>,
+        }
+
+        let stream = chat_stream
+            .scan(
+                FallbackState {
+                    created: false,
+                    response_id: String::new(),
+                    model: Some(chat_request.model.clone()),
+                },
+                |state, item| {
+                    let mut out = Vec::<Result<ResponsesStreamEvent, LlmConnectorError>>::new();
+                    match item {
+                        Err(e) => out.push(Err(e)),
+                        Ok(chunk) => {
+                            if !state.created {
+                                state.created = true;
+                                state.response_id = if chunk.id.is_empty() {
+                                    format!(
+                                        "resp_{}{}",
+                                        std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .unwrap_or_default()
+                                            .as_millis(),
+                                        rand::random::<u16>()
+                                    )
+                                } else {
+                                    chunk.id.clone()
+                                };
+
+                                out.push(Ok(ResponsesStreamEvent::response_created(
+                                    state.response_id.clone(),
+                                    state.model.clone(),
+                                )));
+                            }
+
+                            if let Some(delta) = chunk.get_content()
+                                && !delta.is_empty()
+                            {
+                                out.push(Ok(ResponsesStreamEvent::output_text_delta(
+                                    state.response_id.clone(),
+                                    delta,
+                                )));
+                            }
+
+                            let finished = chunk
+                                .choices
+                                .first()
+                                .and_then(|c| c.finish_reason.as_ref())
+                                .is_some();
+                            if finished {
+                                out.push(Ok(ResponsesStreamEvent::response_completed(
+                                    state.response_id.clone(),
+                                    usage_to_responses_usage(chunk.usage.as_ref()),
+                                    state.model.clone(),
+                                )));
+                            }
+                        }
+                    }
+
+                    std::future::ready(Some(out))
+                },
+            )
+            .flat_map(futures_util::stream::iter);
+
+        Ok(Box::pin(stream))
     }
 
     fn as_any(&self) -> &dyn Any {

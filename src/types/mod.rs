@@ -2,6 +2,7 @@
 
 pub mod message_block;
 pub mod request;
+pub mod responses;
 pub mod response;
 
 #[cfg(feature = "streaming")]
@@ -11,6 +12,7 @@ pub mod embedding;
 
 pub use message_block::*;
 pub use request::*;
+pub use responses::*;
 pub use response::*;
 
 #[cfg(feature = "streaming")]

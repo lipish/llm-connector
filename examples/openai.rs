@@ -7,7 +7,7 @@
 use dotenvy::dotenv;
 use llm_connector::{
     LlmClient,
-    types::{ChatRequest, EmbedRequest, Message},
+    types::{ChatRequest, EmbedRequest, Message, ResponsesRequest},
 };
 #[allow(unused_imports)]
 use std::env;
@@ -47,7 +47,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n");
     }
 
-    println!("--- 3. Embeddings ---");
+    println!("--- 3. Responses API ---");
+    let responses_request = ResponsesRequest {
+        model: "gpt-5.2-2025-12-11".to_string(),
+        input: Some(serde_json::json!("Write one short sentence about Rust.")),
+        ..Default::default()
+    };
+    let responses = client.invoke_responses(&responses_request).await?;
+    println!("Responses output: {}\n", responses.output_text);
+
+    #[cfg(feature = "streaming")]
+    {
+        println!("--- 4. Responses Streaming ---");
+        let request = ResponsesRequest {
+            model: "gpt-5.2-2025-12-11".to_string(),
+            input: Some(serde_json::json!("Count 1 to 5")),
+            stream: Some(true),
+            ..Default::default()
+        };
+
+        let mut stream = client.invoke_responses_stream(&request).await?;
+        print!("Responses streaming: ");
+        while let Some(event) = futures_util::StreamExt::next(&mut stream).await {
+            let event = event?;
+            if event.event_type == "response.output_text.delta"
+                && let Some(delta) = event.data.get("delta").and_then(|v| v.as_str())
+            {
+                print!("{}", delta);
+                std::io::Write::flush(&mut std::io::stdout())?;
+            }
+        }
+        println!("\n");
+    }
+
+    println!("--- 5. Embeddings ---");
     let embed_request = EmbedRequest::new("text-embedding-3-small", "Hello world");
     let embed_response = client.embed(&embed_request).await?;
     println!(

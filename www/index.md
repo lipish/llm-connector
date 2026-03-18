@@ -17,6 +17,8 @@ hero:
       link: https://crates.io/crates/llm-connector
 
 features:
+  - title: Responses API Ready
+    details: Native `/responses` + streaming support with automatic fallback to `/chat/completions`.
   - title: Unified Streaming
     details: One streaming model across providers with a consistent response type.
   - title: Tools / Function Calling
@@ -41,7 +43,7 @@ Or in `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "1.1.5"
+llm-connector = "1.1.9"
 tokio = { version = "1", features = ["full"] }
 ```
 

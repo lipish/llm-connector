@@ -39,7 +39,7 @@ The `src/protocols/` module uses adapter pattern to convert different vendor API
 
 ```toml
 [dependencies]
-llm-connector = "1.0.2"
+llm-connector = "1.1.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -72,6 +72,50 @@ let mut stream = client.chat_stream(&request).await?;
 while let Some(chunk) = stream.next().await {
     if let Some(content) = chunk?.get_content() {
         print!("{}", content);
+    }
+}
+```
+
+### OpenAI Responses API
+
+```rust
+use llm_connector::{LlmClient, types::ResponsesRequest};
+
+let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
+
+let request = ResponsesRequest {
+    model: "gpt-4.1".to_string(),
+    input: Some(serde_json::json!("Write one sentence about Rust.")),
+    ..Default::default()
+};
+
+let response = client.invoke_responses(&request).await?;
+println!("{}", response.output_text);
+```
+
+If provider does not support `/responses`, connector automatically falls back to `/chat/completions`.
+
+### OpenAI Responses Streaming
+
+```rust
+use llm_connector::{LlmClient, types::ResponsesRequest};
+use futures_util::StreamExt;
+
+let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
+let request = ResponsesRequest {
+    model: "gpt-4.1".to_string(),
+    input: Some(serde_json::json!("Count 1 to 5")),
+    stream: Some(true),
+    ..Default::default()
+};
+
+let mut stream = client.invoke_responses_stream(&request).await?;
+while let Some(event) = stream.next().await {
+    let event = event?;
+    if event.event_type == "response.output_text.delta"
+        && let Some(delta) = event.data.get("delta").and_then(|v| v.as_str())
+    {
+        print!("{}", delta);
     }
 }
 ```

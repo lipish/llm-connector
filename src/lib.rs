@@ -132,7 +132,8 @@ pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
 pub use types::{
     ChatRequest, ChatResponse, Choice, FunctionCall, JsonSchemaSpec, Message, ResponseFormat, Role,
-    Tool, ToolCall, ToolChoice, Usage,
+    ResponsesRequest, ResponsesResponse, ResponsesStreamEvent, ResponsesUsage, Tool, ToolCall,
+    ToolChoice, Usage,
 };
 
 // Re-export core traits
@@ -163,6 +164,6 @@ pub use providers::{
 #[cfg(feature = "streaming")]
 pub use types::{
     AnthropicSseAdapter, ChatStream, Delta, OllamaChatStream, OllamaMessage, OllamaStreamChunk,
-    StreamChunk, StreamFormat, StreamingChoice, StreamingConfig, StreamingFormat,
+    ResponsesStream, StreamChunk, StreamFormat, StreamingChoice, StreamingConfig, StreamingFormat,
     StreamingResponse, UniversalChatStream,
 };

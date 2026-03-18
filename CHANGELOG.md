@@ -1,3 +1,26 @@
+## [1.1.9] - 2026-03-18
+
+### Features
+
+- **OpenAI Responses API support**:
+  - Added `ResponsesRequest` / `ResponsesResponse` / `ResponsesStreamEvent` types.
+  - Added `LlmClient::invoke_responses` and `LlmClient::invoke_responses_stream`.
+  - Added protocol/provider support for direct `/responses` requests.
+- **Automatic fallback compatibility**:
+  - If upstream does not support `/responses` (e.g. `404`), connector falls back to `/chat/completions`.
+  - Fallback stream emits compatible minimal event sequence:
+    - `response.created`
+    - `response.output_text.delta` (repeated)
+    - `response.completed`
+
+### Improvements
+
+- **Error diagnostics**: Enriched endpoint errors with provider/endpoint/status/body snippet for easier gateway troubleshooting.
+- **Documentation & examples**:
+  - Updated `README.md` with Responses API and Responses streaming examples.
+  - Updated `www` docs (`index`, `guide/getting-started`, `guide/streaming`, `examples`) with Responses API usage.
+  - Updated `examples/openai.rs` to include both non-streaming and streaming Responses examples.
+
 ## [1.1.5] - 2026-03-05
 
 ### Fixes

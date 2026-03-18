@@ -23,6 +23,38 @@ while let Some(chunk) = stream.next().await {
 }
 ```
 
+## Responses API Streaming
+
+```rust
+use llm_connector::{LlmClient, types::ResponsesRequest};
+use futures_util::StreamExt;
+
+let client = LlmClient::openai("sk-...", "https://api.openai.com/v1")?;
+
+let request = ResponsesRequest {
+    model: "gpt-4.1".to_string(),
+    input: Some(serde_json::json!("Count from 1 to 5")),
+    stream: Some(true),
+    ..Default::default()
+};
+
+let mut stream = client.invoke_responses_stream(&request).await?;
+while let Some(event) = stream.next().await {
+    let event = event?;
+    if event.event_type == "response.output_text.delta"
+        && let Some(delta) = event.data.get("delta").and_then(|v| v.as_str())
+    {
+        print!("{}", delta);
+    }
+}
+```
+
+If `/responses` is unsupported by upstream provider, connector automatically falls back to `/chat/completions` and emits a minimal compatible event sequence:
+
+- `response.created`
+- `response.output_text.delta` (repeated)
+- `response.completed`
+
 ## Streaming with Reasoning Models
 
 DeepSeek R1, Moonshot Thinking, Google Gemini Thinking, etc. expose separate `reasoning_content`:

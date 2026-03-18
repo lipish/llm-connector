@@ -16,16 +16,18 @@ cargo run --example <name>
 
 ## OpenAI
 
-**`examples/openai.rs`** — Chat · Streaming · Embeddings
+**`examples/openai.rs`** — Chat · Streaming · Responses API · Embeddings
 
 ```bash
 cargo run --example openai
 ```
 
-Covers three scenarios in one shot:
+Covers five scenarios in one shot:
 1. Basic chat (`gpt-4o`)
 2. Streaming (`with_stream(true)`) with real-time token output
-3. Embeddings (`text-embedding-3-small`) — returns vector size
+3. Responses API (`invoke_responses`)
+4. Responses streaming (`invoke_responses_stream`)
+5. Embeddings (`text-embedding-3-small`) — returns vector size
 
 ```
 OPENAI_API_KEY=sk-...

@@ -4,11 +4,13 @@
 
 use crate::core::Provider;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
+use crate::types::{
+    ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ResponsesRequest, ResponsesResponse,
+};
 use std::sync::Arc;
 
 #[cfg(feature = "streaming")]
-use crate::types::ChatStream;
+use crate::types::{ChatStream, ResponsesStream};
 
 /// Unified LLM Client
 ///
@@ -643,6 +645,14 @@ impl LlmClient {
         self.provider.chat(request).await
     }
 
+    /// Send OpenAI Responses API request
+    pub async fn invoke_responses(
+        &self,
+        request: &ResponsesRequest,
+    ) -> Result<ResponsesResponse, LlmConnectorError> {
+        self.provider.invoke_responses(request).await
+    }
+
     /// Send streaming chat completion request
     ///
     /// # Parameters
@@ -685,6 +695,15 @@ impl LlmClient {
         request: &ChatRequest,
     ) -> Result<ChatStream, LlmConnectorError> {
         self.provider.chat_stream(request).await
+    }
+
+    /// Send streaming OpenAI Responses API request
+    #[cfg(feature = "streaming")]
+    pub async fn invoke_responses_stream(
+        &self,
+        request: &ResponsesRequest,
+    ) -> Result<ResponsesStream, LlmConnectorError> {
+        self.provider.invoke_responses_stream(request).await
     }
 
     /// Generate embeddings

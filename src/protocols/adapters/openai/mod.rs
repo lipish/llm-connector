@@ -4,7 +4,10 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ReasoningEffort};
+use crate::types::{
+    ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ReasoningEffort, ResponsesRequest,
+    ResponsesResponse,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -47,6 +50,10 @@ impl Protocol for OpenAIProtocol {
 
     fn embed_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
         Some(format!("{}/embeddings", base_url.trim_end_matches('/')))
+    }
+
+    fn responses_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
+        Some(format!("{}/responses", base_url.trim_end_matches('/')))
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
@@ -161,6 +168,25 @@ impl Protocol for OpenAIProtocol {
             response,
             self.name(),
         )
+    }
+
+    fn build_responses_request(
+        &self,
+        request: &ResponsesRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        serde_json::to_value(request).map_err(|e| {
+            LlmConnectorError::ParseError(format!("Failed to serialize responses request: {}", e))
+        })
+    }
+
+    fn parse_responses_response(
+        &self,
+        response: &str,
+    ) -> Result<ResponsesResponse, LlmConnectorError> {
+        let mut parsed = serde_json::from_str::<ResponsesResponse>(response)
+            .map_err(|e| LlmConnectorError::ParseError(format!("{}: {}", self.name(), e)))?;
+        parsed.populate_output_text();
+        Ok(parsed)
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
