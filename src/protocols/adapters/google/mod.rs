@@ -8,6 +8,7 @@ use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::types::{
     ChatRequest, ChatResponse, Choice, DocumentSource, EmbedRequest, EmbedResponse, EmbeddingData,
     ImageSource, Message, MessageBlock, Role, Usage,
+    ToolCall, FunctionCall,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -167,12 +168,13 @@ impl Protocol for GoogleProtocol {
                                         }
                                     };
 
-                                // Extract incremental text or reasoning
-                                let (content, reasoning, finish_reason) = google_resp
+                                // Extract incremental text, reasoning, and tool calls
+                                let (content, reasoning, tool_calls, finish_reason) = google_resp
                                     .candidates
                                     .as_ref()
                                     .and_then(|c| c.first())
                                     .map(|candidate| {
+                                        // Text content
                                         let text = candidate
                                             .content
                                             .as_ref()
@@ -184,16 +186,42 @@ impl Protocol for GoogleProtocol {
                                             })
                                             .unwrap_or_default();
 
+                                        // Reasoning (thought)
                                         let thought = candidate.content.as_ref().and_then(|c| {
                                             c.parts.iter().find_map(|p| match p {
-                                                GooglePart::Thought { text, .. } => {
-                                                    Some(text.clone())
-                                                }
+                                                GooglePart::Thought { text, .. } => Some(text.clone()),
                                                 _ => None,
                                             })
                                         });
 
-                                        (text, thought, candidate.finish_reason.clone())
+                                        // Tool calls extraction
+                                        let tools: Vec<ToolCall> = candidate
+                                            .content
+                                            .as_ref()
+                                            .map(|c| {
+                                                c.parts
+                                                    .iter()
+                                                    .filter_map(|p| match p {
+                                                        GooglePart::FunctionCall { function_call, thought_signature } => {
+                                                            Some(ToolCall {
+                                                                id: function_call.name.clone(),
+                                                                call_type: "function".to_string(),
+                                                                function: FunctionCall {
+                                                                    name: function_call.name.clone(),
+                                                                    arguments: function_call.args.to_string(),
+                                                                    thought_signature: thought_signature.clone(),
+                                                                },
+                                                                index: None,
+                                                                thought_signature: thought_signature.clone(),
+                                                            })
+                                                        }
+                                                        _ => None,
+                                                    })
+                                                    .collect()
+                                            })
+                                            .unwrap_or_default();
+
+                                        (text, thought, tools, candidate.finish_reason.clone())
                                     })
                                     .unwrap_or_default();
 
@@ -209,6 +237,7 @@ impl Protocol for GoogleProtocol {
                                     && reasoning.is_none()
                                     && finish_reason.is_none()
                                     && usage.is_none()
+                                    && tool_calls.is_empty()
                                 {
                                     Ok(None)
                                 } else {
@@ -234,6 +263,11 @@ impl Protocol for GoogleProtocol {
                                                     Some(content.clone())
                                                 },
                                                 reasoning_content: reasoning,
+                                                tool_calls: if tool_calls.is_empty() {
+                                                    None
+                                                } else {
+                                                    Some(tool_calls)
+                                                },
                                                 ..Default::default()
                                             },
                                             finish_reason,
