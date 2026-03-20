@@ -1,3 +1,21 @@
+## [1.1.12] - 2026-03-20
+
+### Fixes
+
+- **OpenAI-compatible streaming think filtering**:
+  - Added stateful cross-chunk `<think>...</think>` filtering in the shared SSE pipeline.
+  - Fixed MiniMax streaming output so reasoning/thinking content is no longer mixed into the final visible text.
+  - Added regression coverage for OpenAI-compatible streaming chunks that include think tags.
+
+### Improvements
+
+- **MiniMax real-world verification**:
+  - Verified `minimax:cn` (`https://api.minimaxi.com/v1`) and `minimax:global` (`https://api.minimax.io/v1`) without local proxy interference.
+  - Confirmed chat and streaming flows on both endpoints after the streaming normalization fix.
+- **Aliyun real-world verification**:
+  - Verified DashScope connectivity without local proxy interference.
+  - Confirmed Aliyun chat, streaming, and thinking flows with the existing `aliyun` example.
+
 ## [1.1.11] - 2026-03-20
 
 ### Improvements

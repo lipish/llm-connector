@@ -8,7 +8,7 @@
 
 ```toml
 [dependencies]
-llm-connector = "1.1.11"
+llm-connector = "1.1.12"
 tokio = { version = "1", features = ["full"] }
 ```
 

@@ -37,6 +37,13 @@ pub enum StreamingParseMode {
     OllamaStrict,
 }
 
+#[cfg(feature = "streaming")]
+struct StreamNormalizationState {
+    accumulated_tool_calls: std::collections::HashMap<usize, crate::types::ToolCall>,
+    think_buffer: String,
+    in_think_block: bool,
+}
+
 /// Create a robust stream from a reqwest response
 ///
 /// This function automatically handles different streaming formats and normalizes them
@@ -201,24 +208,27 @@ pub fn sse_to_streaming_response_with_mode(
     response: reqwest::Response,
     parse_mode: StreamingParseMode,
 ) -> crate::types::ChatStream {
-    use crate::types::ToolCall;
-    use std::collections::HashMap;
-
     // Use Auto detection by default
     let string_stream = create_text_stream(response, StreamFormat::Auto);
 
-    // State for accumulating tool_calls across chunks
+    // State for accumulating tool_calls and normalizing think blocks across chunks
     let response_stream = string_stream.scan(
-        HashMap::<usize, ToolCall>::new(),
-        move |accumulated_tool_calls, result| {
+        StreamNormalizationState {
+            accumulated_tool_calls: std::collections::HashMap::new(),
+            think_buffer: String::new(),
+            in_think_block: false,
+        },
+        move |state, result| {
             let processed = result.and_then(|json_str| {
                 let mut streaming_response = parse_streaming_payload(&json_str, parse_mode)?;
+
+                normalize_think_tags_across_stream(&mut streaming_response, state);
 
                 // Populate convenience fields
                 populate_convenience_fields(&mut streaming_response);
 
                 // Accumulate tool calls
-                accumulate_tool_calls(&mut streaming_response, accumulated_tool_calls);
+                accumulate_tool_calls(&mut streaming_response, &mut state.accumulated_tool_calls);
 
                 Ok(streaming_response)
             });
@@ -242,6 +252,7 @@ fn parse_streaming_payload(
         if let Ok(raw) = serde_json::from_str::<Value>(json_str) {
             response.populate_reasoning_synonyms(&raw);
         }
+        normalize_openai_compatible_streaming_choices(&mut response);
         return Ok(response);
     }
 
@@ -478,6 +489,135 @@ fn populate_convenience_fields(response: &mut crate::types::StreamingResponse) {
 }
 
 #[cfg(feature = "streaming")]
+fn normalize_openai_compatible_streaming_choices(response: &mut crate::types::StreamingResponse) {
+    for choice in &mut response.choices {
+        let normalized = crate::protocols::common::openai_compatible::normalize_openai_compatible_content(
+            choice.delta.content.take(),
+            choice.delta.reasoning_content.take(),
+        );
+
+        if !normalized.content.is_empty() {
+            choice.delta.content = Some(normalized.content);
+        }
+
+        if normalized.reasoning.is_some() {
+            choice.delta.reasoning_content = normalized.reasoning;
+        }
+    }
+
+    if response.reasoning_content.is_none()
+        && let Some(reasoning) = response
+            .choices
+            .iter()
+            .find_map(|choice| choice.delta.reasoning_content.clone())
+    {
+        response.reasoning_content = Some(reasoning);
+    }
+}
+
+#[cfg(feature = "streaming")]
+fn split_think_segments_incremental(
+    incoming: &str,
+    carry: &mut String,
+    in_think_block: &mut bool,
+) -> (String, Option<String>) {
+    const THINK_OPEN: &str = "<think>";
+    const THINK_CLOSE: &str = "</think>";
+
+    fn longest_suffix_prefix_len(haystack: &str, needle: &str) -> usize {
+        let max_len = haystack.len().min(needle.len().saturating_sub(1));
+        (1..=max_len)
+            .rev()
+            .find(|&len| haystack.ends_with(&needle[..len]))
+            .unwrap_or(0)
+    }
+
+    carry.push_str(incoming);
+
+    let mut visible = String::new();
+    let mut reasoning = String::new();
+
+    loop {
+        if *in_think_block {
+            if let Some(idx) = carry.find(THINK_CLOSE) {
+                reasoning.push_str(&carry[..idx]);
+                carry.drain(..idx + THINK_CLOSE.len());
+                *in_think_block = false;
+                continue;
+            }
+
+            let keep = longest_suffix_prefix_len(carry, THINK_CLOSE);
+            if carry.len() > keep {
+                let emit_len = carry.len() - keep;
+                reasoning.push_str(&carry[..emit_len]);
+                carry.drain(..emit_len);
+            }
+            break;
+        }
+
+        if let Some(idx) = carry.find(THINK_OPEN) {
+            visible.push_str(&carry[..idx]);
+            carry.drain(..idx + THINK_OPEN.len());
+            *in_think_block = true;
+            continue;
+        }
+
+        let keep = longest_suffix_prefix_len(carry, THINK_OPEN);
+        if carry.len() > keep {
+            let emit_len = carry.len() - keep;
+            visible.push_str(&carry[..emit_len]);
+            carry.drain(..emit_len);
+        }
+        break;
+    }
+
+    let reasoning = if reasoning.is_empty() {
+        None
+    } else {
+        Some(reasoning)
+    };
+
+    (visible, reasoning)
+}
+
+#[cfg(feature = "streaming")]
+fn normalize_think_tags_across_stream(
+    response: &mut crate::types::StreamingResponse,
+    state: &mut StreamNormalizationState,
+) {
+    for choice in &mut response.choices {
+        if let Some(content) = choice.delta.content.take() {
+            let (visible, reasoning) = split_think_segments_incremental(
+                &content,
+                &mut state.think_buffer,
+                &mut state.in_think_block,
+            );
+
+            if !visible.is_empty() {
+                choice.delta.content = Some(visible);
+            }
+
+            if let Some(reasoning_piece) = reasoning {
+                let merged = match choice.delta.reasoning_content.take() {
+                    Some(existing) if !existing.is_empty() => existing + &reasoning_piece,
+                    _ => reasoning_piece,
+                };
+                choice.delta.reasoning_content = Some(merged);
+            }
+        }
+    }
+
+    if response.reasoning_content.is_none()
+        && let Some(reasoning) = response
+            .choices
+            .iter()
+            .find_map(|choice| choice.delta.reasoning_content.clone())
+    {
+        response.reasoning_content = Some(reasoning);
+    }
+}
+
+#[cfg(feature = "streaming")]
 fn accumulate_tool_calls(
     response: &mut crate::types::StreamingResponse,
     accumulated: &mut std::collections::HashMap<usize, crate::types::ToolCall>,
@@ -560,6 +700,28 @@ mod tests {
         assert_eq!(
             parsed.choices[0].delta.reasoning_content.as_deref(),
             Some("internal reasoning only")
+        );
+    }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_think_tags_are_stripped_from_streaming_content() {
+        let chunk = r#"{"id":"chatcmpl-test","object":"chat.completion.chunk","created":1740000000,"model":"MiniMax-M2.5","choices":[{"index":0,"delta":{"content":"<think>internal reasoning</think>Visible answer"},"finish_reason":null}]}"#;
+
+        let mut parsed =
+            super::parse_streaming_payload(chunk, super::StreamingParseMode::OpenAIOnly)
+                .expect("should parse minimax-like chunk");
+
+        super::populate_convenience_fields(&mut parsed);
+
+        assert_eq!(parsed.content, "Visible answer");
+        assert_eq!(
+            parsed.choices[0].delta.content.as_deref(),
+            Some("Visible answer")
+        );
+        assert_eq!(
+            parsed.choices[0].delta.reasoning_content.as_deref(),
+            Some("internal reasoning")
         );
     }
 
