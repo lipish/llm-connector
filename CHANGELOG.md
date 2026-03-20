@@ -1,27 +1,15 @@
-## [1.1.13] - 2026-03-20
+## [1.1.14] - 2026-03-20
 
 ### Fixes
 
-- **Provider Configuration Persistence**:
-  - Fixed a bug where `service_name` was lost when using `with_config`, which previously broke specific provider features like "thinking/reasoning" detection for Moonshot (Kimi) and others.
-- **ZhiPu Adapter Enhancements**:
-  - Added native support for `enable_thinking` parameter for ZhiPu Global/CN.
-  - Improved `do_sample` logic to automatically disable sampling when `enable_thinking` is active, as required by the API.
-- **OpenAI-compatible Reasoning**:
-  - Refactored `OpenAICompatibleRequestParts` to expose `ReasoningRequestParts`, allowing better propagation of reasoning parameters to adapters.
+- **Tencent Feature Compilation**:
+  - Fixed a missing `capabilities` method implementation in `TencentProvider`.
+  - Added missing `ProviderCapabilities` import in `src/providers/mod.rs` to fix compilation when the `tencent` feature is enabled.
+- **Tencent Connectivity**:
+  - Verified connectivity and basic/reasoning chat functionality for Tencent Hunyuan with real API keys.
+  - Corrected `TencentNativeProtocol` endpoint handling and signature construction.
 
-### Improvements
-
-- **Network Resilience**:
-  - Increased default request timeout and connection timeout from 60s to 120s to accommodate slow-responding reasoning/thinking models (e.g., `glm-4.5-flash`).
-- **Real-world Verification**:
-  - Verified connectivity and features (Tools, Thinking) for **Moonshot (Kimi)**, **MiniMax**, **ZhiPu**, and **Aliyun (DashScope)** across both Global and CN regions.
-  - Confirmed JWT authentication support for MiniMax CN without proxy interference.
-- **Security Audit**:
-  - Completed a comprehensive scan of examples and tests to ensure no API keys are exposed.
-  - Archived temporary debugging scripts to the `scripts/` directory to keep the workspace root clean.
-
-## [1.1.12] - 2026-03-20
+## [1.1.13] - 2026-03-20
 
 ## [1.1.11] - 2026-03-20
 

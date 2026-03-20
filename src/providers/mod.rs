@@ -5,6 +5,7 @@
 
 use crate::core::{GenericProvider, HttpClient, Protocol, Provider};
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::ProviderCapabilities;
 #[cfg(feature = "tencent")]
 use crate::protocols::TencentNativeProtocol;
 use crate::protocols::{
@@ -420,6 +421,10 @@ impl TencentProvider {
 impl Provider for TencentProvider {
     fn name(&self) -> &str {
         "tencent"
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        self.protocol.capabilities()
     }
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
