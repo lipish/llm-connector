@@ -1,25 +1,26 @@
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::{
+    ContentBlockMode, ReasoningRequestStrategy, StreamReasoningStrategy,
+};
 use crate::types::{ChatRequest, ChatResponse, ReasoningEffort, ToolCall};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ContentBlockMode {
-    Standard,
-    TextOnly,
-}
 
 #[derive(Clone, Debug)]
 pub struct OpenAICompatibleCapabilities {
     pub content_block_mode: ContentBlockMode,
+    pub supports_tool_choice: bool,
     pub supports_response_format: bool,
-    pub supports_reasoning_effort: bool,
+    pub reasoning_request_strategy: ReasoningRequestStrategy,
+    pub stream_reasoning_strategy: StreamReasoningStrategy,
 }
 
 impl Default for OpenAICompatibleCapabilities {
     fn default() -> Self {
         Self {
             content_block_mode: ContentBlockMode::Standard,
+            supports_tool_choice: true,
             supports_response_format: true,
-            supports_reasoning_effort: true,
+            reasoning_request_strategy: ReasoningRequestStrategy::ReasoningEffort,
+            stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
         }
     }
 }
@@ -31,6 +32,7 @@ pub struct OpenAICompatibleRequestParts {
     pub tool_choice: Option<serde_json::Value>,
     pub response_format: Option<serde_json::Value>,
     pub reasoning_effort: Option<ReasoningEffort>,
+    pub reasoning_parts: crate::protocols::common::thinking::ReasoningRequestParts,
 }
 
 #[derive(Clone, Debug)]
@@ -49,6 +51,9 @@ pub fn map_openai_compatible_messages(
         }
         ContentBlockMode::TextOnly => {
             crate::protocols::common::request::openai_message_converter_downgrade(&request.messages)
+        }
+        ContentBlockMode::NativeMessage => {
+            Ok(crate::protocols::common::request::openai_message_converter(&request.messages))
         }
     }
 }
@@ -73,11 +78,18 @@ pub fn map_openai_compatible_tools(
     })
 }
 
-pub fn map_openai_compatible_tool_choice(request: &ChatRequest) -> Option<serde_json::Value> {
-    request
-        .tool_choice
-        .as_ref()
-        .map(|choice| serde_json::to_value(choice).unwrap_or(serde_json::json!("auto")))
+pub fn map_openai_compatible_tool_choice(
+    request: &ChatRequest,
+    capabilities: &OpenAICompatibleCapabilities,
+) -> Option<serde_json::Value> {
+    if capabilities.supports_tool_choice {
+        request
+            .tool_choice
+            .as_ref()
+            .map(|choice| serde_json::to_value(choice).unwrap_or(serde_json::json!("auto")))
+    } else {
+        None
+    }
 }
 
 pub fn map_openai_compatible_response_format(
@@ -94,25 +106,16 @@ pub fn map_openai_compatible_response_format(
     }
 }
 
-pub fn map_openai_compatible_reasoning_effort(
-    request: &ChatRequest,
-    capabilities: &OpenAICompatibleCapabilities,
-) -> Option<ReasoningEffort> {
-    if capabilities.supports_reasoning_effort {
-        request.reasoning_effort
-    } else {
-        None
-    }
-}
-
 pub fn normalize_openai_compatible_content(
     content: Option<String>,
     reasoning_content: Option<String>,
+    stream_reasoning_strategy: StreamReasoningStrategy,
 ) -> NormalizedContent {
     let mut content_str = content.unwrap_or_default();
     let mut reasoning_str = reasoning_content;
 
-    if reasoning_str.is_none()
+    if stream_reasoning_strategy == StreamReasoningStrategy::EmbeddedThinkTags
+        && reasoning_str.is_none()
         && content_str.contains("<think>")
         && let Some(start_idx) = content_str.find("<think>")
         && let Some(end_idx) = content_str.find("</think>")
@@ -143,9 +146,13 @@ pub fn build_openai_compatible_request_parts(
 ) -> Result<OpenAICompatibleRequestParts, LlmConnectorError> {
     let messages = map_openai_compatible_messages(request, capabilities)?;
     let tools = map_openai_compatible_tools(request);
-    let tool_choice = map_openai_compatible_tool_choice(request);
+    let tool_choice = map_openai_compatible_tool_choice(request, capabilities);
     let response_format = map_openai_compatible_response_format(request, capabilities);
-    let reasoning_effort = map_openai_compatible_reasoning_effort(request, capabilities);
+    let reasoning_parts = crate::protocols::common::thinking::map_reasoning_request_parts_with_strategy(
+        request,
+        capabilities.reasoning_request_strategy,
+    );
+    let reasoning_effort = reasoning_parts.reasoning_effort;
 
     Ok(OpenAICompatibleRequestParts {
         messages,
@@ -153,16 +160,19 @@ pub fn build_openai_compatible_request_parts(
         tool_choice,
         response_format,
         reasoning_effort,
+        reasoning_parts,
     })
 }
 
 pub fn parse_openai_compatible_chat_response(
     response: &str,
     provider_name: &str,
+    stream_reasoning_strategy: StreamReasoningStrategy,
 ) -> Result<ChatResponse, LlmConnectorError> {
     crate::protocols::formats::chat_completions::parse_chat_completions_chat_response(
         response,
         provider_name,
+        stream_reasoning_strategy,
     )
 }
 
@@ -170,6 +180,11 @@ pub fn parse_openai_compatible_chat_response(
 pub fn parse_openai_compatible_stream(
     response: reqwest::Response,
     mode: crate::sse::StreamingParseMode,
+    stream_reasoning_strategy: StreamReasoningStrategy,
 ) -> crate::types::ChatStream {
-    crate::sse::sse_to_streaming_response_with_mode(response, mode)
+    crate::sse::sse_to_streaming_response_with_options(
+        response,
+        mode,
+        stream_reasoning_strategy,
+    )
 }

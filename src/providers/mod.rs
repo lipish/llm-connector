@@ -37,7 +37,7 @@ pub fn openai_with_config(
     timeout_secs: Option<u64>,
     proxy: Option<&str>,
 ) -> Result<OpenAIProvider, LlmConnectorError> {
-    let protocol = OpenAIProtocol::new(api_key);
+    let protocol = OpenAIProtocol::with_service(api_key, "openai");
     let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
     let auth_headers: HashMap<String, String> = protocol.auth_headers().into_iter().collect();
     let client = client.with_headers(auth_headers);
@@ -49,7 +49,7 @@ pub fn azure_openai(
     endpoint: &str,
     api_version: &str,
 ) -> Result<OpenAIProvider, LlmConnectorError> {
-    let protocol = OpenAIProtocol::new(api_key);
+    let protocol = OpenAIProtocol::with_service(api_key, "azure-openai");
     let client = HttpClient::new(endpoint)?
         .with_header("api-key".to_string(), api_key.to_string())
         .with_header("api-version".to_string(), api_version.to_string());
@@ -61,8 +61,18 @@ pub fn openai_compatible(
     base_url: &str,
     service_name: &str,
 ) -> Result<OpenAIProvider, LlmConnectorError> {
-    let protocol = OpenAIProtocol::new(api_key);
-    let client = HttpClient::new(base_url)?
+    openai_compatible_with_config(api_key, base_url, service_name, None, None)
+}
+
+pub fn openai_compatible_with_config(
+    api_key: &str,
+    base_url: &str,
+    service_name: &str,
+    timeout_secs: Option<u64>,
+    proxy: Option<&str>,
+) -> Result<OpenAIProvider, LlmConnectorError> {
+    let protocol = OpenAIProtocol::with_service(api_key, service_name);
+    let client = HttpClient::with_config(base_url, timeout_secs, proxy)?
         .with_header("Authorization".to_string(), format!("Bearer {}", api_key))
         .with_header(
             "User-Agent".to_string(),
@@ -89,7 +99,7 @@ pub fn xinference_with_config(
 ) -> Result<OpenAIProvider, LlmConnectorError> {
     // Xinference local deployments commonly run without auth.
     // Keep protocol shape OpenAI-compatible but do not inject Authorization by default.
-    let protocol = OpenAIProtocol::new("");
+    let protocol = OpenAIProtocol::with_service("", "xinference");
     let client = HttpClient::with_config(base_url, timeout_secs, proxy)?;
     Ok(GenericProvider::new(protocol, client))
 }
@@ -338,6 +348,11 @@ impl Provider for OllamaProvider {
     fn name(&self) -> &str {
         "ollama"
     }
+
+    fn capabilities(&self) -> crate::protocols::common::capabilities::ProviderCapabilities {
+        self.inner.capabilities()
+    }
+
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         self.inner.chat(request).await
     }

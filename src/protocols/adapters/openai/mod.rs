@@ -4,8 +4,11 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::{
+    ContentBlockMode, ProviderCapabilities,
+};
 use crate::protocols::common::openai_compatible::{
-    ContentBlockMode, OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
+    OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
     parse_openai_compatible_chat_response,
 };
 use crate::protocols::common::transport::resolve_endpoint;
@@ -20,13 +23,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug)]
 pub struct OpenAIProtocol {
     api_key: String,
+    service_name: String,
 }
 
 impl OpenAIProtocol {
     /// Create new OpenAI Protocol instance
     pub fn new(api_key: &str) -> Self {
+        Self::with_service(api_key, "openai")
+    }
+
+    pub fn with_service(api_key: &str, service_name: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
+            service_name: service_name.to_string(),
         }
     }
 
@@ -35,25 +44,68 @@ impl OpenAIProtocol {
         &self.api_key
     }
 
+    pub fn service_name(&self) -> &str {
+        &self.service_name
+    }
+
+    fn service_capabilities(&self) -> ProviderCapabilities {
+        match self.service_name.as_str() {
+            "openai" | "azure-openai" => ProviderCapabilities::openai(),
+            "zhipu" => ProviderCapabilities::zhipu_openai_compatible(),
+            "moonshot" | "deepseek" => {
+                let mut capabilities = ProviderCapabilities::openai_compatible_text_only();
+                capabilities.reasoning_request_strategy =
+                    crate::protocols::common::capabilities::ReasoningRequestStrategy::EnableThinking;
+                capabilities.stream_reasoning_strategy =
+                    crate::protocols::common::capabilities::StreamReasoningStrategy::SeparateField;
+                capabilities.region_key_scope_sensitive =
+                    self.service_name.as_str() == "moonshot";
+                capabilities.requires_region_routing =
+                    self.service_name.as_str() == "moonshot";
+                capabilities
+            }
+            "minimax" | "abab" => {
+                let mut capabilities = ProviderCapabilities::openai_compatible_text_only();
+                capabilities.region_key_scope_sensitive =
+                    self.service_name.as_str() == "minimax";
+                capabilities.requires_region_routing =
+                    self.service_name.as_str() == "minimax";
+                capabilities
+            }
+            "xinference" => {
+                let mut capabilities = ProviderCapabilities::openai_compatible_text_only();
+                capabilities.auth_kind = crate::protocols::common::capabilities::AuthKind::None;
+                capabilities.supports_embeddings = true;
+                capabilities
+            }
+            _ => ProviderCapabilities::openai(),
+        }
+    }
+
     fn capabilities_for_model(&self, model: &str) -> OpenAICompatibleCapabilities {
+        let base_capabilities = self.service_capabilities();
         let model_lower = model.to_lowercase();
-        let content_block_mode = if model_lower.contains("gpt-")
-            || model_lower.contains("o1-")
-            || model_lower.contains("o3-")
-        {
-            ContentBlockMode::Standard
-        } else if model_lower.contains("deepseek")
-            || model_lower.contains("moonshot")
-            || model_lower.contains("abab")
-        {
-            ContentBlockMode::TextOnly
-        } else {
-            ContentBlockMode::Standard
+        let content_block_mode = match base_capabilities.content_block_mode {
+            ContentBlockMode::Standard if self.service_name == "openai" => {
+                if model_lower.contains("deepseek")
+                    || model_lower.contains("moonshot")
+                    || model_lower.contains("abab")
+                    || model_lower.contains("minimax")
+                {
+                    ContentBlockMode::TextOnly
+                } else {
+                    ContentBlockMode::Standard
+                }
+            }
+            other => other,
         };
 
         OpenAICompatibleCapabilities {
             content_block_mode,
-            ..Default::default()
+            supports_tool_choice: base_capabilities.supports_tool_choice,
+            supports_response_format: base_capabilities.supports_response_format,
+            reasoning_request_strategy: base_capabilities.reasoning_request_strategy,
+            stream_reasoning_strategy: base_capabilities.stream_reasoning_strategy,
         }
     }
 }
@@ -64,7 +116,11 @@ impl Protocol for OpenAIProtocol {
     type Response = crate::protocols::formats::chat_completions::ChatCompletionsResponse;
 
     fn name(&self) -> &str {
-        "openai"
+        &self.service_name
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        self.service_capabilities()
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
@@ -88,10 +144,8 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let parts = build_openai_compatible_request_parts(
-            request,
-            &self.capabilities_for_model(&request.model),
-        )?;
+        let capabilities = self.capabilities_for_model(&request.model);
+        let parts = build_openai_compatible_request_parts(request, &capabilities)?;
 
         Ok(OpenAIRequest {
             model: request.model.clone(),
@@ -124,7 +178,11 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        parse_openai_compatible_chat_response(response, self.name())
+        parse_openai_compatible_chat_response(
+            response,
+            self.name(),
+            self.service_capabilities().stream_reasoning_strategy,
+        )
     }
 
     fn normalize_chat_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
@@ -239,9 +297,11 @@ impl Protocol for OpenAIProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        let stream_reasoning_strategy = self.capabilities().stream_reasoning_strategy;
         Ok(crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
             response,
             crate::sse::StreamingParseMode::OpenAIOnly,
+            stream_reasoning_strategy,
         ))
     }
 

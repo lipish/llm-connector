@@ -5,6 +5,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::ProviderCapabilities;
 #[cfg(feature = "streaming")]
 use crate::types::ChatStream;
 use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
@@ -116,6 +117,10 @@ impl Protocol for TencentNativeProtocol {
         "tencent"
     }
 
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::tencent()
+    }
+
     fn chat_endpoint(&self, _base_url: &str, _model: &str) -> String {
         // Native API uses a fixed endpoint usually, but we respect base_url if provided
         // Official endpoint: https://hunyuan.tencentcloudapi.com
@@ -134,6 +139,11 @@ impl Protocol for TencentNativeProtocol {
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
+        let reasoning_parts = crate::protocols::common::thinking::map_reasoning_request_parts(
+            request,
+            self.capabilities(),
+        );
+
         // Convert to Tencent format
         Ok(TencentRequest {
             model: Some(request.model.clone()),
@@ -153,7 +163,7 @@ impl Protocol for TencentNativeProtocol {
             temperature: request.temperature,
             top_p: request.top_p,
             stream: request.stream,
-            enable_thinking: request.enable_thinking,
+            enable_thinking: reasoning_parts.enable_thinking,
         })
     }
 

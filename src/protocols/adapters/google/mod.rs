@@ -4,6 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::types::{
     ChatRequest, ChatResponse, Choice, DocumentSource, EmbedRequest, EmbedResponse, EmbeddingData,
     ImageSource, Message, MessageBlock, Role, Usage,
@@ -27,6 +28,10 @@ impl Protocol for GoogleProtocol {
 
     fn name(&self) -> &str {
         "google"
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::google()
     }
 
     fn chat_endpoint(&self, base_url: &str, model: &str) -> String {
@@ -301,6 +306,11 @@ pub struct GoogleFunctionCallingConfig {
 
 impl From<&ChatRequest> for GoogleRequest {
     fn from(req: &ChatRequest) -> Self {
+        let reasoning_parts = crate::protocols::common::thinking::map_reasoning_request_parts(
+            req,
+            crate::protocols::common::capabilities::ProviderCapabilities::google(),
+        );
+
         let contents = req
             .messages
             .iter()
@@ -423,7 +433,7 @@ impl From<&ChatRequest> for GoogleRequest {
                 temperature: req.temperature,
                 top_p: req.top_p,
                 max_output_tokens: req.max_tokens,
-                thinking_config: req.enable_thinking.map(|b| GoogleThinkingConfig {
+                thinking_config: reasoning_parts.enable_thinking.map(|b| GoogleThinkingConfig {
                     include_thoughts: b,
                 }),
             }),

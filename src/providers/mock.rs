@@ -164,6 +164,10 @@ impl Provider for MockProvider {
         "mock"
     }
 
+    fn capabilities(&self) -> crate::protocols::common::capabilities::ProviderCapabilities {
+        crate::protocols::common::capabilities::ProviderCapabilities::default()
+    }
+
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
         self.requests.lock().unwrap().push(request.clone());
 

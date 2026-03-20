@@ -4,6 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,10 @@ impl Protocol for AnthropicProtocol {
 
     fn name(&self) -> &str {
         "anthropic"
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::anthropic()
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
@@ -91,13 +96,14 @@ impl Protocol for AnthropicProtocol {
             }
         }
 
-        // Handle thinking/budget
+        let reasoning_parts = crate::protocols::common::thinking::map_reasoning_request_parts(
+            request,
+            self.capabilities(),
+        );
+
         let mut max_tokens = request.max_tokens.unwrap_or(1024);
-        let thinking = if let Some(budget) = request.thinking_budget {
-            // If budget is set, enable thinking
-            // Ensure max_tokens is larger than budget (Anthropic requirement)
+        let thinking = if let Some(budget) = reasoning_parts.thinking_budget {
             if max_tokens <= budget {
-                // If user didn't set enough max_tokens, bump it
                 max_tokens = budget + 4096;
             }
             Some(AnthropicThinking {

@@ -4,12 +4,15 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::{
+    ContentBlockMode, ProviderCapabilities, ReasoningRequestStrategy, StreamReasoningStrategy,
+};
 use crate::protocols::common::openai_compatible::{
-    ContentBlockMode, OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
+    OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
     parse_openai_compatible_chat_response,
 };
 use crate::protocols::common::transport::resolve_endpoint;
-use crate::types::{ChatRequest, ChatResponse, Tool, ToolChoice};
+use crate::types::{ChatRequest, ChatResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -62,8 +65,10 @@ impl ZhipuProtocol {
         match self.mode {
             ZhipuApiMode::Native | ZhipuApiMode::OpenAICompatible => OpenAICompatibleCapabilities {
                 content_block_mode: ContentBlockMode::Standard,
+                supports_tool_choice: true,
                 supports_response_format: false,
-                supports_reasoning_effort: false,
+                reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
+                stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
             },
         }
     }
@@ -71,7 +76,11 @@ impl ZhipuProtocol {
     fn parse_chat_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
         match self.mode {
             ZhipuApiMode::Native | ZhipuApiMode::OpenAICompatible => {
-                parse_openai_compatible_chat_response(response, self.name())
+                parse_openai_compatible_chat_response(
+                    response,
+                    self.name(),
+                    crate::core::Protocol::capabilities(self).stream_reasoning_strategy,
+                )
             }
         }
     }
@@ -93,6 +102,10 @@ impl Protocol for ZhipuProtocol {
 
     fn name(&self) -> &str {
         "zhipu"
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::zhipu_openai_compatible()
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
@@ -122,6 +135,17 @@ impl Protocol for ZhipuProtocol {
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         let parts = build_openai_compatible_request_parts(request, &self.capabilities())?;
 
+        // Zhipu doesn't support float values for temperature > 1.0 or highly specific fields in some models,
+        // but the main issue is usually the message format if multimodal is used.
+        // Let's ensure the request is clean.
+
+        // Zhipu often requires do_sample if temperature is set
+        let do_sample = if request.temperature.is_some() || request.top_p.is_some() {
+            Some(true)
+        } else {
+            None
+        };
+
         Ok(ZhipuRequest {
             model: request.model.clone(),
             messages: parts.messages,
@@ -129,8 +153,10 @@ impl Protocol for ZhipuProtocol {
             temperature: request.temperature,
             top_p: request.top_p,
             stream: request.stream,
-            tools: request.tools.clone(),
-            tool_choice: request.tool_choice.clone(),
+            tools: parts.tools,
+            tool_choice: parts.tool_choice,
+            do_sample,
+            enable_thinking: parts.reasoning_parts.enable_thinking,
         })
     }
 
@@ -175,6 +201,7 @@ impl Protocol for ZhipuProtocol {
         Ok(crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
             response,
             self.streaming_parse_mode(),
+            crate::core::Protocol::capabilities(self).stream_reasoning_strategy,
         ))
     }
 
@@ -190,7 +217,7 @@ impl Protocol for ZhipuProtocol {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZhipuRequest {
     pub model: String,
-    pub messages: Vec<serde_json::Value>,
+    pub messages: Vec<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -200,9 +227,13 @@ pub struct ZhipuRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<Tool>>,
+    pub tools: Option<Vec<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_choice: Option<ToolChoice>,
+    pub tool_choice: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub do_sample: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_thinking: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

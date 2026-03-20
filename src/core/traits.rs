@@ -36,6 +36,11 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     /// Protocol name (such as "openai", "anthropic")
     fn name(&self) -> &str;
 
+    /// Protocol capability metadata.
+    fn capabilities(&self) -> crate::protocols::common::capabilities::ProviderCapabilities {
+        crate::protocols::common::capabilities::ProviderCapabilities::default()
+    }
+
     /// Get chat completion endpoint URL
     fn chat_endpoint(&self, base_url: &str, model: &str) -> String;
 
@@ -219,6 +224,9 @@ pub trait Provider: Send + Sync {
     /// Provider name (such as "openai", "aliyun", "ollama")
     fn name(&self) -> &str;
 
+    /// Provider capability metadata.
+    fn capabilities(&self) -> crate::protocols::common::capabilities::ProviderCapabilities;
+
     /// Chat completion
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError>;
 
@@ -278,6 +286,114 @@ fn build_request_overrides<P: Protocol>(
     }
 
     overrides
+}
+
+fn validate_chat_request_capabilities<P: Protocol>(
+    protocol: &P,
+    request: &ChatRequest,
+) -> Result<(), LlmConnectorError> {
+    let capabilities = protocol.capabilities();
+    let supports_enable_thinking = matches!(
+        capabilities.reasoning_request_strategy,
+        crate::protocols::common::capabilities::ReasoningRequestStrategy::EnableThinking
+            | crate::protocols::common::capabilities::ReasoningRequestStrategy::EnableThinkingWithBudget
+    );
+    let supports_thinking_budget = matches!(
+        capabilities.reasoning_request_strategy,
+        crate::protocols::common::capabilities::ReasoningRequestStrategy::ThinkingBudget
+            | crate::protocols::common::capabilities::ReasoningRequestStrategy::EnableThinkingWithBudget
+    );
+    let supports_reasoning_effort = matches!(
+        capabilities.reasoning_request_strategy,
+        crate::protocols::common::capabilities::ReasoningRequestStrategy::ReasoningEffort
+    );
+
+    if !capabilities.supports_multimodal_input && request.has_non_text_content() {
+        return Err(LlmConnectorError::InvalidRequest(format!(
+            "{} does not support non-text message blocks for this request",
+            protocol.name()
+        )));
+    }
+
+    if !capabilities.supports_response_format && request.response_format.is_some() {
+        return Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support response_format",
+            protocol.name()
+        )));
+    }
+
+    if !capabilities.supports_tool_choice && request.tool_choice.is_some() {
+        return Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support tool_choice",
+            protocol.name()
+        )));
+    }
+
+    if request.enable_thinking.is_some() && !supports_enable_thinking {
+        return Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support enable_thinking",
+            protocol.name()
+        )));
+    }
+
+    if request.thinking_budget.is_some() && !supports_thinking_budget {
+        return Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support thinking_budget",
+            protocol.name()
+        )));
+    }
+
+    if request.reasoning_effort.is_some() && !supports_reasoning_effort {
+        return Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support reasoning_effort",
+            protocol.name()
+        )));
+    }
+
+    Ok(())
+}
+
+fn validate_embed_request_capabilities<P: Protocol>(
+    protocol: &P,
+    _request: &EmbedRequest,
+) -> Result<(), LlmConnectorError> {
+    let capabilities = protocol.capabilities();
+
+    if !capabilities.supports_embeddings {
+        return Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support embeddings",
+            protocol.name()
+        )));
+    }
+
+    Ok(())
+}
+
+fn validate_responses_request_capabilities<P: Protocol>(
+    protocol: &P,
+    request: &ResponsesRequest,
+) -> Result<(), LlmConnectorError> {
+    let capabilities = protocol.capabilities();
+
+    if !capabilities.supports_responses_api {
+        if request.tool_choice.is_some() && !capabilities.supports_tool_choice {
+            return Err(LlmConnectorError::UnsupportedOperation(format!(
+                "{} fallback chat path does not support tool_choice for responses requests",
+                protocol.name()
+            )));
+        }
+
+        return Ok(());
+    }
+
+    if request.tool_choice.is_some() && !capabilities.supports_tool_choice {
+        return Err(LlmConnectorError::UnsupportedOperation(format!(
+            "{} does not support tool_choice for responses requests",
+            protocol.name()
+        )));
+    }
+
+    Ok(())
 }
 
 fn build_responses_request_overrides<P: Protocol>(
@@ -389,6 +505,10 @@ impl<P: Protocol> GenericProvider<P> {
     pub fn client(&self) -> &super::HttpClient {
         &self.client
     }
+
+    pub fn capabilities(&self) -> crate::protocols::common::capabilities::ProviderCapabilities {
+        self.protocol.capabilities()
+    }
 }
 
 impl<P: Protocol> Clone for GenericProvider<P> {
@@ -406,7 +526,12 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         self.protocol.name()
     }
 
+    fn capabilities(&self) -> crate::protocols::common::capabilities::ProviderCapabilities {
+        self.protocol.capabilities()
+    }
+
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
+        validate_chat_request_capabilities(&self.protocol, request)?;
         let protocol_request = self.protocol.build_chat_request_body(request)?;
 
         // Dynamic endpoint resolution
@@ -452,6 +577,8 @@ impl<P: Protocol> Provider for GenericProvider<P> {
     async fn chat_stream(&self, request: &ChatRequest) -> Result<ChatStream, LlmConnectorError> {
         let mut streaming_request = request.clone();
         streaming_request.stream = Some(true);
+
+        validate_chat_request_capabilities(&self.protocol, &streaming_request)?;
 
         let protocol_request = self.protocol.build_chat_request_body(&streaming_request)?;
 
@@ -508,6 +635,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
     }
 
     async fn embed(&self, request: &EmbedRequest) -> Result<EmbedResponse, LlmConnectorError> {
+        validate_embed_request_capabilities(&self.protocol, request)?;
         let endpoint = self
             .protocol
             .embed_endpoint(self.client.base_url(), &request.model)
@@ -537,6 +665,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         &self,
         request: &ResponsesRequest,
     ) -> Result<ResponsesResponse, LlmConnectorError> {
+        validate_responses_request_capabilities(&self.protocol, request)?;
         let base_url = request
             .base_url
             .as_deref()
@@ -640,6 +769,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         &self,
         request: &ResponsesRequest,
     ) -> Result<ResponsesStream, LlmConnectorError> {
+        validate_responses_request_capabilities(&self.protocol, request)?;
         let base_url = request
             .base_url
             .as_deref()
@@ -822,5 +952,77 @@ impl<P: Protocol> Provider for GenericProvider<P> {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_chat_request_capabilities;
+    use crate::protocols::common::capabilities::ProviderCapabilities;
+    use crate::protocols::OllamaProtocol;
+    use crate::types::{ChatRequest, MessageBlock, ToolChoice};
+
+    #[test]
+    fn test_capability_precheck_rejects_tool_choice_when_unsupported() {
+        let protocol = OllamaProtocol::new();
+        let request = ChatRequest::new("llama3.2")
+            .add_message(crate::types::Message::user("hello"))
+            .with_tool_choice(ToolChoice::auto());
+
+        let error = validate_chat_request_capabilities(&protocol, &request)
+            .expect_err("ollama should reject tool_choice precheck");
+
+        match error {
+            crate::error::LlmConnectorError::UnsupportedOperation(message) => {
+                assert!(message.contains("tool_choice"));
+            }
+            other => panic!("unexpected error: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_capability_precheck_rejects_thinking_controls_when_unsupported() {
+        let protocol = OllamaProtocol::new();
+        let request = ChatRequest::new("llama3.2")
+            .add_message(crate::types::Message::user("hello"))
+            .with_enable_thinking(true);
+
+        let error = validate_chat_request_capabilities(&protocol, &request)
+            .expect_err("ollama should reject thinking controls precheck");
+
+        match error {
+            crate::error::LlmConnectorError::UnsupportedOperation(message) => {
+                assert!(message.contains("enable_thinking"));
+            }
+            other => panic!("unexpected error: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_capability_precheck_rejects_non_text_blocks_when_unsupported() {
+        let protocol = OllamaProtocol::new();
+        let request = ChatRequest::new("llama3.2")
+            .add_message_block(MessageBlock::image_url("https://example.com/test.png"));
+
+        let error = validate_chat_request_capabilities(&protocol, &request)
+            .expect_err("ollama should reject non-text multimodal input precheck");
+
+        match error {
+            crate::error::LlmConnectorError::InvalidRequest(message) => {
+                assert!(message.contains("non-text message blocks"));
+            }
+            other => panic!("unexpected error: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_ollama_capabilities_exposed() {
+        let capabilities = ProviderCapabilities::ollama();
+        assert!(!capabilities.supports_tool_choice);
+        assert_eq!(
+            capabilities.reasoning_request_strategy,
+            crate::protocols::common::capabilities::ReasoningRequestStrategy::Unsupported
+        );
+        assert!(!capabilities.supports_multimodal_input);
     }
 }

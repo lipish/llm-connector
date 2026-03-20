@@ -285,6 +285,13 @@ impl ChatRequest {
         self.extra_headers = Some(headers);
         self
     }
+
+    pub fn has_non_text_content(&self) -> bool {
+        self.messages
+            .iter()
+            .flat_map(|message| message.content.iter())
+            .any(|block| !block.is_text())
+    }
 }
 
 /// A message in the conversation

@@ -4,6 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::types::{
     ChatRequest, ChatResponse, Choice, EmbedRequest, EmbedResponse, EmbeddingData, Message, Role,
     Usage,
@@ -27,6 +28,10 @@ impl Protocol for OllamaProtocol {
 
     fn name(&self) -> &str {
         "ollama"
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::ollama()
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {

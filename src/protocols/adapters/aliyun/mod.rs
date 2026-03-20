@@ -6,6 +6,7 @@ use crate::core::Protocol;
 use crate::error::LlmConnectorError;
 #[cfg(feature = "streaming")]
 use crate::protocols::common::streamers::map_sse_json_stream;
+use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::protocols::common::transport::resolve_prefixed_endpoint;
 use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
 
@@ -46,6 +47,10 @@ impl Protocol for AliyunProtocol {
         "aliyun"
     }
 
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::aliyun()
+    }
+
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
         resolve_prefixed_endpoint(base_url, "/api/v1", "/services/aigc/text-generation/generation")
     }
@@ -73,6 +78,10 @@ impl Protocol for AliyunProtocol {
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
         let aliyun_messages =
             crate::protocols::common::request::openai_message_converter(&request.messages);
+        let reasoning_parts = crate::protocols::common::thinking::map_reasoning_request_parts(
+            request,
+            self.capabilities(),
+        );
 
         Ok(AliyunRequest {
             model: request.model.clone(),
@@ -89,7 +98,7 @@ impl Protocol for AliyunProtocol {
                 } else {
                     None
                 },
-                enable_thinking: request.enable_thinking,
+                enable_thinking: reasoning_parts.enable_thinking,
                 tools: request.tools.clone(),
                 tool_choice: request.tool_choice.clone(),
             },
@@ -138,6 +147,7 @@ impl Protocol for AliyunProtocol {
         crate::protocols::formats::chat_completions::parse_chat_completions_chat_response(
             response,
             self.name(),
+            self.capabilities().stream_reasoning_strategy,
         )
     }
 

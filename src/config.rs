@@ -157,7 +157,7 @@ impl ProviderConfig {
 
     /// Get the timeout duration
     pub fn timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_millis(self.timeout_ms.unwrap_or(30000))
+        std::time::Duration::from_millis(self.timeout_ms.unwrap_or(120000))
     }
 
     /// Get the retry configuration, or default if not set

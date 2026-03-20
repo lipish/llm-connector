@@ -6,6 +6,7 @@
 //! boilerplate across different protocol implementations.
 
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::StreamReasoningStrategy;
 use crate::types::{ChatResponse, EmbedResponse, EmbeddingData, Usage};
 use serde::Deserialize;
 
@@ -74,6 +75,7 @@ pub struct ChatCompletionsUsage {
 pub fn parse_chat_completions_chat_response(
     response: &str,
     provider_name: &str,
+    stream_reasoning_strategy: StreamReasoningStrategy,
 ) -> Result<ChatResponse, LlmConnectorError> {
     let raw: ChatCompletionsResponse = serde_json::from_str(response)
         .map_err(|e| LlmConnectorError::ParseError(format!("{}: {}", provider_name, e)))?;
@@ -120,6 +122,7 @@ pub fn parse_chat_completions_chat_response(
                 let normalized = crate::protocols::common::openai_compatible::normalize_openai_compatible_content(
                     msg.content,
                     msg.reasoning_content,
+                    stream_reasoning_strategy,
                 );
                 let content_str = normalized.content;
                 let reasoning_str = normalized.reasoning;
@@ -169,6 +172,7 @@ pub fn parse_chat_completions_chat_response(
 #[cfg(test)]
 mod tests {
     use super::parse_chat_completions_chat_response;
+    use crate::protocols::common::capabilities::StreamReasoningStrategy;
 
     #[test]
     fn test_parse_dashscope_wrapped_chat_response() {
@@ -192,7 +196,11 @@ mod tests {
             "request_id": "req_dashscope_1"
         }"#;
 
-        let parsed = parse_chat_completions_chat_response(response, "aliyun")
+        let parsed = parse_chat_completions_chat_response(
+            response,
+            "aliyun",
+            StreamReasoningStrategy::SeparateField,
+        )
             .expect("should parse dashscope wrapped response");
 
         assert_eq!(parsed.id, "req_dashscope_1");
@@ -201,6 +209,49 @@ mod tests {
         assert_eq!(parsed.choices[0].message.content_as_text(), "Hello from DashScope");
         assert_eq!(parsed.choices[0].finish_reason.as_deref(), Some("stop"));
         assert_eq!(parsed.usage.as_ref().map(|u| u.total_tokens), Some(24));
+    }
+
+    #[test]
+    fn test_parse_chat_response_embedded_think_tags_respects_strategy() {
+        let response = r#"{
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "created": 123,
+            "model": "test-model",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "<think>step by step</think>final answer"
+                    },
+                    "finish_reason": "stop"
+                }
+            ]
+        }"#;
+
+        let embedded = parse_chat_completions_chat_response(
+            response,
+            "deepseek",
+            StreamReasoningStrategy::EmbeddedThinkTags,
+        )
+        .expect("embedded think tags strategy should parse");
+
+        assert_eq!(embedded.content, "final answer");
+        assert_eq!(embedded.reasoning_content.as_deref(), Some("step by step"));
+
+        let separate = parse_chat_completions_chat_response(
+            response,
+            "zhipu",
+            StreamReasoningStrategy::SeparateField,
+        )
+        .expect("separate field strategy should parse");
+
+        assert_eq!(
+            separate.content,
+            "<think>step by step</think>final answer"
+        );
+        assert_eq!(separate.reasoning_content, None);
     }
 }
 

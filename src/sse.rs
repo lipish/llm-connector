@@ -208,6 +208,21 @@ pub fn sse_to_streaming_response_with_mode(
     response: reqwest::Response,
     parse_mode: StreamingParseMode,
 ) -> crate::types::ChatStream {
+    sse_to_streaming_response_with_options(
+        response,
+        parse_mode,
+        crate::protocols::common::capabilities::StreamReasoningStrategy::EmbeddedThinkTags,
+    )
+}
+
+/// Convert HTTP response to StreamingResponse stream with protocol-aware parsing mode
+/// and optional reasoning tag normalization.
+#[cfg(feature = "streaming")]
+pub fn sse_to_streaming_response_with_options(
+    response: reqwest::Response,
+    parse_mode: StreamingParseMode,
+    stream_reasoning_strategy: crate::protocols::common::capabilities::StreamReasoningStrategy,
+) -> crate::types::ChatStream {
     // Use Auto detection by default
     let string_stream = create_text_stream(response, StreamFormat::Auto);
 
@@ -222,7 +237,11 @@ pub fn sse_to_streaming_response_with_mode(
             let processed = result.and_then(|json_str| {
                 let mut streaming_response = parse_streaming_payload(&json_str, parse_mode)?;
 
-                normalize_think_tags_across_stream(&mut streaming_response, state);
+                if stream_reasoning_strategy
+                    == crate::protocols::common::capabilities::StreamReasoningStrategy::EmbeddedThinkTags
+                {
+                    normalize_think_tags_across_stream(&mut streaming_response, state);
+                }
 
                 // Populate convenience fields
                 populate_convenience_fields(&mut streaming_response);
@@ -494,6 +513,7 @@ fn normalize_openai_compatible_streaming_choices(response: &mut crate::types::St
         let normalized = crate::protocols::common::openai_compatible::normalize_openai_compatible_content(
             choice.delta.content.take(),
             choice.delta.reasoning_content.take(),
+            crate::protocols::common::capabilities::StreamReasoningStrategy::EmbeddedThinkTags,
         );
 
         if !normalized.content.is_empty() {
@@ -723,6 +743,44 @@ mod tests {
             parsed.choices[0].delta.reasoning_content.as_deref(),
             Some("internal reasoning")
         );
+    }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_think_tags_are_not_stripped_when_normalization_disabled() {
+        let mut response = crate::types::StreamingResponse {
+            id: "chatcmpl-test".to_string(),
+            object: "chat.completion.chunk".to_string(),
+            created: 1740000000,
+            model: "glm-4.5-flash".to_string(),
+            choices: vec![crate::types::StreamingChoice {
+                index: 0,
+                delta: crate::types::Delta {
+                    role: None,
+                    content: Some("<think>internal reasoning</think>Visible answer".to_string()),
+                    tool_calls: None,
+                    reasoning_content: None,
+                    reasoning: None,
+                    thought: None,
+                    thinking: None,
+                },
+                finish_reason: None,
+                logprobs: None,
+            }],
+            content: String::new(),
+            reasoning_content: None,
+            usage: None,
+            system_fingerprint: None,
+        };
+
+        super::populate_convenience_fields(&mut response);
+
+        assert_eq!(response.content, "<think>internal reasoning</think>Visible answer");
+        assert_eq!(
+            response.choices[0].delta.content.as_deref(),
+            Some("<think>internal reasoning</think>Visible answer")
+        );
+        assert_eq!(response.choices[0].delta.reasoning_content.as_deref(), None);
     }
 
     #[tokio::test]

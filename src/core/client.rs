@@ -27,7 +27,7 @@ impl HttpClient {
     /// If you need to use a proxy, use `with_config()` and explicitly set the proxy parameter.
     pub fn new(base_url: &str) -> Result<Self, LlmConnectorError> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(60)) // Increased from 30 to 60 seconds
+            .timeout(Duration::from_secs(120)) // Increased from 60 to 120 seconds for thinking/CoT
             .no_proxy() // Disable system proxy by default to avoid timeout issues
             .build()
             .map_err(|e| {
@@ -61,11 +61,11 @@ impl HttpClient {
     ) -> Result<Self, LlmConnectorError> {
         let mut builder = Client::builder();
 
-        // Set timeout (default 60 seconds for streaming compatibility)
+        // Set timeout (default 120 seconds for thinking/CoT compatibility)
         if let Some(timeout) = timeout_secs {
             builder = builder.timeout(Duration::from_secs(timeout));
         } else {
-            builder = builder.timeout(Duration::from_secs(60)); // Increased from 30 to 60 seconds
+            builder = builder.timeout(Duration::from_secs(120)); // Increased from 60 to 120 seconds
         }
 
         // Set proxy or disable system proxy
