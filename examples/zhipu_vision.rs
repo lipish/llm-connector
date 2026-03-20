@@ -1,8 +1,9 @@
 //! Zhipu Vision Example
 //!
-//! Demonstrates multi-modal (image) support using Zhipu GLM-4V or GLM-5.
+//! Demonstrates multi-modal (image) support using Zhipu GLM-4V or GLM-5 on cn/global endpoints.
 //!
 //! Run: cargo run --example zhipu_vision
+//! Recommended real-world verification: run without local proxy interference.
 
 use dotenvy::dotenv;
 use llm_connector::{
@@ -17,7 +18,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Zhipu Vision/Multi-modal Example\n");
 
     let api_key = env::var("ZHIPU_API_KEY").expect("ZHIPU_API_KEY not set");
-    let region = env::var("ZHIPU_REGION").unwrap_or_else(|_| "global".to_string());
+    let region = env::var("ZHIPU_REGION")
+        .or_else(|_| env::var("REGION"))
+        .unwrap_or_else(|_| "global".to_string());
 
     // For vision, GLM-4V is standard, but GLM-5 should support it too.
     let model = env::var("ZHIPU_MODEL").unwrap_or_else(|_| "glm-4v".to_string());

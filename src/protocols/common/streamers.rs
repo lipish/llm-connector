@@ -2,7 +2,33 @@
 
 use crate::error::LlmConnectorError;
 use crate::types::{Delta, Role, StreamingChoice, StreamingResponse, Usage};
+#[cfg(feature = "streaming")]
+use futures_util::StreamExt;
 use serde_json::Value;
+
+#[cfg(feature = "streaming")]
+pub fn map_sse_json_stream<F>(
+    response: reqwest::Response,
+    mapper: F,
+) -> crate::types::ChatStream
+where
+    F: Fn(String) -> Result<Option<StreamingResponse>, LlmConnectorError> + Send + Sync + 'static,
+{
+    let events_stream = crate::sse::create_text_stream(response, crate::sse::StreamFormat::Sse);
+    let response_stream = events_stream.filter_map(move |result| {
+        let mapped = match result {
+            Ok(json_str) => match mapper(json_str) {
+                Ok(Some(response)) => Some(Ok(response)),
+                Ok(None) => None,
+                Err(e) => Some(Err(e)),
+            },
+            Err(e) => Some(Err(e)),
+        };
+        std::future::ready(mapped)
+    });
+
+    Box::pin(response_stream)
+}
 
 /// Anthropic Event interpretation
 pub fn interpret_anthropic_event(

@@ -4,6 +4,9 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+#[cfg(feature = "streaming")]
+use crate::protocols::common::streamers::map_sse_json_stream;
+use crate::protocols::common::transport::resolve_prefixed_endpoint;
 use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
 
 use async_trait::async_trait;
@@ -44,35 +47,27 @@ impl Protocol for AliyunProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
-        let base = base_url.trim_end_matches('/');
-        if base.ends_with("/api/v1") {
-            format!("{}/services/aigc/text-generation/generation", base)
-        } else {
-            format!("{}/api/v1/services/aigc/text-generation/generation", base)
-        }
+        resolve_prefixed_endpoint(base_url, "/api/v1", "/services/aigc/text-generation/generation")
     }
 
     fn embed_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
-        let base = base_url.trim_end_matches('/');
-        if base.ends_with("/api/v1") {
-            Some(format!(
-                "{}/services/embeddings/text-embedding/text-embedding",
-                base
-            ))
-        } else {
-            Some(format!(
-                "{}/api/v1/services/embeddings/text-embedding/text-embedding",
-                base
-            ))
+        Some(resolve_prefixed_endpoint(
+            base_url,
+            "/api/v1",
+            "/services/embeddings/text-embedding/text-embedding",
+        ))
+    }
+
+    fn auth_strategy(&self) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::Bearer {
+            api_key: self.api_key.clone(),
         }
     }
 
-    fn auth_headers(&self) -> Vec<(String, String)> {
-        crate::protocols::common::auth::bearer_auth(&self.api_key)
-    }
-
-    fn build_auth_headers_for_override(&self, api_key: &str) -> Vec<(String, String)> {
-        crate::protocols::common::auth::bearer_auth(api_key)
+    fn override_auth_strategy(&self, api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::Bearer {
+            api_key: api_key.to_string(),
+        }
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
@@ -134,10 +129,9 @@ impl Protocol for AliyunProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        Ok(crate::sse::sse_to_streaming_response_with_mode(
-            response,
-            crate::sse::StreamingParseMode::OpenAIOnly,
-        ))
+        Ok(map_sse_json_stream(response, |json_str| {
+            parse_aliyun_stream_event(&json_str).map(Some)
+        }))
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
@@ -215,4 +209,168 @@ pub struct AliyunParameters {
     pub tools: Option<Vec<crate::types::Tool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<crate::types::ToolChoice>,
+}
+
+#[cfg(feature = "streaming")]
+fn parse_aliyun_stream_event(
+    json_str: &str,
+) -> Result<crate::types::StreamingResponse, LlmConnectorError> {
+    use crate::types::{Delta, Role, StreamingChoice, StreamingResponse, Usage};
+
+    let raw: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+        LlmConnectorError::ParseError(format!(
+            "Failed to parse Aliyun streaming event: {}. Content: {}",
+            e, json_str
+        ))
+    })?;
+
+    let output = raw
+        .get("output")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| {
+            LlmConnectorError::ParseError(format!(
+                "Aliyun streaming event missing output field. Content: {}",
+                json_str
+            ))
+        })?;
+
+    let choices = output
+        .get("choices")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| {
+            LlmConnectorError::ParseError(format!(
+                "Aliyun streaming event missing output.choices field. Content: {}",
+                json_str
+            ))
+        })?;
+
+    let first_choice = choices.first().and_then(|v| v.as_object()).ok_or_else(|| {
+        LlmConnectorError::ParseError(format!(
+            "Aliyun streaming event missing first choice. Content: {}",
+            json_str
+        ))
+    })?;
+
+    let message = first_choice
+        .get("message")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| {
+            LlmConnectorError::ParseError(format!(
+                "Aliyun streaming event missing choice.message field. Content: {}",
+                json_str
+            ))
+        })?;
+
+    let content = message
+        .get("content")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+
+    let role = match message.get("role").and_then(|v| v.as_str()) {
+        Some("system") => Some(Role::System),
+        Some("user") => Some(Role::User),
+        Some("assistant") => Some(Role::Assistant),
+        Some("tool") => Some(Role::Tool),
+        _ => None,
+    };
+
+    let finish_reason = first_choice
+        .get("finish_reason")
+        .and_then(|v| v.as_str())
+        .and_then(|reason| match reason {
+            "" | "null" => None,
+            other => Some(other.to_string()),
+        });
+
+    let usage = raw.get("usage").and_then(|value| {
+        let prompt_tokens = value.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        let completion_tokens = value
+            .get("output_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32;
+        let total_tokens = value
+            .get("total_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or((prompt_tokens + completion_tokens) as u64) as u32;
+
+        if prompt_tokens > 0 || completion_tokens > 0 || total_tokens > 0 {
+            Some(Usage {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
+                ..Default::default()
+            })
+        } else {
+            None
+        }
+    });
+
+    let created = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    Ok(StreamingResponse {
+        id: raw
+            .get("request_id")
+            .and_then(|v| v.as_str())
+            .map(ToString::to_string)
+            .unwrap_or_else(|| format!("aliyun-{}", created)),
+        object: "chat.completion.chunk".to_string(),
+        created,
+        model: String::new(),
+        choices: vec![StreamingChoice {
+            index: 0,
+            delta: Delta {
+                role,
+                content: if content.is_empty() {
+                    None
+                } else {
+                    Some(content.clone())
+                },
+                tool_calls: None,
+                reasoning_content: None,
+                reasoning: None,
+                thought: None,
+                thinking: None,
+            },
+            finish_reason,
+            logprobs: None,
+        }],
+        content,
+        reasoning_content: None,
+        usage,
+        system_fingerprint: None,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_aliyun_stream_event;
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_parse_aliyun_stream_event_delta_chunk() {
+        let chunk = r#"{"output":{"choices":[{"message":{"content":"Hello","role":"assistant"},"finish_reason":"null"}]},"usage":{"total_tokens":14,"output_tokens":1,"input_tokens":13},"request_id":"req_1"}"#;
+
+        let parsed = parse_aliyun_stream_event(chunk).expect("should parse aliyun stream chunk");
+        assert_eq!(parsed.id, "req_1");
+        assert_eq!(parsed.content, "Hello");
+        assert_eq!(parsed.choices.len(), 1);
+        assert_eq!(parsed.choices[0].delta.content.as_deref(), Some("Hello"));
+        assert_eq!(parsed.choices[0].finish_reason, None);
+        assert_eq!(parsed.usage.as_ref().map(|u| u.prompt_tokens), Some(13));
+    }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_parse_aliyun_stream_event_final_chunk() {
+        let chunk = r#"{"output":{"choices":[{"message":{"content":"","role":"assistant"},"finish_reason":"stop"}]},"usage":{"total_tokens":24,"output_tokens":11,"input_tokens":13},"request_id":"req_2"}"#;
+
+        let parsed = parse_aliyun_stream_event(chunk).expect("should parse aliyun final chunk");
+        assert_eq!(parsed.id, "req_2");
+        assert_eq!(parsed.choices[0].finish_reason.as_deref(), Some("stop"));
+        assert_eq!(parsed.usage.as_ref().map(|u| u.total_tokens), Some(24));
+    }
 }

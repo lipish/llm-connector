@@ -37,7 +37,7 @@ This directory contains curated usage examples for the `llm-connector` library.
 
 | Example File | Description | Run Command |
 |---------|------|----------|
-| `zhipu_tools.rs` | Zhipu GLM tool calling basic example | `cargo run --example zhipu_tools` |
+| `zhipu_tools.rs` | Zhipu GLM tool calling example for cn/global endpoints | `cargo run --example zhipu_tools` |
 | `zhipu_multiround_tools.rs` | Zhipu GLM multi-round tool calling example | `cargo run --example zhipu_multiround_tools` |
 
 ## 🔧 Environment Variables
@@ -55,6 +55,8 @@ export DASHSCOPE_API_KEY="your-dashscope-api-key"
 ### Zhipu GLM
 ```bash
 export ZHIPU_API_KEY="your-zhipu-api-key"
+export ZHIPU_REGION="global"   # or cn
+export ZHIPU_MODEL="glm-5"
 ```
 
 ### Tencent Hunyuan
@@ -119,12 +121,18 @@ export VOLCENGINE_ENDPOINT="ep-20250118155555-xxxxx"  # Reasoning endpoint ID
    cargo run --example zhipu_tools
    ```
 
+4. **Run provider examples without local proxy interference**:
+   ```bash
+   EXAMPLE_NAME=zhipu_tools PROVIDER=zhipu REGION=global scripts/run_provider_example_no_proxy.sh
+   ```
+
 ## 💡 Notes
 
 - Most examples require the corresponding API key
 - Ollama examples require a local Ollama service
 - Streaming examples require enabling the `streaming` feature
 - Multi-modal examples require models with vision support (e.g., gpt-4o, claude-3-5-sonnet)
+- For Zhipu real-world verification, prefer running without local proxy interference
 
 ## 🔗 Links
 

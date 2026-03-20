@@ -39,6 +39,14 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     /// Get chat completion endpoint URL
     fn chat_endpoint(&self, base_url: &str, model: &str) -> String;
 
+    /// Resolve the chat endpoint as a transport stage hook.
+    ///
+    /// This keeps the old endpoint API intact while allowing GenericProvider
+    /// to orchestrate the chat lifecycle through explicit stage-oriented entry points.
+    fn resolve_chat_endpoint(&self, base_url: &str, model: &str) -> String {
+        self.chat_endpoint(base_url, model)
+    }
+
     /// Get chat stream endpoint URL (optional)
     #[cfg(feature = "streaming")]
     fn chat_stream_endpoint(&self, base_url: &str, model: &str) -> String {
@@ -63,8 +71,28 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     /// Build protocol-specific request
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError>;
 
+    /// Build the chat request body as a request-assembly stage hook.
+    fn build_chat_request_body(
+        &self,
+        request: &ChatRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        let built = self.build_request(request)?;
+        serde_json::to_value(built).map_err(|e| {
+            LlmConnectorError::InvalidRequest(format!(
+                "{}: failed to serialize chat request body: {}",
+                self.name(),
+                e
+            ))
+        })
+    }
+
     /// Parse protocol-specific response
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError>;
+
+    /// Parse the final chat response as a response-normalization stage hook.
+    fn normalize_chat_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        self.parse_response(response)
+    }
 
     /// Parse model list response
     fn parse_models(&self, _response: &str) -> Result<Vec<String>, LlmConnectorError> {
@@ -123,17 +151,43 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     /// Map HTTP errors to unified error type
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError;
 
+    /// Resolve the authentication strategy for this protocol.
+    fn auth_strategy(&self) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::None
+    }
+
+    /// Resolve fixed header policy for this protocol.
+    fn header_policy(&self) -> crate::protocols::common::auth::HeaderPolicy {
+        crate::protocols::common::auth::HeaderPolicy::default()
+    }
+
+    /// Resolve request metadata policy for this protocol.
+    fn request_metadata_policy(&self) -> crate::protocols::common::auth::RequestMetadataPolicy {
+        crate::protocols::common::auth::RequestMetadataPolicy::default()
+    }
+
     /// Get authentication headers (optional)
     fn auth_headers(&self) -> Vec<(String, String)> {
-        Vec::new()
+        crate::protocols::common::auth::apply_header_policy(
+            crate::protocols::common::auth::materialize_auth_headers(&self.auth_strategy()),
+            &self.header_policy(),
+        )
     }
 
     /// Build authentication headers for request overrides
     ///
     /// This allows protocols to specify which headers should be injected when an API key is provided in the request.
     /// Default implementation returns empty list to avoid duplicate header injection.
-    fn build_auth_headers_for_override(&self, _api_key: &str) -> Vec<(String, String)> {
-        Vec::new()
+    fn build_auth_headers_for_override(&self, api_key: &str) -> Vec<(String, String)> {
+        crate::protocols::common::auth::apply_header_policy(
+            crate::protocols::common::auth::materialize_auth_headers(&self.override_auth_strategy(api_key)),
+            &self.header_policy(),
+        )
+    }
+
+    /// Resolve override authentication strategy when request-level api_key is provided.
+    fn override_auth_strategy(&self, _api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::None
     }
 
     /// Parse streaming response (optional)
@@ -144,6 +198,15 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     ) -> Result<ChatStream, LlmConnectorError> {
         // Default to use generic SSE stream parser
         Ok(crate::sse::sse_to_streaming_response(response))
+    }
+
+    /// Parse the streaming response as a stream-interpretation stage hook.
+    #[cfg(feature = "streaming")]
+    async fn interpret_chat_stream(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<ChatStream, LlmConnectorError> {
+        self.parse_stream_response(response).await
     }
 }
 
@@ -199,7 +262,7 @@ fn build_request_overrides<P: Protocol>(
     protocol: &P,
     request: &ChatRequest,
 ) -> HashMap<String, String> {
-    let mut overrides = HashMap::new();
+    let mut overrides = protocol.request_metadata_policy().header_overrides;
 
     // 1. API Key override
     if let Some(ref key) = request.api_key {
@@ -221,7 +284,7 @@ fn build_responses_request_overrides<P: Protocol>(
     protocol: &P,
     request: &ResponsesRequest,
 ) -> HashMap<String, String> {
-    let mut overrides = HashMap::new();
+    let mut overrides = protocol.request_metadata_policy().header_overrides;
 
     if let Some(ref key) = request.api_key {
         let auth_headers = protocol.build_auth_headers_for_override(key);
@@ -344,7 +407,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
     }
 
     async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, LlmConnectorError> {
-        let protocol_request = self.protocol.build_request(request)?;
+        let protocol_request = self.protocol.build_chat_request_body(request)?;
 
         // Dynamic endpoint resolution
         // Note: We use a placeholder base_url here because actual resolution happens inside resolve_endpoint
@@ -354,7 +417,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
-        let url = self.protocol.chat_endpoint(base_url, &request.model);
+        let url = self.protocol.resolve_chat_endpoint(base_url, &request.model);
         let overrides = build_request_overrides(&self.protocol, request);
 
         // Execute request with overrides
@@ -382,7 +445,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
 
             return Err(self.protocol.map_error(status.as_u16(), &error_detail));
         }
-        self.protocol.parse_response(&text)
+        self.protocol.normalize_chat_response(&text)
     }
 
     #[cfg(feature = "streaming")]
@@ -390,7 +453,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         let mut streaming_request = request.clone();
         streaming_request.stream = Some(true);
 
-        let protocol_request = self.protocol.build_request(&streaming_request)?;
+        let protocol_request = self.protocol.build_chat_request_body(&streaming_request)?;
 
         let base_url = request
             .base_url
@@ -416,7 +479,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
                 .map_err(|e| LlmConnectorError::NetworkError(e.to_string()))?;
             return Err(self.protocol.map_error(status.as_u16(), &text));
         }
-        self.protocol.parse_stream_response(response).await
+        self.protocol.interpret_chat_stream(response).await
     }
 
     async fn models(&self) -> Result<Vec<String>, LlmConnectorError> {

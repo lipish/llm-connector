@@ -125,7 +125,7 @@ pub fn aliyun_international(
 ) -> Result<AliyunProvider, LlmConnectorError> {
     aliyun(
         api_key,
-        &format!("https://dashcope.{}.aliyuncs.com/api/v1", region),
+        &format!("https://dashscope.{}.aliyuncs.com/api/v1", region),
     )
 }
 

@@ -1,3 +1,27 @@
+## [1.1.10] - 2026-03-20
+
+### Features
+
+- **Protocol stage hooks refinement**:
+  - Continued the four-stage protocol refactor across shared protocol entry points and adapters.
+  - Extracted clearer Transport/Auth responsibilities via shared auth strategy, header policy, and request metadata policy abstractions.
+  - Added reusable common modules for OpenAI-compatible request/stream handling and transport composition.
+
+### Fixes
+
+- **Zhipu streaming reasoning normalization**:
+  - Fixed streaming convenience-field backfill so reasoning/thinking deltas are no longer incorrectly emitted as normal `content`.
+  - Added regression coverage for reasoning-only streaming chunks.
+
+### Improvements
+
+- **Zhipu real-world verification workflow**:
+  - Added a unified no-proxy provider example runner in `scripts/run_provider_example_no_proxy.sh`.
+  - Verified both `zhipu:global` (`z.ai`) and `zhipu:cn` (`open.bigmodel.cn`) for chat, streaming, and tool-calling flows without local proxy interference.
+- **Examples & docs refresh**:
+  - Updated Zhipu examples to reflect `cn/global` endpoint support, `REGION` fallback behavior, and no-proxy verification guidance.
+  - Updated examples documentation for the new no-proxy test entry.
+
 ## [1.1.9] - 2026-03-18
 
 ### Features

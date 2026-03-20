@@ -4,6 +4,11 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::openai_compatible::{
+    ContentBlockMode, OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
+    parse_openai_compatible_chat_response,
+};
+use crate::protocols::common::transport::resolve_endpoint;
 use crate::types::{
     ChatRequest, ChatResponse, EmbedRequest, EmbedResponse, ReasoningEffort, ResponsesRequest,
     ResponsesResponse,
@@ -29,6 +34,28 @@ impl OpenAIProtocol {
     pub fn api_key(&self) -> &str {
         &self.api_key
     }
+
+    fn capabilities_for_model(&self, model: &str) -> OpenAICompatibleCapabilities {
+        let model_lower = model.to_lowercase();
+        let content_block_mode = if model_lower.contains("gpt-")
+            || model_lower.contains("o1-")
+            || model_lower.contains("o3-")
+        {
+            ContentBlockMode::Standard
+        } else if model_lower.contains("deepseek")
+            || model_lower.contains("moonshot")
+            || model_lower.contains("abab")
+        {
+            ContentBlockMode::TextOnly
+        } else {
+            ContentBlockMode::Standard
+        };
+
+        OpenAICompatibleCapabilities {
+            content_block_mode,
+            ..Default::default()
+        }
+    }
 }
 
 #[async_trait]
@@ -41,98 +68,67 @@ impl Protocol for OpenAIProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
-        format!("{}/chat/completions", base_url.trim_end_matches('/'))
+        resolve_endpoint(base_url, "", "/chat/completions")
+    }
+
+    fn resolve_chat_endpoint(&self, base_url: &str, model: &str) -> String {
+        self.chat_endpoint(base_url, model)
     }
 
     fn models_endpoint(&self, base_url: &str) -> Option<String> {
-        Some(format!("{}/models", base_url.trim_end_matches('/')))
+        Some(resolve_endpoint(base_url, "", "/models"))
     }
 
     fn embed_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
-        Some(format!("{}/embeddings", base_url.trim_end_matches('/')))
+        Some(resolve_endpoint(base_url, "", "/embeddings"))
     }
 
     fn responses_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
-        Some(format!("{}/responses", base_url.trim_end_matches('/')))
+        Some(resolve_endpoint(base_url, "", "/responses"))
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        // Determine if provider supports content parts (array of blocks) based on model name
-        // This is a heuristic to avoid sending array content to providers that don't support it (e.g. Deepseek, Moonshot)
-        let model_lower = request.model.to_lowercase();
-        let supports_content_parts = if model_lower.contains("gpt-")
-            || model_lower.contains("o1-")
-            || model_lower.contains("o3-")
-        {
-            true
-        } else if model_lower.contains("deepseek")
-            || model_lower.contains("moonshot")
-            || model_lower.contains("abab")
-        {
-            false
-        } else {
-            // Default to true for unknown models to maintain backward compatibility
-            true
-        };
-
-        let messages = if supports_content_parts {
-            crate::protocols::common::request::openai_message_converter(&request.messages)
-        } else {
-            crate::protocols::common::request::openai_message_converter_downgrade(
-                &request.messages,
-            )?
-        };
-
-        // Convert tools
-        let tools = request.tools.as_ref().map(|tools| {
-            tools
-                .iter()
-                .map(|tool| {
-                    serde_json::json!({
-                        "type": tool.tool_type,
-                        "function": {
-                            "name": tool.function.name,
-                            "description": tool.function.description,
-                            "parameters": tool.function.parameters,
-                        }
-                    })
-                })
-                .collect()
-        });
-
-        // Convert tool_choice
-        let tool_choice = request
-            .tool_choice
-            .as_ref()
-            .map(|choice| serde_json::to_value(choice).unwrap_or(serde_json::json!("auto")));
-
-        // Convert response_format
-        let response_format = request
-            .response_format
-            .as_ref()
-            .map(|rf| serde_json::to_value(rf).unwrap_or(serde_json::json!({"type": "text"})));
+        let parts = build_openai_compatible_request_parts(
+            request,
+            &self.capabilities_for_model(&request.model),
+        )?;
 
         Ok(OpenAIRequest {
             model: request.model.clone(),
-            messages,
+            messages: parts.messages,
             temperature: request.temperature,
             max_tokens: request.max_tokens,
             top_p: request.top_p,
             frequency_penalty: request.frequency_penalty,
             presence_penalty: request.presence_penalty,
             stream: request.stream,
-            tools,
-            tool_choice,
-            response_format,
-            reasoning_effort: request.reasoning_effort,
+            tools: parts.tools,
+            tool_choice: parts.tool_choice,
+            response_format: parts.response_format,
+            reasoning_effort: parts.reasoning_effort,
+        })
+    }
+
+    fn build_chat_request_body(
+        &self,
+        request: &ChatRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        let built = self.build_request(request)?;
+        serde_json::to_value(built).map_err(|e| {
+            LlmConnectorError::InvalidRequest(format!(
+                "{}: failed to serialize chat request body: {}",
+                self.name(),
+                e
+            ))
         })
     }
 
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::formats::chat_completions::parse_chat_completions_chat_response(
-            response,
-            self.name(),
-        )
+        parse_openai_compatible_chat_response(response, self.name())
+    }
+
+    fn normalize_chat_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        self.parse_response(response)
     }
 
     fn parse_models(&self, response: &str) -> Result<Vec<String>, LlmConnectorError> {
@@ -226,12 +222,16 @@ impl Protocol for OpenAIProtocol {
         }
     }
 
-    fn auth_headers(&self) -> Vec<(String, String)> {
-        crate::protocols::common::auth::bearer_auth(&self.api_key)
+    fn auth_strategy(&self) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::Bearer {
+            api_key: self.api_key.clone(),
+        }
     }
 
-    fn build_auth_headers_for_override(&self, api_key: &str) -> Vec<(String, String)> {
-        crate::protocols::common::auth::bearer_auth(api_key)
+    fn override_auth_strategy(&self, api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::Bearer {
+            api_key: api_key.to_string(),
+        }
     }
 
     #[cfg(feature = "streaming")]
@@ -239,10 +239,18 @@ impl Protocol for OpenAIProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        Ok(crate::sse::sse_to_streaming_response_with_mode(
+        Ok(crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
             response,
             crate::sse::StreamingParseMode::OpenAIOnly,
         ))
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn interpret_chat_stream(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        self.parse_stream_response(response).await
     }
 }
 

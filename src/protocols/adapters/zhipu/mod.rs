@@ -4,31 +4,43 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::openai_compatible::{
+    ContentBlockMode, OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
+    parse_openai_compatible_chat_response,
+};
+use crate::protocols::common::transport::resolve_endpoint;
 use crate::types::{ChatRequest, ChatResponse, Tool, ToolChoice};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ZhipuApiMode {
+    Native,
+    OpenAICompatible,
+}
 
 /// Zhipu GLM private protocol implementation
 #[derive(Clone, Debug)]
 pub struct ZhipuProtocol {
     api_key: String,
-    use_openai_format: bool,
+    mode: ZhipuApiMode,
 }
 
 impl ZhipuProtocol {
     /// Create new Zhipu Protocol instance (using native format)
     pub fn new(api_key: &str) -> Self {
-        Self {
-            api_key: api_key.to_string(),
-            use_openai_format: false,
-        }
+        Self::with_mode(api_key, ZhipuApiMode::Native)
     }
 
     /// Create Zhipu Protocol instance using OpenAI compatible format
     pub fn new_openai_compatible(api_key: &str) -> Self {
+        Self::with_mode(api_key, ZhipuApiMode::OpenAICompatible)
+    }
+
+    pub fn with_mode(api_key: &str, mode: ZhipuApiMode) -> Self {
         Self {
             api_key: api_key.to_string(),
-            use_openai_format: true,
+            mode,
         }
     }
 
@@ -37,9 +49,40 @@ impl ZhipuProtocol {
         &self.api_key
     }
 
+    pub fn mode(&self) -> ZhipuApiMode {
+        self.mode
+    }
+
     /// Whether to use OpenAI compatible format
     pub fn is_openai_compatible(&self) -> bool {
-        self.use_openai_format
+        matches!(self.mode, ZhipuApiMode::OpenAICompatible)
+    }
+
+    fn capabilities(&self) -> OpenAICompatibleCapabilities {
+        match self.mode {
+            ZhipuApiMode::Native | ZhipuApiMode::OpenAICompatible => OpenAICompatibleCapabilities {
+                content_block_mode: ContentBlockMode::Standard,
+                supports_response_format: false,
+                supports_reasoning_effort: false,
+            },
+        }
+    }
+
+    fn parse_chat_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        match self.mode {
+            ZhipuApiMode::Native | ZhipuApiMode::OpenAICompatible => {
+                parse_openai_compatible_chat_response(response, self.name())
+            }
+        }
+    }
+
+    #[cfg(feature = "streaming")]
+    fn streaming_parse_mode(&self) -> crate::sse::StreamingParseMode {
+        match self.mode {
+            ZhipuApiMode::Native | ZhipuApiMode::OpenAICompatible => {
+                crate::sse::StreamingParseMode::OpenAIOnly
+            }
+        }
     }
 }
 
@@ -53,29 +96,35 @@ impl Protocol for ZhipuProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
-        let base = base_url.trim_end_matches('/');
-        if base.ends_with("/api/paas/v4") {
-            format!("{}/chat/completions", base)
-        } else {
-            format!("{}/api/paas/v4/chat/completions", base)
+        match self.mode {
+            ZhipuApiMode::Native | ZhipuApiMode::OpenAICompatible => {
+                resolve_endpoint(base_url, "/api/paas/v4", "/chat/completions")
+            }
         }
     }
 
-    fn auth_headers(&self) -> Vec<(String, String)> {
-        crate::protocols::common::auth::bearer_auth(&self.api_key)
+    fn resolve_chat_endpoint(&self, base_url: &str, model: &str) -> String {
+        self.chat_endpoint(base_url, model)
     }
 
-    fn build_auth_headers_for_override(&self, api_key: &str) -> Vec<(String, String)> {
-        crate::protocols::common::auth::bearer_auth(api_key)
+    fn auth_strategy(&self) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::Bearer {
+            api_key: self.api_key.clone(),
+        }
+    }
+
+    fn override_auth_strategy(&self, api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+        crate::protocols::common::auth::AuthStrategy::Bearer {
+            api_key: api_key.to_string(),
+        }
     }
 
     fn build_request(&self, request: &ChatRequest) -> Result<Self::Request, LlmConnectorError> {
-        let messages =
-            crate::protocols::common::request::openai_message_converter(&request.messages);
+        let parts = build_openai_compatible_request_parts(request, &self.capabilities())?;
 
         Ok(ZhipuRequest {
             model: request.model.clone(),
-            messages,
+            messages: parts.messages,
             max_tokens: request.max_tokens,
             temperature: request.temperature,
             top_p: request.top_p,
@@ -85,11 +134,26 @@ impl Protocol for ZhipuProtocol {
         })
     }
 
+    fn build_chat_request_body(
+        &self,
+        request: &ChatRequest,
+    ) -> Result<serde_json::Value, LlmConnectorError> {
+        let built = self.build_request(request)?;
+        serde_json::to_value(built).map_err(|e| {
+            LlmConnectorError::InvalidRequest(format!(
+                "{}: failed to serialize chat request body: {}",
+                self.name(),
+                e
+            ))
+        })
+    }
+
     fn parse_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
-        crate::protocols::formats::chat_completions::parse_chat_completions_chat_response(
-            response,
-            self.name(),
-        )
+        self.parse_chat_response(response)
+    }
+
+    fn normalize_chat_response(&self, response: &str) -> Result<ChatResponse, LlmConnectorError> {
+        self.parse_response(response)
     }
 
     fn map_error(&self, status: u16, body: &str) -> LlmConnectorError {
@@ -108,10 +172,18 @@ impl Protocol for ZhipuProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        Ok(crate::sse::sse_to_streaming_response_with_mode(
+        Ok(crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
             response,
-            crate::sse::StreamingParseMode::OpenAIOnly,
+            self.streaming_parse_mode(),
         ))
+    }
+
+    #[cfg(feature = "streaming")]
+    async fn interpret_chat_stream(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<crate::types::ChatStream, LlmConnectorError> {
+        self.parse_stream_response(response).await
     }
 }
 

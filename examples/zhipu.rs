@@ -1,14 +1,15 @@
 //! Zhipu GLM Example (V2)
 //!
-//! Demonstrates multi-region (domestic/international) testing using llm-providers.
+//! Demonstrates multi-region (cn/global) testing using llm-providers.
 //!
 //! # Environment Variables
 //! - ZHIPU_API_KEY: Your Zhipu API key
-//! - ZHIPU_REGION: "cn" (bigmodel.cn) or "global" (z.ai). Default is "cn".
+//! - ZHIPU_REGION: "cn" (BigModel) or "global" (z.ai). Falls back to REGION. Default is "cn".
 //! - ZHIPU_MODEL: Model ID (e.g., "glm-4.5-flash", "glm-4.5"). Default is "glm-4.5-flash".
 //! - ZHIPU_PROXY: Optional HTTP proxy (e.g., "http://127.0.0.1:7890")
 //!
 //! Run: cargo run --example zhipu
+//! Recommended real-world verification: run without local proxy interference.
 
 use dotenvy::dotenv;
 use llm_connector::{

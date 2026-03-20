@@ -270,64 +270,43 @@ impl Protocol for AnthropicProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        use futures_util::StreamExt;
         use std::sync::{Arc, Mutex};
 
-        // Use standard SSE parser with Auto format detection (Anthropic uses standard SSE)
-        let events_stream = crate::sse::create_text_stream(response, crate::sse::StreamFormat::Sse);
-
-        // Shared state: save message_id
         let message_id = Arc::new(Mutex::new(String::new()));
 
-        // Convert event stream
-        let response_stream = events_stream.filter_map(move |result| {
-            let message_id = message_id.clone();
-            async move {
-                match result {
-                    Ok(json_str) => {
-                        // Parse Anthropic streaming event
-                        match serde_json::from_str::<serde_json::Value>(&json_str) {
-                            Ok(event) => {
-                                let event_type =
-                                    event.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        Ok(crate::protocols::common::streamers::map_sse_json_stream(
+            response,
+            move |json_str| {
+                let message_id = message_id.clone();
+                let event = serde_json::from_str::<serde_json::Value>(&json_str).map_err(|e| {
+                    LlmConnectorError::ParseError(format!(
+                        "Failed to parse Anthropic streaming event: {}. JSON: {}",
+                        e, json_str
+                    ))
+                })?;
 
-                                match event_type {
-                                    "message_start" => {
-                                        // Extract and save message id
-                                        if let Some(msg_id) = event
-                                            .get("message")
-                                            .and_then(|m| m.get("id"))
-                                            .and_then(|id| id.as_str())
-                                            && let Ok(mut id) = message_id.lock()
-                                        {
-                                            *id = msg_id.to_string();
-                                        }
-                                        // message_start does not return content
-                                        None
-                                    }
-                                    "content_block_delta" | "message_delta" => {
-                                        let id = message_id.lock().map(|id| id.clone()).unwrap_or_default();
-                                        crate::protocols::common::streamers::interpret_anthropic_event(&event, &id).transpose()
-                                    }
+                let event_type = event.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
-                                    _ => {
-                                        // Ignore other event types
-                                        None
-                                    }
-                                }
-                            }
-                            Err(e) => Some(Err(LlmConnectorError::ParseError(format!(
-                                "Failed to parse Anthropic streaming event: {}. JSON: {}",
-                                e, json_str
-                            )))),
+                match event_type {
+                    "message_start" => {
+                        if let Some(msg_id) = event
+                            .get("message")
+                            .and_then(|m| m.get("id"))
+                            .and_then(|id| id.as_str())
+                            && let Ok(mut id) = message_id.lock()
+                        {
+                            *id = msg_id.to_string();
                         }
+                        Ok(None)
                     }
-                    Err(e) => Some(Err(e)),
+                    "content_block_delta" | "message_delta" => {
+                        let id = message_id.lock().map(|id| id.clone()).unwrap_or_default();
+                        crate::protocols::common::streamers::interpret_anthropic_event(&event, &id)
+                    }
+                    _ => Ok(None),
                 }
-            }
-        });
-
-        Ok(Box::pin(response_stream))
+            },
+        ))
     }
 }
 

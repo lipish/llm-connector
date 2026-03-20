@@ -1,8 +1,9 @@
 //! Zhipu GLM-5 Reasoning (Thinking) Example
 //!
-//! Demonstrates the `enable_thinking` feature with GLM-5 on the global endpoint.
+//! Demonstrates the `enable_thinking` feature with GLM-5 on cn/global endpoints.
 //!
 //! Run: cargo run --example zhipu_thinking
+//! Recommended real-world verification: run without local proxy interference.
 
 use dotenvy::dotenv;
 use llm_connector::{
@@ -17,7 +18,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🤖 Zhipu GLM-5 Reasoning (Thinking) Example\n");
 
     let api_key = env::var("ZHIPU_API_KEY").expect("ZHIPU_API_KEY not set");
-    let region = env::var("ZHIPU_REGION").unwrap_or_else(|_| "global".to_string());
+    let region = env::var("ZHIPU_REGION")
+        .or_else(|_| env::var("REGION"))
+        .unwrap_or_else(|_| "global".to_string());
     let model = env::var("ZHIPU_MODEL").unwrap_or_else(|_| "glm-5".to_string());
 
     // 1. Get endpoint from llm-providers

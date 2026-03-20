@@ -469,15 +469,7 @@ fn populate_convenience_fields(response: &mut crate::types::StreamingResponse) {
     if response.content.is_empty()
         && let Some(choice) = response.choices.first()
     {
-        let content_to_use = choice
-            .delta
-            .content
-            .as_ref()
-            .filter(|s| !s.is_empty())
-            .or(choice.delta.reasoning_content.as_ref())
-            .or(choice.delta.reasoning.as_ref())
-            .or(choice.delta.thought.as_ref())
-            .or(choice.delta.thinking.as_ref());
+        let content_to_use = choice.delta.content.as_ref().filter(|s| !s.is_empty());
 
         if let Some(content) = content_to_use {
             response.content = content.clone();
@@ -551,6 +543,24 @@ mod tests {
 
         let result = super::parse_streaming_payload(chunk, super::StreamingParseMode::OpenAIOnly);
         assert!(result.is_err());
+    }
+
+    #[cfg(feature = "streaming")]
+    #[test]
+    fn test_reasoning_chunk_does_not_fill_convenience_content() {
+        let chunk = r#"{"id":"chatcmpl-test","object":"chat.completion.chunk","created":1740000000,"model":"glm-4.5-flash","choices":[{"index":0,"delta":{"reasoning_content":"internal reasoning only"},"finish_reason":null}]}"#;
+
+        let mut parsed =
+            super::parse_streaming_payload(chunk, super::StreamingParseMode::OpenAIOnly)
+                .expect("should parse openai-compatible reasoning chunk");
+
+        super::populate_convenience_fields(&mut parsed);
+
+        assert_eq!(parsed.content, "");
+        assert_eq!(
+            parsed.choices[0].delta.reasoning_content.as_deref(),
+            Some("internal reasoning only")
+        );
     }
 
     #[tokio::test]
