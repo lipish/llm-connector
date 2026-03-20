@@ -1,13 +1,15 @@
 //! Moonshot (Kimi) Example
 //!
-//! Demonstrates multi-region (domestic/international) testing for Moonshot using llm-providers.
+//! Demonstrates multi-region (cn/global) testing for Moonshot using llm-providers.
 //!
 //! # Environment Variables
 //! - MOONSHOT_API_KEY: Your Moonshot API key
-//! - MOONSHOT_REGION: "cn" (api.moonshot.cn) or "global" (api.moonshot.ai). Default is "cn".
+//! - MOONSHOT_REGION: "cn" (api.moonshot.cn) or "global" (api.moonshot.ai). Falls back to REGION. Default is "cn".
 //! - MOONSHOT_MODEL: Model ID (e.g., "kimi-k2.5"). Default is "kimi-k2.5".
+//! - Note: cn/global keys may differ. Use a key that is valid for the selected region.
 //!
 //! Run: cargo run --example moonshot
+//! Recommended real-world verification: run without local proxy interference.
 
 use dotenvy::dotenv;
 use llm_connector::{

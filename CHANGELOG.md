@@ -1,3 +1,15 @@
+## [1.1.11] - 2026-03-20
+
+### Improvements
+
+- **Moonshot real-world verification updates**:
+  - Verified `moonshot:cn` (`https://api.moonshot.cn/v1`) and `moonshot:global` (`https://api.moonshot.ai/v1`) separately with region-specific API keys.
+  - Confirmed chat, streaming, tool-calling, and thinking flows on both endpoints in no-proxy verification runs.
+- **Examples & scripts refresh**:
+  - Extended `scripts/run_provider_example_no_proxy.sh` to support `moonshot` examples.
+  - Updated Moonshot examples with `REGION` fallback support, no-proxy verification guidance, and notes that cn/global keys may differ.
+  - Updated `examples/README.md` with Moonshot environment variables and no-proxy example commands.
+
 ## [1.1.10] - 2026-03-20
 
 ### Features

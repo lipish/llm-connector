@@ -1,8 +1,10 @@
 //! Moonshot (Kimi) Reasoning (Thinking) Example
 //!
-//! Demonstrates the reasoning/thinking capabilities of Kimi models.
+//! Demonstrates the reasoning/thinking capabilities of Kimi models on cn/global endpoints.
+//! Note: cn/global keys may differ. Use a key that is valid for the selected region.
 //!
 //! Run: cargo run --example moonshot_thinking
+//! Recommended real-world verification: run without local proxy interference.
 
 use dotenvy::dotenv;
 use llm_connector::{
@@ -17,7 +19,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🌙 Moonshot (Kimi) Reasoning (Thinking) Example\n");
 
     let api_key = env::var("MOONSHOT_API_KEY").expect("MOONSHOT_API_KEY not set");
-    let region = env::var("MOONSHOT_REGION").unwrap_or_else(|_| "cn".to_string());
+    let region = env::var("MOONSHOT_REGION")
+        .or_else(|_| env::var("REGION"))
+        .unwrap_or_else(|_| "cn".to_string());
     let model = env::var("MOONSHOT_MODEL").unwrap_or_else(|_| "kimi-k2.5".to_string());
 
     let endpoint_id = format!("moonshot:{}", region);

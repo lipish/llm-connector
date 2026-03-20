@@ -59,6 +59,15 @@ export ZHIPU_REGION="global"   # or cn
 export ZHIPU_MODEL="glm-5"
 ```
 
+### Moonshot (Kimi)
+```bash
+export MOONSHOT_API_KEY="your-moonshot-api-key"
+export MOONSHOT_REGION="cn"   # or global
+export MOONSHOT_MODEL="kimi-k2.5"
+```
+
+Note: Moonshot cn/global keys may differ. Use a key that is valid for the selected region.
+
 ### Tencent Hunyuan
 ```bash
 export TENCENT_API_KEY="your-tencent-api-key"
@@ -126,6 +135,11 @@ export VOLCENGINE_ENDPOINT="ep-20250118155555-xxxxx"  # Reasoning endpoint ID
    EXAMPLE_NAME=zhipu_tools PROVIDER=zhipu REGION=global scripts/run_provider_example_no_proxy.sh
    ```
 
+5. **Run Moonshot examples without local proxy interference**:
+   ```bash
+   EXAMPLE_NAME=moonshot_tools PROVIDER=moonshot REGION=cn scripts/run_provider_example_no_proxy.sh
+   ```
+
 ## 💡 Notes
 
 - Most examples require the corresponding API key
@@ -133,6 +147,7 @@ export VOLCENGINE_ENDPOINT="ep-20250118155555-xxxxx"  # Reasoning endpoint ID
 - Streaming examples require enabling the `streaming` feature
 - Multi-modal examples require models with vision support (e.g., gpt-4o, claude-3-5-sonnet)
 - For Zhipu real-world verification, prefer running without local proxy interference
+- For Moonshot real-world verification, prefer running without local proxy interference
 
 ## 🔗 Links
 

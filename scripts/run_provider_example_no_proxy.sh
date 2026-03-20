@@ -7,12 +7,12 @@ REGION="${REGION:-}"
 MODEL="${MODEL:-}"
 
 if [[ -z "$EXAMPLE_NAME" ]]; then
-  echo "[ERROR] EXAMPLE_NAME 未设置，例如: zhipu / zhipu_tools / zhipu_thinking / zhipu_vision" >&2
+  echo "[ERROR] EXAMPLE_NAME 未设置，例如: zhipu / zhipu_tools / moonshot / moonshot_tools / moonshot_thinking" >&2
   exit 1
 fi
 
 if [[ -z "$PROVIDER" ]]; then
-  echo "[ERROR] PROVIDER 未设置，例如: zhipu" >&2
+  echo "[ERROR] PROVIDER 未设置，例如: zhipu / moonshot" >&2
   exit 1
 fi
 
@@ -22,8 +22,13 @@ case "$PROVIDER" in
     REGION_VAR="ZHIPU_REGION"
     MODEL_VAR="ZHIPU_MODEL"
     ;;
+  moonshot)
+    API_KEY_VAR="MOONSHOT_API_KEY"
+    REGION_VAR="MOONSHOT_REGION"
+    MODEL_VAR="MOONSHOT_MODEL"
+    ;;
   *)
-    echo "[ERROR] 当前脚本仅支持 PROVIDER=zhipu，当前: $PROVIDER" >&2
+    echo "[ERROR] 当前脚本仅支持 PROVIDER=zhipu 或 PROVIDER=moonshot，当前: $PROVIDER" >&2
     exit 1
     ;;
 esac
@@ -61,4 +66,5 @@ env \
   -u https_proxy \
   -u all_proxy \
   -u ZHIPU_PROXY \
+  -u MOONSHOT_PROXY \
   cargo run --example "$EXAMPLE_NAME"
