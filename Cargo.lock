@@ -763,7 +763,7 @@ checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 
 [[package]]
 name = "llm-connector"
-version = "1.1.16"
+version = "1.1.17"
 dependencies = [
  "async-trait",
  "base64",
