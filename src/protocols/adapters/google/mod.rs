@@ -753,6 +753,7 @@ mod tests {
     async fn test_parse_stream_response_tool_call() {
         use futures::stream::TryStreamExt;
         use serde_json::json;
+
         const TOOL_NAME: &str = "set_light_values";
         let google_response = GoogleResponse {
             candidates: Some(vec![GoogleCandidate {
@@ -775,7 +776,6 @@ mod tests {
             "data: {google_response_serialized}\n\n"
         )));
         let protocol = GoogleProtocol::new();
-
         let streaming_response: Option<crate::types::StreamingResponse> =
             match protocol.parse_stream_response(resp).await {
                 Ok(resp) => match resp.try_collect::<Vec<_>>().await {
@@ -784,7 +784,8 @@ mod tests {
                 },
                 _ => None,
             };
-        // Verify streaming response
+
+        // Verify tool calls
         assert!(streaming_response.is_some_and(|sr| {
             sr.choices[0]
                 .delta
