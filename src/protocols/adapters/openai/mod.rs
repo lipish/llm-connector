@@ -4,9 +4,7 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
-use crate::protocols::common::capabilities::{
-    ContentBlockMode, ProviderCapabilities,
-};
+use crate::protocols::common::capabilities::{ContentBlockMode, ProviderCapabilities};
 use crate::protocols::common::openai_compatible::{
     OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
     parse_openai_compatible_chat_response,
@@ -58,18 +56,14 @@ impl OpenAIProtocol {
                     crate::protocols::common::capabilities::ReasoningRequestStrategy::EnableThinking;
                 capabilities.stream_reasoning_strategy =
                     crate::protocols::common::capabilities::StreamReasoningStrategy::SeparateField;
-                capabilities.region_key_scope_sensitive =
-                    self.service_name.as_str() == "moonshot";
-                capabilities.requires_region_routing =
-                    self.service_name.as_str() == "moonshot";
+                capabilities.region_key_scope_sensitive = self.service_name.as_str() == "moonshot";
+                capabilities.requires_region_routing = self.service_name.as_str() == "moonshot";
                 capabilities
             }
             "minimax" | "abab" => {
                 let mut capabilities = ProviderCapabilities::openai_compatible_text_only();
-                capabilities.region_key_scope_sensitive =
-                    self.service_name.as_str() == "minimax";
-                capabilities.requires_region_routing =
-                    self.service_name.as_str() == "minimax";
+                capabilities.region_key_scope_sensitive = self.service_name.as_str() == "minimax";
+                capabilities.requires_region_routing = self.service_name.as_str() == "minimax";
                 capabilities
             }
             "xinference" => {
@@ -286,7 +280,10 @@ impl Protocol for OpenAIProtocol {
         }
     }
 
-    fn override_auth_strategy(&self, api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+    fn override_auth_strategy(
+        &self,
+        api_key: &str,
+    ) -> crate::protocols::common::auth::AuthStrategy {
         crate::protocols::common::auth::AuthStrategy::Bearer {
             api_key: api_key.to_string(),
         }
@@ -298,11 +295,13 @@ impl Protocol for OpenAIProtocol {
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
         let stream_reasoning_strategy = self.capabilities().stream_reasoning_strategy;
-        Ok(crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
-            response,
-            crate::sse::StreamingParseMode::OpenAIOnly,
-            stream_reasoning_strategy,
-        ))
+        Ok(
+            crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
+                response,
+                crate::sse::StreamingParseMode::OpenAIOnly,
+                stream_reasoning_strategy,
+            ),
+        )
     }
 
     #[cfg(feature = "streaming")]

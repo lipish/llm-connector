@@ -46,21 +46,19 @@ pub fn map_openai_compatible_messages(
     capabilities: &OpenAICompatibleCapabilities,
 ) -> Result<Vec<serde_json::Value>, LlmConnectorError> {
     match capabilities.content_block_mode {
-        ContentBlockMode::Standard => {
-            Ok(crate::protocols::common::request::openai_message_converter(&request.messages))
-        }
+        ContentBlockMode::Standard => Ok(
+            crate::protocols::common::request::openai_message_converter(&request.messages),
+        ),
         ContentBlockMode::TextOnly => {
             crate::protocols::common::request::openai_message_converter_downgrade(&request.messages)
         }
-        ContentBlockMode::NativeMessage => {
-            Ok(crate::protocols::common::request::openai_message_converter(&request.messages))
-        }
+        ContentBlockMode::NativeMessage => Ok(
+            crate::protocols::common::request::openai_message_converter(&request.messages),
+        ),
     }
 }
 
-pub fn map_openai_compatible_tools(
-    request: &ChatRequest,
-) -> Option<Vec<serde_json::Value>> {
+pub fn map_openai_compatible_tools(request: &ChatRequest) -> Option<Vec<serde_json::Value>> {
     request.tools.as_ref().map(|tools| {
         tools
             .iter()
@@ -148,10 +146,11 @@ pub fn build_openai_compatible_request_parts(
     let tools = map_openai_compatible_tools(request);
     let tool_choice = map_openai_compatible_tool_choice(request, capabilities);
     let response_format = map_openai_compatible_response_format(request, capabilities);
-    let reasoning_parts = crate::protocols::common::thinking::map_reasoning_request_parts_with_strategy(
-        request,
-        capabilities.reasoning_request_strategy,
-    );
+    let reasoning_parts =
+        crate::protocols::common::thinking::map_reasoning_request_parts_with_strategy(
+            request,
+            capabilities.reasoning_request_strategy,
+        );
     let reasoning_effort = reasoning_parts.reasoning_effort;
 
     Ok(OpenAICompatibleRequestParts {
@@ -182,9 +181,5 @@ pub fn parse_openai_compatible_stream(
     mode: crate::sse::StreamingParseMode,
     stream_reasoning_strategy: StreamReasoningStrategy,
 ) -> crate::types::ChatStream {
-    crate::sse::sse_to_streaming_response_with_options(
-        response,
-        mode,
-        stream_reasoning_strategy,
-    )
+    crate::sse::sse_to_streaming_response_with_options(response, mode, stream_reasoning_strategy)
 }

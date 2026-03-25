@@ -201,12 +201,15 @@ mod tests {
             "aliyun",
             StreamReasoningStrategy::SeparateField,
         )
-            .expect("should parse dashscope wrapped response");
+        .expect("should parse dashscope wrapped response");
 
         assert_eq!(parsed.id, "req_dashscope_1");
         assert_eq!(parsed.content, "Hello from DashScope");
         assert_eq!(parsed.choices.len(), 1);
-        assert_eq!(parsed.choices[0].message.content_as_text(), "Hello from DashScope");
+        assert_eq!(
+            parsed.choices[0].message.content_as_text(),
+            "Hello from DashScope"
+        );
         assert_eq!(parsed.choices[0].finish_reason.as_deref(), Some("stop"));
         assert_eq!(parsed.usage.as_ref().map(|u| u.total_tokens), Some(24));
     }
@@ -247,10 +250,7 @@ mod tests {
         )
         .expect("separate field strategy should parse");
 
-        assert_eq!(
-            separate.content,
-            "<think>step by step</think>final answer"
-        );
+        assert_eq!(separate.content, "<think>step by step</think>final answer");
         assert_eq!(separate.reasoning_content, None);
     }
 }

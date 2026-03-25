@@ -131,9 +131,9 @@ pub use client::LlmClient;
 pub use config::ProviderConfig;
 pub use error::LlmConnectorError;
 pub use types::{
-    ChatRequest, ChatResponse, Choice, FunctionCall, JsonSchemaSpec, Message, ResponseFormat, Role,
-    ResponsesRequest, ResponsesResponse, ResponsesStreamEvent, ResponsesUsage, Tool, ToolCall,
-    ToolChoice, Usage,
+    ChatRequest, ChatResponse, Choice, FunctionCall, JsonSchemaSpec, Message, ResponseFormat,
+    ResponsesRequest, ResponsesResponse, ResponsesStreamEvent, ResponsesUsage, Role, Tool,
+    ToolCall, ToolChoice, Usage,
 };
 
 // Re-export core traits

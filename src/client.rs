@@ -389,8 +389,13 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider =
-            crate::providers::openai_compatible_with_config(api_key, base_url, "moonshot", timeout_secs, proxy)?;
+        let provider = crate::providers::openai_compatible_with_config(
+            api_key,
+            base_url,
+            "moonshot",
+            timeout_secs,
+            proxy,
+        )?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 
@@ -419,8 +424,13 @@ impl LlmClient {
         timeout_secs: Option<u64>,
         proxy: Option<&str>,
     ) -> Result<Self, LlmConnectorError> {
-        let provider =
-            crate::providers::openai_compatible_with_config(api_key, base_url, "deepseek", timeout_secs, proxy)?;
+        let provider = crate::providers::openai_compatible_with_config(
+            api_key,
+            base_url,
+            "deepseek",
+            timeout_secs,
+            proxy,
+        )?;
         Ok(Self::from_provider(Arc::new(provider)))
     }
 

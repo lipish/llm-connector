@@ -158,7 +158,10 @@ impl ResponsesStreamEvent {
 
     pub fn output_text_delta(response_id: impl Into<String>, delta: impl Into<String>) -> Self {
         let mut data = HashMap::new();
-        data.insert("response_id".to_string(), serde_json::json!(response_id.into()));
+        data.insert(
+            "response_id".to_string(),
+            serde_json::json!(response_id.into()),
+        );
         data.insert("delta".to_string(), serde_json::json!(delta.into()));
         Self {
             event_type: "response.output_text.delta".to_string(),
@@ -190,8 +193,9 @@ impl ResponsesStreamEvent {
 }
 
 #[cfg(feature = "streaming")]
-pub type ResponsesStream =
-    Pin<Box<dyn Stream<Item = Result<ResponsesStreamEvent, crate::error::LlmConnectorError>> + Send>>;
+pub type ResponsesStream = Pin<
+    Box<dyn Stream<Item = Result<ResponsesStreamEvent, crate::error::LlmConnectorError>> + Send>,
+>;
 
 pub fn responses_request_to_chat_request(
     request: &ResponsesRequest,
@@ -209,20 +213,24 @@ pub fn responses_request_to_chat_request(
     }
 
     let tools = if let Some(raw_tools) = request.tools.as_ref() {
-        Some(serde_json::from_value::<Vec<Tool>>(raw_tools.clone()).map_err(|e| {
-            LlmConnectorError::InvalidRequest(format!("Failed to map responses.tools: {}", e))
-        })?)
+        Some(
+            serde_json::from_value::<Vec<Tool>>(raw_tools.clone()).map_err(|e| {
+                LlmConnectorError::InvalidRequest(format!("Failed to map responses.tools: {}", e))
+            })?,
+        )
     } else {
         None
     };
 
     let tool_choice = if let Some(raw_choice) = request.tool_choice.as_ref() {
-        Some(serde_json::from_value::<ToolChoice>(raw_choice.clone()).map_err(|e| {
-            LlmConnectorError::InvalidRequest(format!(
-                "Failed to map responses.tool_choice: {}",
-                e
-            ))
-        })?)
+        Some(
+            serde_json::from_value::<ToolChoice>(raw_choice.clone()).map_err(|e| {
+                LlmConnectorError::InvalidRequest(format!(
+                    "Failed to map responses.tool_choice: {}",
+                    e
+                ))
+            })?,
+        )
     } else {
         None
     };

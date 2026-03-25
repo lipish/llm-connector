@@ -185,13 +185,18 @@ pub trait Protocol: Send + Sync + Clone + 'static {
     /// Default implementation returns empty list to avoid duplicate header injection.
     fn build_auth_headers_for_override(&self, api_key: &str) -> Vec<(String, String)> {
         crate::protocols::common::auth::apply_header_policy(
-            crate::protocols::common::auth::materialize_auth_headers(&self.override_auth_strategy(api_key)),
+            crate::protocols::common::auth::materialize_auth_headers(
+                &self.override_auth_strategy(api_key),
+            ),
             &self.header_policy(),
         )
     }
 
     /// Resolve override authentication strategy when request-level api_key is provided.
-    fn override_auth_strategy(&self, _api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+    fn override_auth_strategy(
+        &self,
+        _api_key: &str,
+    ) -> crate::protocols::common::auth::AuthStrategy {
         crate::protocols::common::auth::AuthStrategy::None
     }
 
@@ -542,7 +547,9 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             .base_url
             .as_deref()
             .unwrap_or_else(|| self.client.base_url());
-        let url = self.protocol.resolve_chat_endpoint(base_url, &request.model);
+        let url = self
+            .protocol
+            .resolve_chat_endpoint(base_url, &request.model);
         let overrides = build_request_overrides(&self.protocol, request);
 
         // Execute request with overrides
@@ -752,13 +759,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             )
         })?;
         let chat_response = self.chat(&chat_request).await.map_err(|e| {
-            enrich_endpoint_error(
-                e,
-                self.protocol.name(),
-                "/v1/chat/completions",
-                None,
-                None,
-            )
+            enrich_endpoint_error(e, self.protocol.name(), "/v1/chat/completions", None, None)
         })?;
 
         Ok(chat_response_to_responses_response(&chat_response))
@@ -810,22 +811,24 @@ impl<P: Protocol> Provider for GenericProvider<P> {
             if status.is_success() {
                 let provider = self.protocol.name().to_string();
                 let endpoint = "/v1/responses".to_string();
-                let stream = crate::sse::create_text_stream(response, crate::sse::StreamFormat::Auto)
-                    .map(move |item| {
-                        let payload = item?;
-                        serde_json::from_str::<ResponsesStreamEvent>(&payload).map_err(|e| {
-                            enrich_endpoint_error(
-                                LlmConnectorError::ParseError(format!(
-                                    "Failed to parse responses stream event: {}",
-                                    e
-                                )),
-                                &provider,
-                                &endpoint,
-                                None,
-                                Some(&payload),
-                            )
-                        })
-                    });
+                let stream =
+                    crate::sse::create_text_stream(response, crate::sse::StreamFormat::Auto).map(
+                        move |item| {
+                            let payload = item?;
+                            serde_json::from_str::<ResponsesStreamEvent>(&payload).map_err(|e| {
+                                enrich_endpoint_error(
+                                    LlmConnectorError::ParseError(format!(
+                                        "Failed to parse responses stream event: {}",
+                                        e
+                                    )),
+                                    &provider,
+                                    &endpoint,
+                                    None,
+                                    Some(&payload),
+                                )
+                            })
+                        },
+                    );
                 return Ok(Box::pin(stream));
             }
 
@@ -870,13 +873,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
         chat_request.stream = Some(true);
 
         let chat_stream = self.chat_stream(&chat_request).await.map_err(|e| {
-            enrich_endpoint_error(
-                e,
-                self.protocol.name(),
-                "/v1/chat/completions",
-                None,
-                None,
-            )
+            enrich_endpoint_error(e, self.protocol.name(), "/v1/chat/completions", None, None)
         })?;
 
         struct FallbackState {
@@ -958,8 +955,8 @@ impl<P: Protocol> Provider for GenericProvider<P> {
 #[cfg(test)]
 mod tests {
     use super::validate_chat_request_capabilities;
-    use crate::protocols::common::capabilities::ProviderCapabilities;
     use crate::protocols::OllamaProtocol;
+    use crate::protocols::common::capabilities::ProviderCapabilities;
     use crate::types::{ChatRequest, MessageBlock, ToolChoice};
 
     #[test]

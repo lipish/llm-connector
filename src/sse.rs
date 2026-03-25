@@ -510,11 +510,12 @@ fn populate_convenience_fields(response: &mut crate::types::StreamingResponse) {
 #[cfg(feature = "streaming")]
 fn normalize_openai_compatible_streaming_choices(response: &mut crate::types::StreamingResponse) {
     for choice in &mut response.choices {
-        let normalized = crate::protocols::common::openai_compatible::normalize_openai_compatible_content(
-            choice.delta.content.take(),
-            choice.delta.reasoning_content.take(),
-            crate::protocols::common::capabilities::StreamReasoningStrategy::EmbeddedThinkTags,
-        );
+        let normalized =
+            crate::protocols::common::openai_compatible::normalize_openai_compatible_content(
+                choice.delta.content.take(),
+                choice.delta.reasoning_content.take(),
+                crate::protocols::common::capabilities::StreamReasoningStrategy::EmbeddedThinkTags,
+            );
 
         if !normalized.content.is_empty() {
             choice.delta.content = Some(normalized.content);
@@ -775,7 +776,10 @@ mod tests {
 
         super::populate_convenience_fields(&mut response);
 
-        assert_eq!(response.content, "<think>internal reasoning</think>Visible answer");
+        assert_eq!(
+            response.content,
+            "<think>internal reasoning</think>Visible answer"
+        );
         assert_eq!(
             response.choices[0].delta.content.as_deref(),
             Some("<think>internal reasoning</think>Visible answer")

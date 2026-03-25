@@ -4,9 +4,9 @@
 
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
+use crate::protocols::common::capabilities::ProviderCapabilities;
 #[cfg(feature = "streaming")]
 use crate::protocols::common::streamers::map_sse_json_stream;
-use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::protocols::common::transport::resolve_prefixed_endpoint;
 use crate::types::{ChatRequest, ChatResponse, EmbedRequest, EmbedResponse};
 
@@ -52,7 +52,11 @@ impl Protocol for AliyunProtocol {
     }
 
     fn chat_endpoint(&self, base_url: &str, _model: &str) -> String {
-        resolve_prefixed_endpoint(base_url, "/api/v1", "/services/aigc/text-generation/generation")
+        resolve_prefixed_endpoint(
+            base_url,
+            "/api/v1",
+            "/services/aigc/text-generation/generation",
+        )
     }
 
     fn embed_endpoint(&self, base_url: &str, _model: &str) -> Option<String> {
@@ -69,7 +73,10 @@ impl Protocol for AliyunProtocol {
         }
     }
 
-    fn override_auth_strategy(&self, api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+    fn override_auth_strategy(
+        &self,
+        api_key: &str,
+    ) -> crate::protocols::common::auth::AuthStrategy {
         crate::protocols::common::auth::AuthStrategy::Bearer {
             api_key: api_key.to_string(),
         }
@@ -294,7 +301,10 @@ fn parse_aliyun_stream_event(
         });
 
     let usage = raw.get("usage").and_then(|value| {
-        let prompt_tokens = value.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        let prompt_tokens = value
+            .get("input_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32;
         let completion_tokens = value
             .get("output_tokens")
             .and_then(|v| v.as_u64())
@@ -302,7 +312,8 @@ fn parse_aliyun_stream_event(
         let total_tokens = value
             .get("total_tokens")
             .and_then(|v| v.as_u64())
-            .unwrap_or((prompt_tokens + completion_tokens) as u64) as u32;
+            .unwrap_or((prompt_tokens + completion_tokens) as u64)
+            as u32;
 
         if prompt_tokens > 0 || completion_tokens > 0 || total_tokens > 0 {
             Some(Usage {

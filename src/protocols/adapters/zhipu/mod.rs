@@ -126,7 +126,10 @@ impl Protocol for ZhipuProtocol {
         }
     }
 
-    fn override_auth_strategy(&self, api_key: &str) -> crate::protocols::common::auth::AuthStrategy {
+    fn override_auth_strategy(
+        &self,
+        api_key: &str,
+    ) -> crate::protocols::common::auth::AuthStrategy {
         crate::protocols::common::auth::AuthStrategy::Bearer {
             api_key: api_key.to_string(),
         }
@@ -198,11 +201,13 @@ impl Protocol for ZhipuProtocol {
         &self,
         response: reqwest::Response,
     ) -> Result<crate::types::ChatStream, LlmConnectorError> {
-        Ok(crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
-            response,
-            self.streaming_parse_mode(),
-            crate::core::Protocol::capabilities(self).stream_reasoning_strategy,
-        ))
+        Ok(
+            crate::protocols::common::openai_compatible::parse_openai_compatible_stream(
+                response,
+                self.streaming_parse_mode(),
+                crate::core::Protocol::capabilities(self).stream_reasoning_strategy,
+            ),
+        )
     }
 
     #[cfg(feature = "streaming")]

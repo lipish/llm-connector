@@ -7,10 +7,7 @@ use futures_util::StreamExt;
 use serde_json::Value;
 
 #[cfg(feature = "streaming")]
-pub fn map_sse_json_stream<F>(
-    response: reqwest::Response,
-    mapper: F,
-) -> crate::types::ChatStream
+pub fn map_sse_json_stream<F>(response: reqwest::Response, mapper: F) -> crate::types::ChatStream
 where
     F: Fn(String) -> Result<Option<StreamingResponse>, LlmConnectorError> + Send + Sync + 'static,
 {

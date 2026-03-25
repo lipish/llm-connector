@@ -50,7 +50,10 @@ async fn test_invoke_responses_direct_success() {
 
     assert_eq!(response.id, "resp_direct_1");
     assert_eq!(response.output_text, "Hello from responses");
-    assert_eq!(response.usage.as_ref().and_then(|u| u.total_tokens), Some(7));
+    assert_eq!(
+        response.usage.as_ref().and_then(|u| u.total_tokens),
+        Some(7)
+    );
 }
 
 #[tokio::test]
@@ -106,7 +109,10 @@ async fn test_invoke_responses_fallback_to_chat_on_404() {
 
     assert_eq!(response.object, "response");
     assert_eq!(response.output_text, "Hello from fallback");
-    assert_eq!(response.usage.as_ref().and_then(|u| u.total_tokens), Some(7));
+    assert_eq!(
+        response.usage.as_ref().and_then(|u| u.total_tokens),
+        Some(7)
+    );
 }
 
 #[tokio::test]
@@ -160,8 +166,15 @@ async fn test_invoke_responses_stream_fallback_event_ordering() {
 
     assert!(event_types.len() >= 3);
     assert_eq!(event_types[0], "response.created");
-    assert!(event_types.iter().any(|e| e == "response.output_text.delta"));
-    assert_eq!(event_types.last().map(String::as_str), Some("response.completed"));
+    assert!(
+        event_types
+            .iter()
+            .any(|e| e == "response.output_text.delta")
+    );
+    assert_eq!(
+        event_types.last().map(String::as_str),
+        Some("response.completed")
+    );
 }
 
 #[tokio::test]

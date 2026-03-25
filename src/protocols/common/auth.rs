@@ -5,8 +5,13 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 pub enum AuthStrategy {
     None,
-    Bearer { api_key: String },
-    ApiKeyHeader { api_key: String, header_name: String },
+    Bearer {
+        api_key: String,
+    },
+    ApiKeyHeader {
+        api_key: String,
+        header_name: String,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -30,7 +35,10 @@ pub fn materialize_auth_headers(strategy: &AuthStrategy) -> Vec<(String, String)
     }
 }
 
-pub fn apply_header_policy(mut headers: Vec<(String, String)>, policy: &HeaderPolicy) -> Vec<(String, String)> {
+pub fn apply_header_policy(
+    mut headers: Vec<(String, String)>,
+    policy: &HeaderPolicy,
+) -> Vec<(String, String)> {
     headers.extend(policy.headers.clone());
     headers
 }
