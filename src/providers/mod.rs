@@ -5,6 +5,7 @@
 
 use crate::core::{GenericProvider, HttpClient, Protocol, Provider};
 use crate::error::LlmConnectorError;
+#[cfg(feature = "tencent")]
 use crate::protocols::common::capabilities::ProviderCapabilities;
 #[cfg(feature = "tencent")]
 use crate::protocols::TencentNativeProtocol;
