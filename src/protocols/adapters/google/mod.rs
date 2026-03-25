@@ -7,7 +7,7 @@ use crate::error::LlmConnectorError;
 use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::types::{
     ChatRequest, ChatResponse, Choice, DocumentSource, EmbedRequest, EmbedResponse, EmbeddingData,
-    ImageSource, Message, MessageBlock, Role, Usage,
+    FunctionCall, ImageSource, Message, MessageBlock, Role, ToolCall, Usage,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -167,12 +167,13 @@ impl Protocol for GoogleProtocol {
                                         }
                                     };
 
-                                // Extract incremental text or reasoning
-                                let (content, reasoning, finish_reason) = google_resp
+                                // Extract incremental text, reasoning, and tool calls
+                                let (content, reasoning, tool_calls, finish_reason) = google_resp
                                     .candidates
                                     .as_ref()
                                     .and_then(|c| c.first())
                                     .map(|candidate| {
+                                        // Text content
                                         let text = candidate
                                             .content
                                             .as_ref()
@@ -184,6 +185,7 @@ impl Protocol for GoogleProtocol {
                                             })
                                             .unwrap_or_default();
 
+                                        // Reasoning (thought)
                                         let thought = candidate.content.as_ref().and_then(|c| {
                                             c.parts.iter().find_map(|p| match p {
                                                 GooglePart::Thought { text, .. } => {
@@ -193,7 +195,39 @@ impl Protocol for GoogleProtocol {
                                             })
                                         });
 
-                                        (text, thought, candidate.finish_reason.clone())
+                                        // Tool calls extraction
+                                        let tools: Vec<ToolCall> = candidate
+                                            .content
+                                            .as_ref()
+                                            .map(|c| {
+                                                c.parts
+                                                    .iter()
+                                                    .filter_map(|p| match p {
+                                                        GooglePart::FunctionCall {
+                                                            function_call,
+                                                            thought_signature,
+                                                        } => Some(ToolCall {
+                                                            id: function_call.name.clone(),
+                                                            call_type: "function".to_string(),
+                                                            function: FunctionCall {
+                                                                name: function_call.name.clone(),
+                                                                arguments: function_call
+                                                                    .args
+                                                                    .to_string(),
+                                                                thought_signature:
+                                                                    thought_signature.clone(),
+                                                            },
+                                                            index: None,
+                                                            thought_signature: thought_signature
+                                                                .clone(),
+                                                        }),
+                                                        _ => None,
+                                                    })
+                                                    .collect()
+                                            })
+                                            .unwrap_or_default();
+
+                                        (text, thought, tools, candidate.finish_reason.clone())
                                     })
                                     .unwrap_or_default();
 
@@ -209,6 +243,7 @@ impl Protocol for GoogleProtocol {
                                     && reasoning.is_none()
                                     && finish_reason.is_none()
                                     && usage.is_none()
+                                    && tool_calls.is_empty()
                                 {
                                     Ok(None)
                                 } else {
@@ -234,6 +269,11 @@ impl Protocol for GoogleProtocol {
                                                     Some(content.clone())
                                                 },
                                                 reasoning_content: reasoning,
+                                                tool_calls: if tool_calls.is_empty() {
+                                                    None
+                                                } else {
+                                                    Some(tool_calls)
+                                                },
                                                 ..Default::default()
                                             },
                                             finish_reason,
@@ -433,9 +473,11 @@ impl From<&ChatRequest> for GoogleRequest {
                 temperature: req.temperature,
                 top_p: req.top_p,
                 max_output_tokens: req.max_tokens,
-                thinking_config: reasoning_parts.enable_thinking.map(|b| GoogleThinkingConfig {
-                    include_thoughts: b,
-                }),
+                thinking_config: reasoning_parts
+                    .enable_thinking
+                    .map(|b| GoogleThinkingConfig {
+                        include_thoughts: b,
+                    }),
             }),
         }
     }
@@ -519,21 +561,21 @@ pub struct GoogleThinkingConfig {
     pub include_thoughts: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleResponse {
     pub candidates: Option<Vec<GoogleCandidate>>,
     #[serde(rename = "usageMetadata")]
     pub usage_metadata: Option<GoogleUsageMetadata>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleCandidate {
     pub content: Option<GoogleContent>,
     #[serde(rename = "finishReason")]
     pub finish_reason: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GoogleUsageMetadata {
     #[serde(rename = "promptTokenCount")]
     pub prompt_token_count: Option<u32>,
@@ -705,5 +747,51 @@ mod tests {
         assert!(google_req.generation_config.is_some());
         let config = google_req.generation_config.unwrap();
         assert!(config.thinking_config.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_parse_stream_response_tool_call() {
+        use futures::stream::TryStreamExt;
+        use serde_json::json;
+
+        const TOOL_NAME: &str = "set_light_values";
+        let google_response = GoogleResponse {
+            candidates: Some(vec![GoogleCandidate {
+                content: Some(GoogleContent {
+                    role: "model".to_string(),
+                    parts: vec![GooglePart::FunctionCall {
+                        function_call: GoogleFunctionCall {
+                            name: TOOL_NAME.to_string(),
+                            args: json!(r#"{"brightness": 25, "color_temp": "warm"}"#),
+                        },
+                        thought_signature: None,
+                    }],
+                }),
+                finish_reason: None,
+            }]),
+            usage_metadata: None,
+        };
+        let google_response_serialized = serde_json::to_string(&google_response).unwrap();
+        let resp = reqwest::Response::from(http::response::Response::new(format!(
+            "data: {google_response_serialized}\n\n"
+        )));
+        let protocol = GoogleProtocol::new();
+        let streaming_response: Option<crate::types::StreamingResponse> =
+            match protocol.parse_stream_response(resp).await {
+                Ok(resp) => match resp.try_collect::<Vec<_>>().await {
+                    Ok(v) => Some(v[0].clone()),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+        // Verify tool calls
+        assert!(streaming_response.is_some_and(|sr| {
+            sr.choices[0]
+                .delta
+                .tool_calls
+                .as_ref()
+                .is_some_and(|tc| tc[0].function.name == TOOL_NAME)
+        }))
     }
 }
