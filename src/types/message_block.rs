@@ -188,6 +188,58 @@ impl MessageBlock {
         }
     }
 
+    /// Extract Base64 encoded image data from the block (if it contains an image)
+    ///
+    /// Supports both `Image` (Anthropic format) and `ImageUrl` blocks.
+    /// For URL sources, extracts the Base64 portion from `data:` URIs.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(String)` containing the Base64 data if the block contains an image
+    /// - `None` if the block is not an image type
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use llm_connector::types::MessageBlock;
+    ///
+    /// let image = MessageBlock::image_base64("image/png", "abc123");
+    /// assert_eq!(image.as_image_base64(), Some("abc123".to_string()));
+    ///
+    /// let text = MessageBlock::text("Hello");
+    /// assert_eq!(text.as_image_base64(), None);
+    /// ```
+    pub fn as_image_base64(&self) -> Option<String> {
+        match self {
+            Self::Image { source } => match source {
+                ImageSource::Base64 { data, .. } => Some(data.to_owned()),
+                ImageSource::Url { url } => Some(
+                    if url.starts_with("data:")
+                        && let Some(pos) = url.find(";base64,")
+                    {
+                        &url[pos + 8..]
+                    } else {
+                        url
+                    }
+                    .to_owned(),
+                ),
+            },
+            MessageBlock::ImageUrl {
+                image_url: ImageUrl { url, .. },
+            } => Some(
+                if url.starts_with("data:")
+                    && let Some(pos) = url.find(";base64,")
+                {
+                    &url[pos + 8..]
+                } else {
+                    url
+                }
+                .to_owned(),
+            ),
+            _ => None,
+        }
+    }
+
     /// CheckisifasText block
     pub fn is_text(&self) -> bool {
         matches!(self, Self::Text { .. })

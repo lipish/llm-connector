@@ -955,11 +955,13 @@ impl<P: Protocol> Provider for GenericProvider<P> {
 #[cfg(test)]
 mod tests {
     use super::validate_chat_request_capabilities;
-    use crate::protocols::AnthropicProtocol;
-    use crate::protocols::OllamaProtocol;
-    use crate::protocols::OpenAIProtocol;
-    use crate::protocols::common::capabilities::ProviderCapabilities;
-    use crate::types::{ChatRequest, MessageBlock, Tool, ToolChoice};
+    use crate::{
+        protocols::{
+            AnthropicProtocol, OllamaProtocol, OpenAIProtocol,
+            common::capabilities::ProviderCapabilities,
+        },
+        types::{ChatRequest, Tool, ToolChoice},
+    };
 
     #[test]
     fn test_capability_precheck_rejects_tool_choice_when_unsupported() {
@@ -998,23 +1000,6 @@ mod tests {
     }
 
     #[test]
-    fn test_capability_precheck_rejects_non_text_blocks_when_unsupported() {
-        let protocol = OllamaProtocol::new();
-        let request = ChatRequest::new("llama3.2")
-            .add_message_block(MessageBlock::image_url("https://example.com/test.png"));
-
-        let error = validate_chat_request_capabilities(&protocol, &request)
-            .expect_err("ollama should reject non-text multimodal input precheck");
-
-        match error {
-            crate::error::LlmConnectorError::InvalidRequest(message) => {
-                assert!(message.contains("non-text message blocks"));
-            }
-            other => panic!("unexpected error: {:?}", other),
-        }
-    }
-
-    #[test]
     fn test_ollama_capabilities_exposed() {
         let capabilities = ProviderCapabilities::ollama();
         assert!(!capabilities.supports_tool_choice);
@@ -1022,7 +1007,7 @@ mod tests {
             capabilities.reasoning_request_strategy,
             crate::protocols::common::capabilities::ReasoningRequestStrategy::Unsupported
         );
-        assert!(!capabilities.supports_multimodal_input);
+        assert!(capabilities.supports_multimodal_input);
     }
 
     #[test]

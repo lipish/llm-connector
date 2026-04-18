@@ -131,7 +131,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::Unsupported,
             stream_reasoning_strategy: StreamReasoningStrategy::None,
-            supports_multimodal_input: false,
+            supports_multimodal_input: true,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
         }
