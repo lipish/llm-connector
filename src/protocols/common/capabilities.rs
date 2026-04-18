@@ -106,7 +106,7 @@ impl ProviderCapabilities {
             supports_embeddings: true,
             supports_responses_api: true,
             supports_tools: true,
-            supports_tool_choice: true,
+            supports_tool_choice: false,
             supports_response_format: true,
             reasoning_request_strategy: ReasoningRequestStrategy::ReasoningEffort,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
@@ -211,7 +211,7 @@ impl ProviderCapabilities {
             supports_embeddings: false,
             supports_responses_api: false,
             supports_tools: true,
-            supports_tool_choice: false,
+            supports_tool_choice: true,
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::ThinkingBudget,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
@@ -337,6 +337,7 @@ mod tests {
         );
         assert!(capabilities.supports_reasoning_budget());
         assert!(!capabilities.supports_reasoning_flag());
+        assert!(capabilities.supports_tool_choice);
     }
 
     #[test]

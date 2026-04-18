@@ -1,3 +1,16 @@
+## [1.1.19] - 2026-04-18
+
+### Fixes
+
+- **Anthropic native `tool_choice` capability gate**:
+  - Enabled `supports_tool_choice` in `ProviderCapabilities::anthropic()`, so native Anthropic requests with `tool_choice` are no longer rejected during precheck.
+  - Kept Anthropic adapter mapping behavior (`auto -> auto`, `required -> any`, `function(name) -> tool`).
+
+### Tests
+
+- Added regression coverage to ensure Anthropic capability precheck accepts `tool_choice`.
+- Added adapter-level serialization test for Anthropic `ToolChoice::required()` -> `{ "type": "any" }`.
+
 ## [1.1.18] - 2026-04-18
 
 ### Features

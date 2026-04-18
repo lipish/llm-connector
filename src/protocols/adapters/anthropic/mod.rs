@@ -671,6 +671,30 @@ mod tests {
     }
 
     #[test]
+    fn test_anthropic_request_required_tool_choice_serialization() {
+        let protocol = AnthropicProtocol::new("test-key");
+        let request = ChatRequest::new("claude-3-5-sonnet")
+            .with_tools(vec![Tool::function(
+                "get_weather",
+                Some("Get weather".to_string()),
+                serde_json::json!({"type":"object"}),
+            )])
+            .with_tool_choice(ToolChoice::required())
+            .add_message(Message::user("hi"));
+
+        let mapped = protocol.build_request(&request).unwrap();
+        assert_eq!(mapped.tools.as_ref().map(|v| v.len()), Some(1));
+        assert_eq!(
+            mapped.tool_choice.as_ref().map(|c| c.choice_type.as_str()),
+            Some("any")
+        );
+        assert_eq!(
+            mapped.tool_choice.as_ref().and_then(|c| c.name.as_deref()),
+            None
+        );
+    }
+
+    #[test]
     fn test_anthropic_parse_non_streaming_tool_use_to_tool_calls() {
         let response_json = r#"
         {

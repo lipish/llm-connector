@@ -955,6 +955,7 @@ impl<P: Protocol> Provider for GenericProvider<P> {
 #[cfg(test)]
 mod tests {
     use super::validate_chat_request_capabilities;
+    use crate::protocols::AnthropicProtocol;
     use crate::protocols::OllamaProtocol;
     use crate::protocols::common::capabilities::ProviderCapabilities;
     use crate::types::{ChatRequest, MessageBlock, ToolChoice};
@@ -1021,5 +1022,16 @@ mod tests {
             crate::protocols::common::capabilities::ReasoningRequestStrategy::Unsupported
         );
         assert!(!capabilities.supports_multimodal_input);
+    }
+
+    #[test]
+    fn test_capability_precheck_allows_anthropic_tool_choice() {
+        let protocol = AnthropicProtocol::new("test-key");
+        let request = ChatRequest::new("claude-3-5-sonnet")
+            .add_message(crate::types::Message::user("hello"))
+            .with_tool_choice(ToolChoice::auto());
+
+        validate_chat_request_capabilities(&protocol, &request)
+            .expect("anthropic should accept tool_choice precheck");
     }
 }
