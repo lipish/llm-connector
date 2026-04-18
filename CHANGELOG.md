@@ -1,3 +1,18 @@
+## [1.1.18] - 2026-04-18
+
+### Features
+
+- **Anthropic tools round-trip support (`/v1/messages`)**:
+  - Added request mapping for `tools` and `tool_choice` in `AnthropicRequest`.
+  - Added assistant `tool_calls -> content[type=tool_use]` serialization.
+  - Added tool message `Role::Tool -> content[type=tool_result]` serialization (no text downgrade).
+  - Added non-streaming response parsing for `content[type=tool_use] -> message.tool_calls`.
+  - Added streaming event parsing for `content_block_start(tool_use)` and `content_block_delta(input_json_delta)` into `delta.tool_calls`.
+
+### Tests
+
+- Added Anthropic regression tests covering single-tool, multi-tool, non-streaming, and streaming tool-call flows.
+
 ## [1.1.14] - 2026-03-20
 
 ### Fixes

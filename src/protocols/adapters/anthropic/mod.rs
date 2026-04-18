@@ -5,7 +5,9 @@
 use crate::core::Protocol;
 use crate::error::LlmConnectorError;
 use crate::protocols::common::capabilities::ProviderCapabilities;
-use crate::types::{ChatRequest, ChatResponse, Choice, Message, Role, Usage};
+use crate::types::{
+    ChatRequest, ChatResponse, Choice, FunctionCall, Message, Role, ToolCall, ToolChoice, Usage,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -78,19 +80,57 @@ impl Protocol for AnthropicProtocol {
                     });
                 }
                 Role::Assistant => {
-                    // Anthropic always uses array format
-                    let content = serde_json::to_value(&msg.content).unwrap();
+                    // Anthropic uses content blocks and expresses tool calls as tool_use blocks
+                    let mut content = serde_json::to_value(&msg.content).unwrap_or_else(|_| {
+                        serde_json::Value::Array(vec![serde_json::json!({
+                            "type": "text",
+                            "text": msg.content_as_text()
+                        })])
+                    });
+                    if !content.is_array() {
+                        content = serde_json::Value::Array(vec![serde_json::json!({
+                            "type": "text",
+                            "text": msg.content_as_text()
+                        })]);
+                    }
+                    if let (Some(tool_calls), Some(content_arr)) =
+                        (&msg.tool_calls, content.as_array_mut())
+                    {
+                        for (index, tool_call) in tool_calls.iter().enumerate() {
+                            let tool_id = if tool_call.id.is_empty() {
+                                format!("toolu_{}", index)
+                            } else {
+                                tool_call.id.clone()
+                            };
+                            let input = tool_call.arguments_value().unwrap_or_else(|_| {
+                                serde_json::json!({
+                                    "_raw": tool_call.function.arguments
+                                })
+                            });
+                            content_arr.push(serde_json::json!({
+                                "type": "tool_use",
+                                "id": tool_id,
+                                "name": tool_call.function.name,
+                                "input": input
+                            }));
+                        }
+                    }
                     messages.push(AnthropicMessage {
                         role: "assistant".to_string(),
                         content,
                     });
                 }
                 Role::Tool => {
-                    // Anthropic does not support tool role yet, convert to user
-                    let text = format!("Tool result: {}", msg.content_as_text());
+                    // Anthropic expects tool outputs as user tool_result blocks
+                    let tool_use_id = msg.tool_call_id.clone().unwrap_or_default();
+                    let text = msg.content_as_text();
                     messages.push(AnthropicMessage {
                         role: "user".to_string(),
-                        content: serde_json::json!([{"type": "text", "text": text}]),
+                        content: serde_json::json!([{
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": text
+                        }]),
                     });
                 }
             }
@@ -123,6 +163,20 @@ impl Protocol for AnthropicProtocol {
             top_p: request.top_p,
             stream: request.stream,
             thinking,
+            tools: request.tools.as_ref().map(|tools| {
+                tools
+                    .iter()
+                    .map(|tool| AnthropicTool {
+                        name: tool.function.name.clone(),
+                        description: tool.function.description.clone(),
+                        input_schema: tool.function.parameters.clone(),
+                    })
+                    .collect()
+            }),
+            tool_choice: request
+                .tool_choice
+                .as_ref()
+                .and_then(map_tool_choice_to_anthropic),
         })
     }
 
@@ -136,6 +190,7 @@ impl Protocol for AnthropicProtocol {
         let mut message_blocks = Vec::new();
         let mut thinking_content = String::new();
         let mut text_content = String::new();
+        let mut tool_calls = Vec::new();
 
         for block in &anthropic_response.content {
             match block.content_type.as_str() {
@@ -148,6 +203,26 @@ impl Protocol for AnthropicProtocol {
                 "thinking" => {
                     if let Some(thinking) = &block.thinking {
                         thinking_content.push_str(thinking);
+                    }
+                }
+                "tool_use" => {
+                    if let (Some(id), Some(name)) = (&block.id, &block.name) {
+                        let arguments = block
+                            .input
+                            .as_ref()
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "{}".to_string());
+                        tool_calls.push(ToolCall {
+                            id: id.clone(),
+                            call_type: "function".to_string(),
+                            function: FunctionCall {
+                                name: name.clone(),
+                                arguments,
+                                thought_signature: None,
+                            },
+                            index: Some(tool_calls.len()),
+                            thought_signature: None,
+                        });
                     }
                 }
                 _ => {
@@ -168,7 +243,11 @@ impl Protocol for AnthropicProtocol {
                 role: Role::Assistant,
                 content: message_blocks,
                 name: None,
-                tool_calls: None,
+                tool_calls: if tool_calls.is_empty() {
+                    None
+                } else {
+                    Some(tool_calls)
+                },
                 tool_call_id: None,
                 reasoning_content: None,
                 reasoning: None,
@@ -178,6 +257,13 @@ impl Protocol for AnthropicProtocol {
             finish_reason: Some(
                 anthropic_response
                     .stop_reason
+                    .map(|reason| {
+                        if reason == "tool_use" {
+                            "tool_calls".to_string()
+                        } else {
+                            reason
+                        }
+                    })
                     .unwrap_or_else(|| "stop".to_string()),
             ),
             logprobs: None,
@@ -305,7 +391,7 @@ impl Protocol for AnthropicProtocol {
                         }
                         Ok(None)
                     }
-                    "content_block_delta" | "message_delta" => {
+                    "content_block_start" | "content_block_delta" | "message_delta" => {
                         let id = message_id.lock().map(|id| id.clone()).unwrap_or_default();
                         crate::protocols::common::streamers::interpret_anthropic_event(&event, &id)
                     }
@@ -332,6 +418,10 @@ pub struct AnthropicRequest {
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<AnthropicThinking>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<AnthropicTool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<AnthropicToolChoice>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -345,6 +435,22 @@ pub struct AnthropicThinking {
 pub struct AnthropicMessage {
     pub role: String,
     pub content: serde_json::Value, // Support String or Array
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AnthropicTool {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub input_schema: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AnthropicToolChoice {
+    #[serde(rename = "type")]
+    pub choice_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 // Anthropicresponsetype
@@ -364,6 +470,9 @@ pub struct AnthropicContent {
     pub text: Option<String>,
     pub thinking: Option<String>,
     pub signature: Option<String>,
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub input: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -374,9 +483,34 @@ pub struct AnthropicUsage {
     pub cache_read_input_tokens: Option<u32>,
 }
 
+fn map_tool_choice_to_anthropic(tool_choice: &ToolChoice) -> Option<AnthropicToolChoice> {
+    match tool_choice {
+        ToolChoice::Mode(mode) => match mode.as_str() {
+            "none" => None,
+            "required" => Some(AnthropicToolChoice {
+                choice_type: "any".to_string(),
+                name: None,
+            }),
+            "auto" => Some(AnthropicToolChoice {
+                choice_type: "auto".to_string(),
+                name: None,
+            }),
+            _ => Some(AnthropicToolChoice {
+                choice_type: "auto".to_string(),
+                name: None,
+            }),
+        },
+        ToolChoice::Function { function, .. } => Some(AnthropicToolChoice {
+            choice_type: "tool".to_string(),
+            name: Some(function.name.clone()),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::Tool;
 
     #[test]
     fn test_anthropic_parsing_with_thinking_and_text() {
@@ -453,5 +587,165 @@ mod tests {
             result.choices[0].message.thinking.as_deref(),
             Some("Just thinking...")
         );
+    }
+
+    #[test]
+    fn test_anthropic_request_single_tool_with_tool_use_and_result() {
+        let protocol = AnthropicProtocol::new("test-key");
+        let tool = Tool::function(
+            "get_weather",
+            Some("Get weather".to_string()),
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "city": { "type": "string" }
+                },
+                "required": ["city"]
+            }),
+        );
+        let assistant_with_tool = Message::assistant_with_tool_calls(vec![ToolCall {
+            id: "toolu_1".to_string(),
+            call_type: "function".to_string(),
+            function: FunctionCall {
+                name: "get_weather".to_string(),
+                arguments: r#"{"city":"beijing"}"#.to_string(),
+                thought_signature: None,
+            },
+            index: Some(0),
+            thought_signature: None,
+        }]);
+        let tool_result = Message::tool(r#"{"temp":26}"#, "toolu_1");
+        let request = ChatRequest::new("claude-3-5-sonnet")
+            .with_tools(vec![tool])
+            .with_tool_choice(ToolChoice::function("get_weather"))
+            .add_message(Message::user("weather?"))
+            .add_message(assistant_with_tool)
+            .add_message(tool_result);
+
+        let mapped = protocol.build_request(&request).unwrap();
+        assert_eq!(mapped.tools.as_ref().map(|v| v.len()), Some(1));
+        assert_eq!(
+            mapped.tool_choice.as_ref().map(|c| c.choice_type.as_str()),
+            Some("tool")
+        );
+        assert_eq!(
+            mapped.tool_choice.as_ref().and_then(|c| c.name.as_deref()),
+            Some("get_weather")
+        );
+        let assistant_content = mapped.messages[1].content.as_array().unwrap();
+        assert_eq!(assistant_content[0]["type"], "tool_use");
+        assert_eq!(assistant_content[0]["id"], "toolu_1");
+        assert_eq!(assistant_content[0]["name"], "get_weather");
+        assert_eq!(assistant_content[0]["input"]["city"], "beijing");
+
+        let tool_result_content = mapped.messages[2].content.as_array().unwrap();
+        assert_eq!(tool_result_content[0]["type"], "tool_result");
+        assert_eq!(tool_result_content[0]["tool_use_id"], "toolu_1");
+    }
+
+    #[test]
+    fn test_anthropic_request_multi_tools_and_auto_choice() {
+        let protocol = AnthropicProtocol::new("test-key");
+        let request = ChatRequest::new("claude-3-5-sonnet")
+            .with_tools(vec![
+                Tool::function(
+                    "get_weather",
+                    Some("Get weather".to_string()),
+                    serde_json::json!({"type":"object"}),
+                ),
+                Tool::function(
+                    "get_time",
+                    Some("Get time".to_string()),
+                    serde_json::json!({"type":"object"}),
+                ),
+            ])
+            .with_tool_choice(ToolChoice::auto())
+            .add_message(Message::user("hi"));
+
+        let mapped = protocol.build_request(&request).unwrap();
+        assert_eq!(mapped.tools.as_ref().map(|v| v.len()), Some(2));
+        assert_eq!(
+            mapped.tool_choice.as_ref().map(|c| c.choice_type.as_str()),
+            Some("auto")
+        );
+    }
+
+    #[test]
+    fn test_anthropic_parse_non_streaming_tool_use_to_tool_calls() {
+        let response_json = r#"
+        {
+            "id": "msg_125",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-3-5-sonnet-20241022",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_1",
+                    "name": "get_weather",
+                    "input": {"city":"beijing"}
+                }
+            ],
+            "stop_reason": "tool_use",
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 20
+            }
+        }
+        "#;
+
+        let protocol = AnthropicProtocol::new("test-key");
+        let result = protocol.parse_response(response_json).unwrap();
+        let tool_calls = result.choices[0].message.tool_calls.as_ref().unwrap();
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "toolu_1");
+        assert_eq!(tool_calls[0].function.name, "get_weather");
+        assert_eq!(tool_calls[0].function.arguments, r#"{"city":"beijing"}"#);
+        assert_eq!(
+            result.choices[0].finish_reason.as_deref(),
+            Some("tool_calls")
+        );
+    }
+
+    #[test]
+    fn test_anthropic_parse_streaming_tool_use_deltas() {
+        let start_event = serde_json::json!({
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {
+                "type": "tool_use",
+                "id": "toolu_1",
+                "name": "get_weather",
+                "input": {}
+            }
+        });
+        let start_chunk = crate::protocols::common::streamers::interpret_anthropic_event(
+            &start_event,
+            "msg_stream",
+        )
+        .unwrap()
+        .unwrap();
+        let start_tool_calls = start_chunk.choices[0].delta.tool_calls.as_ref().unwrap();
+        assert_eq!(start_tool_calls[0].id, "toolu_1");
+        assert_eq!(start_tool_calls[0].function.name, "get_weather");
+        assert_eq!(start_tool_calls[0].index, Some(0));
+
+        let delta_event = serde_json::json!({
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {
+                "type": "input_json_delta",
+                "partial_json": "{\"city\":\"bei"
+            }
+        });
+        let delta_chunk = crate::protocols::common::streamers::interpret_anthropic_event(
+            &delta_event,
+            "msg_stream",
+        )
+        .unwrap()
+        .unwrap();
+        let delta_tool_calls = delta_chunk.choices[0].delta.tool_calls.as_ref().unwrap();
+        assert_eq!(delta_tool_calls[0].index, Some(0));
+        assert_eq!(delta_tool_calls[0].function.arguments, "{\"city\":\"bei");
     }
 }

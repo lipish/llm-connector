@@ -1,7 +1,9 @@
 //! Common Streaming Interpreters
 
 use crate::error::LlmConnectorError;
-use crate::types::{Delta, Role, StreamingChoice, StreamingResponse, Usage};
+use crate::types::{
+    Delta, FunctionCall, Role, StreamingChoice, StreamingResponse, ToolCall, Usage,
+};
 #[cfg(feature = "streaming")]
 use futures_util::StreamExt;
 use serde_json::Value;
@@ -35,6 +37,60 @@ pub fn interpret_anthropic_event(
     let event_type = event.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
     match event_type {
+        "content_block_start" => {
+            let index = event.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+            if let Some(block) = event.get("content_block")
+                && block.get("type").and_then(|t| t.as_str()) == Some("tool_use")
+            {
+                let id = block
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let name = block
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let args = block
+                    .get("input")
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "{}".to_string());
+                let tool_call = ToolCall {
+                    id,
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name,
+                        arguments: args,
+                        thought_signature: None,
+                    },
+                    index: Some(index),
+                    thought_signature: None,
+                };
+                return Ok(Some(StreamingResponse {
+                    id: message_id.to_string(),
+                    object: "chat.completion.chunk".to_string(),
+                    created: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs(),
+                    model: "anthropic".to_string(),
+                    choices: vec![StreamingChoice {
+                        index: 0,
+                        delta: Delta {
+                            role: Some(Role::Assistant),
+                            content: None,
+                            tool_calls: Some(vec![tool_call]),
+                            ..Default::default()
+                        },
+                        finish_reason: None,
+                        logprobs: None,
+                    }],
+                    ..Default::default()
+                }));
+            }
+            Ok(None)
+        }
         "content_block_delta" => {
             if let Some(text) = event
                 .get("delta")
@@ -60,6 +116,44 @@ pub fn interpret_anthropic_event(
                         logprobs: None,
                     }],
                     content: text.to_string(),
+                    ..Default::default()
+                }))
+            } else if let Some(partial_json) = event
+                .get("delta")
+                .and_then(|d| d.get("partial_json"))
+                .and_then(|t| t.as_str())
+            {
+                let index = event.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                let tool_call = ToolCall {
+                    id: String::new(),
+                    call_type: String::new(),
+                    function: FunctionCall {
+                        name: String::new(),
+                        arguments: partial_json.to_string(),
+                        thought_signature: None,
+                    },
+                    index: Some(index),
+                    thought_signature: None,
+                };
+                Ok(Some(StreamingResponse {
+                    id: message_id.to_string(),
+                    object: "chat.completion.chunk".to_string(),
+                    created: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs(),
+                    model: "anthropic".to_string(),
+                    choices: vec![StreamingChoice {
+                        index: 0,
+                        delta: Delta {
+                            role: Some(Role::Assistant),
+                            content: None,
+                            tool_calls: Some(vec![tool_call]),
+                            ..Default::default()
+                        },
+                        finish_reason: None,
+                        logprobs: None,
+                    }],
                     ..Default::default()
                 }))
             } else {
