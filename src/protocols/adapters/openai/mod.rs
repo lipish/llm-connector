@@ -378,7 +378,7 @@ pub struct OpenAIEmbedRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Message, MessageBlock, Role};
+    use crate::types::{Message, MessageBlock, Role, Tool, ToolChoice};
 
     #[test]
     fn test_openai_request_downgrade_for_deepseek() {
@@ -444,5 +444,45 @@ mod tests {
             }
             _ => panic!("Expected InvalidRequest error, got {:?}", result),
         }
+    }
+
+    #[test]
+    fn test_openai_request_serializes_required_tool_choice() {
+        let protocol = OpenAIProtocol::new("test-key");
+        let request = ChatRequest::new("gpt-4o-mini")
+            .add_message(Message::user("hello"))
+            .with_tools(vec![Tool::function(
+                "get_weather",
+                Some("Get weather".to_string()),
+                serde_json::json!({"type":"object"}),
+            )])
+            .with_tool_choice(ToolChoice::required());
+
+        let req = protocol.build_request(&request).unwrap();
+        assert!(req.tools.is_some());
+        assert_eq!(req.tool_choice, Some(serde_json::json!("required")));
+    }
+
+    #[test]
+    fn test_openai_request_serializes_specific_function_tool_choice() {
+        let protocol = OpenAIProtocol::new("test-key");
+        let request = ChatRequest::new("gpt-4o-mini")
+            .add_message(Message::user("hello"))
+            .with_tools(vec![Tool::function(
+                "get_weather",
+                Some("Get weather".to_string()),
+                serde_json::json!({"type":"object"}),
+            )])
+            .with_tool_choice(ToolChoice::function("get_weather"));
+
+        let req = protocol.build_request(&request).unwrap();
+        assert!(req.tools.is_some());
+        assert_eq!(
+            req.tool_choice,
+            Some(serde_json::json!({
+                "type": "function",
+                "function": { "name": "get_weather" }
+            }))
+        );
     }
 }

@@ -1,3 +1,19 @@
+## [1.1.20] - 2026-04-18
+
+### Fixes
+
+- **OpenAI `tool_choice` capability regression**:
+  - Restored `ProviderCapabilities::openai().supports_tool_choice = true` so chat requests with `tools + tool_choice` are no longer rejected before dispatch.
+  - Preserved native Anthropic `tool_choice` support introduced in `1.1.19`.
+
+### Tests
+
+- Added capability-precheck regression tests for OpenAI:
+  - non-stream `ToolChoice::required()`
+  - stream `ToolChoice::function("get_weather")`
+- Added OpenAI adapter request-serialization tests for `required` and specific-function `tool_choice`.
+- Re-ran Anthropic `tool_choice` precheck regression to ensure no behavior rollback.
+
 ## [1.1.19] - 2026-04-18
 
 ### Fixes

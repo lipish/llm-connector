@@ -957,8 +957,9 @@ mod tests {
     use super::validate_chat_request_capabilities;
     use crate::protocols::AnthropicProtocol;
     use crate::protocols::OllamaProtocol;
+    use crate::protocols::OpenAIProtocol;
     use crate::protocols::common::capabilities::ProviderCapabilities;
-    use crate::types::{ChatRequest, MessageBlock, ToolChoice};
+    use crate::types::{ChatRequest, MessageBlock, Tool, ToolChoice};
 
     #[test]
     fn test_capability_precheck_rejects_tool_choice_when_unsupported() {
@@ -1033,5 +1034,40 @@ mod tests {
 
         validate_chat_request_capabilities(&protocol, &request)
             .expect("anthropic should accept tool_choice precheck");
+    }
+
+    #[test]
+    fn test_capability_precheck_allows_openai_required_tool_choice_non_stream() {
+        let protocol = OpenAIProtocol::new("test-key");
+        let weather_tool = Tool::function(
+            "get_weather",
+            Some("Get weather".to_string()),
+            serde_json::json!({"type":"object"}),
+        );
+        let request = ChatRequest::new("gpt-4o-mini")
+            .add_message(crate::types::Message::user("hello"))
+            .with_tools(vec![weather_tool])
+            .with_tool_choice(ToolChoice::required());
+
+        validate_chat_request_capabilities(&protocol, &request)
+            .expect("openai should accept required tool_choice precheck");
+    }
+
+    #[test]
+    fn test_capability_precheck_allows_openai_specific_tool_choice_stream() {
+        let protocol = OpenAIProtocol::new("test-key");
+        let weather_tool = Tool::function(
+            "get_weather",
+            Some("Get weather".to_string()),
+            serde_json::json!({"type":"object"}),
+        );
+        let request = ChatRequest::new("gpt-4o-mini")
+            .add_message(crate::types::Message::user("hello"))
+            .with_tools(vec![weather_tool])
+            .with_tool_choice(ToolChoice::function("get_weather"))
+            .with_stream(true);
+
+        validate_chat_request_capabilities(&protocol, &request)
+            .expect("openai should accept specific tool_choice precheck in stream mode");
     }
 }
