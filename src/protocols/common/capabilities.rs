@@ -262,6 +262,27 @@ impl ProviderCapabilities {
             region_key_scope_sensitive: true,
         }
     }
+
+    pub const fn openrouter() -> Self {
+        Self {
+            family: ProviderFamily::Custom,
+            auth_kind: AuthKind::Signature,
+            content_block_mode: ContentBlockMode::Standard,
+            streaming_protocol: StreamingProtocolKind::SseOpenAI,
+            supports_chat: true,
+            supports_streaming: true,
+            supports_embeddings: true,
+            supports_responses_api: false,
+            supports_tools: true,
+            supports_tool_choice: true,
+            supports_response_format: false,
+            reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
+            stream_reasoning_strategy: StreamReasoningStrategy::None,
+            supports_multimodal_input: true,
+            requires_region_routing: false,
+            region_key_scope_sensitive: false,
+        }
+    }
 }
 
 impl Default for ProviderCapabilities {

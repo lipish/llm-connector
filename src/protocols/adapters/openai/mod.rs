@@ -66,6 +66,7 @@ impl OpenAIProtocol {
                 capabilities.requires_region_routing = self.service_name.as_str() == "minimax";
                 capabilities
             }
+            "openrouter" => ProviderCapabilities::openrouter(),
             "xinference" => {
                 let mut capabilities = ProviderCapabilities::openai_compatible_text_only();
                 capabilities.auth_kind = crate::protocols::common::capabilities::AuthKind::None;
