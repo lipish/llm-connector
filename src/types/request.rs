@@ -438,6 +438,38 @@ impl Message {
             .join("\n")
     }
 
+    /// Extract all Base64 encoded images from message content blocks
+    ///
+    /// Collects Base64 image data from all image blocks in the message.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<String>` containing Base64 encoded image data from all image blocks
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use llm_connector::types::{Message, Role, MessageBlock};
+    ///
+    /// let message = Message::new(
+    ///     Role::User,
+    ///     vec![
+    ///         MessageBlock::text("Describe this image"),
+    ///         MessageBlock::image_base64("image/png", "base64_data_here"),
+    ///     ],
+    /// );
+    ///
+    /// let images = message.content_as_images_base64();
+    /// assert_eq!(images.len(), 1);
+    /// assert_eq!(images[0], "base64_data_here");
+    /// ```
+    pub fn content_as_images_base64(&self) -> Vec<String> {
+        self.content
+            .iter()
+            .filter_map(|block| block.as_image_base64())
+            .collect()
+    }
+
     /// Check if message contains only text (no images or other media)
     pub fn is_text_only(&self) -> bool {
         self.content.iter().all(|block| block.is_text())

@@ -333,7 +333,7 @@ impl LlmClient {
     /// ```rust,no_run
     /// use llm_connector::LlmClient;
     ///
-    /// let client = LlmClient::tencent("AKID...", "SecretKey...").unwrap();
+    /// let client = LlmClient::tencent("AKID...", "SecretKey...", "hunyuan.tencentcloudapi.com").unwrap();
     /// ```
     #[cfg(feature = "tencent")]
     pub fn tencent(

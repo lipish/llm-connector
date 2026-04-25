@@ -2,15 +2,19 @@
 //!
 //! This module provides the Ollama API protocol.
 
-use crate::core::Protocol;
-use crate::error::LlmConnectorError;
-use crate::protocols::common::capabilities::ProviderCapabilities;
-use crate::types::{
-    ChatRequest, ChatResponse, Choice, EmbedRequest, EmbedResponse, EmbeddingData, Message, Role,
-    Usage,
+use {
+    crate::{
+        core::Protocol,
+        error::LlmConnectorError,
+        protocols::common::capabilities::ProviderCapabilities,
+        types::{
+            ChatRequest, ChatResponse, Choice, EmbedRequest, EmbedResponse, EmbeddingData, Message,
+            Role, Usage,
+        },
+    },
+    async_trait::async_trait,
+    serde::{Deserialize, Serialize},
 };
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default)]
 pub struct OllamaProtocol;
@@ -60,6 +64,7 @@ impl Protocol for OllamaProtocol {
                         Role::Tool => "user".to_string(),
                     },
                     content: msg.content_as_text(),
+                    images: msg.content_as_images_base64(),
                 })
                 .collect(),
             stream: request.stream,
@@ -188,10 +193,22 @@ pub struct OllamaChatRequest {
     pub options: Option<OllamaOptions>,
 }
 
+/// Ollama message structure for chat requests
+///
+/// Contains the role, text content, and optional images for multi-modal input.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OllamaMessage {
+    /// Role of the message sender (e.g., "user", "assistant", "system")
     pub role: String,
+
+    /// Text content of the message
     pub content: String,
+
+    /// Base64 encoded images for multi-modal input (optional)
+    ///
+    /// Each string is a Base64 encoded image. Supported formats depend on the model.
+    #[serde(default)]
+    pub images: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
