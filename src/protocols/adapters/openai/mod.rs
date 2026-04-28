@@ -101,6 +101,8 @@ impl OpenAIProtocol {
             supports_response_format: base_capabilities.supports_response_format,
             reasoning_request_strategy: base_capabilities.reasoning_request_strategy,
             stream_reasoning_strategy: base_capabilities.stream_reasoning_strategy,
+            empty_assistant_tool_content_strategy: base_capabilities
+                .empty_assistant_tool_content_strategy,
         }
     }
 }
@@ -378,7 +380,7 @@ pub struct OpenAIEmbedRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Message, MessageBlock, Role, Tool, ToolChoice};
+    use crate::types::{FunctionCall, Message, MessageBlock, Role, Tool, ToolCall, ToolChoice};
 
     #[test]
     fn test_openai_request_downgrade_for_deepseek() {
@@ -421,6 +423,55 @@ mod tests {
         assert!(content.is_array());
         let arr = content.as_array().unwrap();
         assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn test_openai_request_uses_null_content_for_assistant_tool_calls() {
+        let protocol = OpenAIProtocol::new("test-key");
+        let tool_call = ToolCall {
+            id: "call_123".to_string(),
+            call_type: "function".to_string(),
+            function: FunctionCall {
+                name: "get_weather".to_string(),
+                arguments: r#"{"city":"Paris"}"#.to_string(),
+                thought_signature: None,
+            },
+            ..Default::default()
+        };
+        let request = ChatRequest::new("gpt-4o-mini")
+            .add_message(Message::assistant_with_tool_calls(vec![tool_call.clone()]));
+
+        let req = protocol.build_request(&request).unwrap();
+        let message = &req.messages[0];
+
+        assert_eq!(message["role"], "assistant");
+        assert_eq!(message["tool_calls"], serde_json::json!([tool_call]));
+        assert!(message["content"].is_null());
+        assert_ne!(message["content"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn test_text_only_openai_compatible_request_uses_empty_string_for_assistant_tool_calls() {
+        let protocol = OpenAIProtocol::with_service("test-key", "deepseek");
+        let tool_call = ToolCall {
+            id: "call_456".to_string(),
+            call_type: "function".to_string(),
+            function: FunctionCall {
+                name: "get_weather".to_string(),
+                arguments: r#"{"city":"Tokyo"}"#.to_string(),
+                thought_signature: None,
+            },
+            ..Default::default()
+        };
+        let request = ChatRequest::new("deepseek-chat")
+            .add_message(Message::assistant_with_tool_calls(vec![tool_call.clone()]));
+
+        let req = protocol.build_request(&request).unwrap();
+        let message = &req.messages[0];
+
+        assert_eq!(message["tool_calls"], serde_json::json!([tool_call]));
+        assert_eq!(message["content"], serde_json::json!(""));
+        assert_ne!(message["content"], serde_json::json!([]));
     }
 
     #[test]

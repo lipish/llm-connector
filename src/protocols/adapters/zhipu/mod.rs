@@ -62,6 +62,8 @@ impl ZhipuProtocol {
     }
 
     fn capabilities(&self) -> OpenAICompatibleCapabilities {
+        let provider_capabilities = crate::protocols::common::capabilities::ProviderCapabilities::zhipu_openai_compatible();
+
         match self.mode {
             ZhipuApiMode::Native | ZhipuApiMode::OpenAICompatible => OpenAICompatibleCapabilities {
                 content_block_mode: ContentBlockMode::Standard,
@@ -69,6 +71,8 @@ impl ZhipuProtocol {
                 supports_response_format: false,
                 reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
                 stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
+                empty_assistant_tool_content_strategy: provider_capabilities
+                    .empty_assistant_tool_content_strategy,
             },
         }
     }

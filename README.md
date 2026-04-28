@@ -39,9 +39,11 @@ The `src/protocols/` module uses adapter pattern to convert different vendor API
 
 ```toml
 [dependencies]
-llm-connector = "1.1.20"
+llm-connector = "1.2.0"
 tokio = { version = "1", features = ["full"] }
 ```
+
+OpenAI-compatible tool-calling requests now preserve empty assistant content safely: assistant messages with `tool_calls` and no text no longer serialize `content` as `[]` by default.
 
 ## Usage
 

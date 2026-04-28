@@ -1,6 +1,7 @@
 use crate::error::LlmConnectorError;
 use crate::protocols::common::capabilities::{
-    ContentBlockMode, ReasoningRequestStrategy, StreamReasoningStrategy,
+    ContentBlockMode, EmptyAssistantToolContentStrategy, ReasoningRequestStrategy,
+    StreamReasoningStrategy,
 };
 use crate::types::{ChatRequest, ChatResponse, ReasoningEffort, ToolCall};
 
@@ -11,6 +12,7 @@ pub struct OpenAICompatibleCapabilities {
     pub supports_response_format: bool,
     pub reasoning_request_strategy: ReasoningRequestStrategy,
     pub stream_reasoning_strategy: StreamReasoningStrategy,
+    pub empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy,
 }
 
 impl Default for OpenAICompatibleCapabilities {
@@ -21,6 +23,7 @@ impl Default for OpenAICompatibleCapabilities {
             supports_response_format: true,
             reasoning_request_strategy: ReasoningRequestStrategy::ReasoningEffort,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::Null,
         }
     }
 }
@@ -47,13 +50,20 @@ pub fn map_openai_compatible_messages(
 ) -> Result<Vec<serde_json::Value>, LlmConnectorError> {
     match capabilities.content_block_mode {
         ContentBlockMode::Standard => Ok(
-            crate::protocols::common::request::openai_message_converter(&request.messages),
+            crate::protocols::common::request::openai_message_converter_with_strategy(
+                &request.messages,
+                capabilities.empty_assistant_tool_content_strategy,
+            ),
         ),
-        ContentBlockMode::TextOnly => {
-            crate::protocols::common::request::openai_message_converter_downgrade(&request.messages)
-        }
+        ContentBlockMode::TextOnly => crate::protocols::common::request::openai_message_converter_downgrade_with_strategy(
+            &request.messages,
+            capabilities.empty_assistant_tool_content_strategy,
+        ),
         ContentBlockMode::NativeMessage => Ok(
-            crate::protocols::common::request::openai_message_converter(&request.messages),
+            crate::protocols::common::request::openai_message_converter_with_strategy(
+                &request.messages,
+                capabilities.empty_assistant_tool_content_strategy,
+            ),
         ),
     }
 }

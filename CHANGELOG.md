@@ -1,3 +1,20 @@
+## [1.2.0] - 2026-04-28
+
+### Fixes
+
+- **OpenAI-compatible assistant tool-call serialization**:
+  - Added a capability-driven `empty_assistant_tool_content_strategy` for OpenAI-compatible request mapping.
+  - `Message::assistant_with_tool_calls(...)` no longer serializes empty assistant `content` as `[]` by default.
+  - Standard OpenAI-compatible providers now use `null`; text-only OpenAI-compatible providers use `""`.
+  - Preserved `tool_calls` in request bodies while making empty assistant content safer for OpenAI-compatible gateways.
+
+### Tests
+
+- Added regression coverage for assistant tool-call request serialization:
+  - OpenAI-compatible standard path keeps `tool_calls` and serializes empty assistant content as `null`.
+  - Text-only OpenAI-compatible path keeps `tool_calls` and serializes empty assistant content as `""`.
+- Added capability-default assertions for the new empty assistant tool content strategy.
+
 ## [1.1.20] - 2026-04-18
 
 ### Fixes

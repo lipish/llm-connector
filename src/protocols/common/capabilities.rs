@@ -52,6 +52,13 @@ pub enum StreamReasoningStrategy {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmptyAssistantToolContentStrategy {
+    Null,
+    EmptyString,
+    EmptyArray,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProviderCapabilities {
     pub family: ProviderFamily,
     pub auth_kind: AuthKind,
@@ -66,6 +73,7 @@ pub struct ProviderCapabilities {
     pub supports_response_format: bool,
     pub reasoning_request_strategy: ReasoningRequestStrategy,
     pub stream_reasoning_strategy: StreamReasoningStrategy,
+    pub empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy,
     pub supports_multimodal_input: bool,
     pub requires_region_routing: bool,
     pub region_key_scope_sensitive: bool,
@@ -110,6 +118,7 @@ impl ProviderCapabilities {
             supports_response_format: true,
             reasoning_request_strategy: ReasoningRequestStrategy::ReasoningEffort,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::Null,
             supports_multimodal_input: true,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -131,6 +140,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::Unsupported,
             stream_reasoning_strategy: StreamReasoningStrategy::None,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::EmptyArray,
             supports_multimodal_input: true,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -152,6 +162,7 @@ impl ProviderCapabilities {
             supports_response_format: true,
             reasoning_request_strategy: ReasoningRequestStrategy::ReasoningEffort,
             stream_reasoning_strategy: StreamReasoningStrategy::EmbeddedThinkTags,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::EmptyString,
             supports_multimodal_input: false,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -173,6 +184,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::Null,
             supports_multimodal_input: true,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -194,6 +206,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::EmptyArray,
             supports_multimodal_input: false,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -215,6 +228,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::ThinkingBudget,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::EmptyArray,
             supports_multimodal_input: true,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -236,6 +250,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
             stream_reasoning_strategy: StreamReasoningStrategy::SeparateField,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::EmptyArray,
             supports_multimodal_input: true,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -257,6 +272,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
             stream_reasoning_strategy: StreamReasoningStrategy::None,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::EmptyArray,
             supports_multimodal_input: false,
             requires_region_routing: true,
             region_key_scope_sensitive: true,
@@ -278,6 +294,7 @@ impl ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::EnableThinking,
             stream_reasoning_strategy: StreamReasoningStrategy::None,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::Null,
             supports_multimodal_input: true,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -301,6 +318,7 @@ impl Default for ProviderCapabilities {
             supports_response_format: false,
             reasoning_request_strategy: ReasoningRequestStrategy::Unsupported,
             stream_reasoning_strategy: StreamReasoningStrategy::None,
+            empty_assistant_tool_content_strategy: EmptyAssistantToolContentStrategy::EmptyArray,
             supports_multimodal_input: false,
             requires_region_routing: false,
             region_key_scope_sensitive: false,
@@ -310,7 +328,10 @@ impl Default for ProviderCapabilities {
 
 #[cfg(test)]
 mod tests {
-    use super::{ProviderCapabilities, ReasoningRequestStrategy, StreamReasoningStrategy};
+    use super::{
+        EmptyAssistantToolContentStrategy, ProviderCapabilities, ReasoningRequestStrategy,
+        StreamReasoningStrategy,
+    };
 
     #[test]
     fn test_openai_capabilities_use_reasoning_effort_and_separate_stream_reasoning() {
@@ -326,6 +347,10 @@ mod tests {
         );
         assert!(capabilities.supports_reasoning_effort());
         assert!(capabilities.supports_tool_choice);
+        assert_eq!(
+            capabilities.empty_assistant_tool_content_strategy,
+            EmptyAssistantToolContentStrategy::Null
+        );
     }
 
     #[test]
@@ -352,6 +377,10 @@ mod tests {
         assert_eq!(
             capabilities.reasoning_request_strategy,
             ReasoningRequestStrategy::ReasoningEffort
+        );
+        assert_eq!(
+            capabilities.empty_assistant_tool_content_strategy,
+            EmptyAssistantToolContentStrategy::EmptyString
         );
     }
 }
