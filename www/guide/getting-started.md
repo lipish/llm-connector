@@ -8,9 +8,11 @@
 
 ```toml
 [dependencies]
-llm-connector = "1.1.12"
+llm-connector = "1.2.1"
 tokio = { version = "1", features = ["full"] }
 ```
+
+If you use multi-turn tool calling with OpenAI-compatible providers, `assistant_with_tool_calls()` messages are serialized in a gateway-friendly way by default instead of emitting empty `content: []`.
 
 ## First Request
 

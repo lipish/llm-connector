@@ -41,6 +41,8 @@ if response.is_tool_call() {
 
 ## Multi-Turn Tool Calls
 
+When you replay the assistant tool-call turn with `Message::assistant_with_tool_calls(...)`, OpenAI-compatible request serialization keeps `tool_calls` intact and avoids sending empty `content` as `[]` by default. Standard OpenAI-compatible providers emit `null`; text-only OpenAI-compatible providers emit `""`.
+
 ```rust
 use llm_connector::types::{Message, ToolCall, FunctionCall};
 

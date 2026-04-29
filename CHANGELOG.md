@@ -1,3 +1,18 @@
+## [1.2.1] - 2026-04-29
+
+### Features
+
+- **Anthropic-native tool definition support**:
+  - Added public `AnthropicToolDefinition` and `AnthropicToolChoice` request types.
+  - Added `ChatRequest::with_anthropic_tools(...)` and `ChatRequest::with_anthropic_tool_choice(...)` for native Anthropic tool payloads.
+  - Anthropic requests now preserve native fields such as `custom_input_schema`, `input_examples`, `strict`, `allowed_callers`, `defer_loading`, `cache_control`, and `eager_input_streaming`.
+  - Anthropic-native `tool_choice` values now serialize without lossy conversion, including `none`, `auto`, `any`, and named-tool selection.
+
+### Tests
+
+- Added adapter-level regression coverage for Anthropic-native tool serialization.
+- Added public request-model regression coverage to verify draft-2020-12 schema payloads and `custom_input_schema` survive protocol mapping.
+
 ## [1.2.0] - 2026-04-28
 
 ### Fixes

@@ -2,7 +2,8 @@
 
 `llm-connector` supports 12+ LLM providers with a unified interface.
 
-All factory methods require **both** `api_key` and `base_url` — there are no hidden defaults.
+Most networked constructors require an explicit endpoint input and do not hide default URLs.
+For OpenAI-style providers that usually means `api_key + base_url`; `Ollama` only needs `base_url`, and `Azure OpenAI` uses `endpoint + api_version`.
 Pass `LlmClient::builder()` if you need timeout or proxy configuration.
 
 ## Provider Overview

@@ -43,9 +43,11 @@ Or in `Cargo.toml`:
 
 ```toml
 [dependencies]
-llm-connector = "1.1.12"
+llm-connector = "1.2.1"
 tokio = { version = "1", features = ["full"] }
 ```
+
+OpenAI-compatible tool-calling now handles assistant messages with `tool_calls` and no text content more safely: `content` is no longer serialized as `[]` by default.
 
 # Quick Example
 

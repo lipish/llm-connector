@@ -79,9 +79,17 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Tool>>,
 
+    /// Anthropic-native tools that should be passed through without OpenAI-style normalization
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anthropic_tools: Option<Vec<AnthropicToolDefinition>>,
+
     /// Tool choice strategy
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<ToolChoice>,
+
+    /// Anthropic-native tool choice that should be passed through without lossy conversion
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anthropic_tool_choice: Option<AnthropicToolChoice>,
 
     /// Response format specification
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -228,9 +236,21 @@ impl ChatRequest {
         self
     }
 
+    /// Set Anthropic-native tools
+    pub fn with_anthropic_tools(mut self, tools: Vec<AnthropicToolDefinition>) -> Self {
+        self.anthropic_tools = Some(tools);
+        self
+    }
+
     /// Set the tool choice
     pub fn with_tool_choice(mut self, tool_choice: ToolChoice) -> Self {
         self.tool_choice = Some(tool_choice);
+        self
+    }
+
+    /// Set the Anthropic-native tool choice
+    pub fn with_anthropic_tool_choice(mut self, tool_choice: AnthropicToolChoice) -> Self {
+        self.anthropic_tool_choice = Some(tool_choice);
         self
     }
 
@@ -660,6 +680,153 @@ impl ToolChoice {
             tool_type: "function".to_string(),
             function: FunctionChoice { name: name.into() },
         }
+    }
+}
+
+/// Anthropic-native tool definition.
+///
+/// This preserves Anthropic request payloads without forcing them through the
+/// OpenAI function-tool shape. Unknown Anthropic-specific fields can be stored
+/// in `extra` and are serialized back unchanged.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AnthropicToolDefinition {
+    /// Anthropic-native tool type, for example `custom`, `server`, or `mcp`.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub tool_type: Option<String>,
+
+    /// Tool name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    /// Tool description.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Anthropic JSON Schema draft 2020-12 payload.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_schema: Option<serde_json::Value>,
+
+    /// Anthropic-native custom input schema.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_input_schema: Option<serde_json::Value>,
+
+    /// Anthropic-native input examples.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_examples: Option<serde_json::Value>,
+
+    /// Anthropic-native strict flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strict: Option<bool>,
+
+    /// Anthropic-native allowed callers configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_callers: Option<serde_json::Value>,
+
+    /// Anthropic-native defer loading flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub defer_loading: Option<bool>,
+
+    /// Anthropic-native cache control configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<serde_json::Value>,
+
+    /// Anthropic-native eager input streaming flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eager_input_streaming: Option<bool>,
+
+    /// Additional Anthropic-native fields to preserve verbatim.
+    #[serde(flatten)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+impl AnthropicToolDefinition {
+    /// Create an Anthropic-native tool definition with a name.
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Set the Anthropic-native tool type.
+    pub fn with_type(mut self, tool_type: impl Into<String>) -> Self {
+        self.tool_type = Some(tool_type.into());
+        self
+    }
+
+    /// Set the Anthropic-native input schema.
+    pub fn with_input_schema(mut self, schema: serde_json::Value) -> Self {
+        self.input_schema = Some(schema);
+        self
+    }
+
+    /// Set the Anthropic-native custom input schema.
+    pub fn with_custom_input_schema(mut self, schema: serde_json::Value) -> Self {
+        self.custom_input_schema = Some(schema);
+        self
+    }
+
+    /// Preserve an additional Anthropic-native field.
+    pub fn with_extra_field(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
+        self.extra.insert(key.into(), value);
+        self
+    }
+}
+
+/// Anthropic-native tool choice.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AnthropicToolChoice {
+    #[serde(rename = "type")]
+    pub choice_type: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    #[serde(flatten)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+impl AnthropicToolChoice {
+    /// Do not allow tool calls.
+    pub fn none() -> Self {
+        Self {
+            choice_type: "none".to_string(),
+            name: None,
+            extra: HashMap::new(),
+        }
+    }
+
+    /// Let the model decide whether to call a tool.
+    pub fn auto() -> Self {
+        Self {
+            choice_type: "auto".to_string(),
+            name: None,
+            extra: HashMap::new(),
+        }
+    }
+
+    /// Require the model to call some tool.
+    pub fn any() -> Self {
+        Self {
+            choice_type: "any".to_string(),
+            name: None,
+            extra: HashMap::new(),
+        }
+    }
+
+    /// Require the model to call a specific tool.
+    pub fn tool(name: impl Into<String>) -> Self {
+        Self {
+            choice_type: "tool".to_string(),
+            name: Some(name.into()),
+            extra: HashMap::new(),
+        }
+    }
+
+    /// Preserve an additional Anthropic-native field.
+    pub fn with_extra_field(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
+        self.extra.insert(key.into(), value);
+        self
     }
 }
 

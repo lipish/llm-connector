@@ -6,7 +6,8 @@ use crate::core::Protocol;
 use crate::error::LlmConnectorError;
 use crate::protocols::common::capabilities::ProviderCapabilities;
 use crate::types::{
-    ChatRequest, ChatResponse, Choice, FunctionCall, Message, Role, ToolCall, ToolChoice, Usage,
+    AnthropicToolChoice, AnthropicToolDefinition, ChatRequest, ChatResponse, Choice,
+    FunctionCall, Message, Role, ToolCall, ToolChoice, Usage,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -163,20 +164,18 @@ impl Protocol for AnthropicProtocol {
             top_p: request.top_p,
             stream: request.stream,
             thinking,
-            tools: request.tools.as_ref().map(|tools| {
-                tools
-                    .iter()
-                    .map(|tool| AnthropicTool {
-                        name: tool.function.name.clone(),
-                        description: tool.function.description.clone(),
-                        input_schema: tool.function.parameters.clone(),
-                    })
-                    .collect()
+            tools: request.anthropic_tools.clone().or_else(|| {
+                request.tools.as_ref().map(|tools| {
+                    tools
+                        .iter()
+                        .map(map_generic_tool_to_anthropic)
+                        .collect()
+                })
             }),
             tool_choice: request
-                .tool_choice
-                .as_ref()
-                .and_then(map_tool_choice_to_anthropic),
+                .anthropic_tool_choice
+                .clone()
+                .or_else(|| request.tool_choice.as_ref().and_then(map_tool_choice_to_anthropic)),
         })
     }
 
@@ -419,7 +418,7 @@ pub struct AnthropicRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<AnthropicThinking>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<AnthropicTool>>,
+    pub tools: Option<Vec<AnthropicToolDefinition>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<AnthropicToolChoice>,
 }
@@ -435,22 +434,6 @@ pub struct AnthropicThinking {
 pub struct AnthropicMessage {
     pub role: String,
     pub content: serde_json::Value, // Support String or Array
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct AnthropicTool {
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    pub input_schema: serde_json::Value,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct AnthropicToolChoice {
-    #[serde(rename = "type")]
-    pub choice_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
 }
 
 // Anthropicresponsetype
@@ -486,31 +469,30 @@ pub struct AnthropicUsage {
 fn map_tool_choice_to_anthropic(tool_choice: &ToolChoice) -> Option<AnthropicToolChoice> {
     match tool_choice {
         ToolChoice::Mode(mode) => match mode.as_str() {
-            "none" => None,
-            "required" => Some(AnthropicToolChoice {
-                choice_type: "any".to_string(),
-                name: None,
-            }),
-            "auto" => Some(AnthropicToolChoice {
-                choice_type: "auto".to_string(),
-                name: None,
-            }),
-            _ => Some(AnthropicToolChoice {
-                choice_type: "auto".to_string(),
-                name: None,
-            }),
+            "none" => Some(AnthropicToolChoice::none()),
+            "required" => Some(AnthropicToolChoice::any()),
+            "auto" => Some(AnthropicToolChoice::auto()),
+            _ => Some(AnthropicToolChoice::auto()),
         },
-        ToolChoice::Function { function, .. } => Some(AnthropicToolChoice {
-            choice_type: "tool".to_string(),
-            name: Some(function.name.clone()),
-        }),
+        ToolChoice::Function { function, .. } => Some(AnthropicToolChoice::tool(
+            function.name.clone(),
+        )),
+    }
+}
+
+fn map_generic_tool_to_anthropic(tool: &crate::types::Tool) -> AnthropicToolDefinition {
+    AnthropicToolDefinition {
+        name: Some(tool.function.name.clone()),
+        description: tool.function.description.clone(),
+        input_schema: Some(tool.function.parameters.clone()),
+        ..Default::default()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Tool;
+    use crate::types::{AnthropicToolDefinition, Tool};
 
     #[test]
     fn test_anthropic_parsing_with_thinking_and_text() {
@@ -692,6 +674,80 @@ mod tests {
             mapped.tool_choice.as_ref().and_then(|c| c.name.as_deref()),
             None
         );
+    }
+
+    #[test]
+    fn test_anthropic_request_none_tool_choice_serialization() {
+        let protocol = AnthropicProtocol::new("test-key");
+        let request = ChatRequest::new("claude-3-5-sonnet")
+            .with_tools(vec![Tool::function(
+                "get_weather",
+                Some("Get weather".to_string()),
+                serde_json::json!({"type":"object"}),
+            )])
+            .with_tool_choice(ToolChoice::none())
+            .add_message(Message::user("hi"));
+
+        let mapped = protocol.build_request(&request).unwrap();
+        assert_eq!(
+            mapped.tool_choice.as_ref().map(|c| c.choice_type.as_str()),
+            Some("none")
+        );
+    }
+
+    #[test]
+    fn test_anthropic_request_serializes_native_tool_payload_without_loss() {
+        let protocol = AnthropicProtocol::new("test-key");
+        let request = ChatRequest::new("claude-opus-4-6")
+            .with_anthropic_tools(vec![AnthropicToolDefinition {
+                tool_type: Some("custom".to_string()),
+                name: Some("write_file".to_string()),
+                description: Some("Write a file to disk".to_string()),
+                input_schema: Some(serde_json::json!({
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string" }
+                    },
+                    "required": ["path"]
+                })),
+                custom_input_schema: Some(serde_json::json!({
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "type": "object",
+                    "properties": {
+                        "mode": { "enum": ["overwrite", "append"] }
+                    }
+                })),
+                input_examples: Some(serde_json::json!([
+                    {"path": "/tmp/demo.txt", "mode": "overwrite"}
+                ])),
+                strict: Some(true),
+                allowed_callers: Some(serde_json::json!(["claude_code"])),
+                defer_loading: Some(true),
+                cache_control: Some(serde_json::json!({"type": "ephemeral"})),
+                eager_input_streaming: Some(true),
+                extra: std::collections::HashMap::from([(
+                    "mcp_toolset".to_string(),
+                    serde_json::json!({"server": "filesystem"}),
+                )]),
+            }])
+            .with_anthropic_tool_choice(AnthropicToolChoice::tool("write_file"))
+            .add_message(Message::user("write a file"));
+
+        let mapped = protocol.build_request(&request).unwrap();
+        let payload = serde_json::to_value(&mapped).unwrap();
+        let tool = &payload["tools"][0];
+
+        assert_eq!(tool["type"], "custom");
+        assert_eq!(tool["name"], "write_file");
+        assert_eq!(tool["custom_input_schema"]["$schema"], "https://json-schema.org/draft/2020-12/schema");
+        assert_eq!(tool["strict"], true);
+        assert_eq!(tool["allowed_callers"][0], "claude_code");
+        assert_eq!(tool["defer_loading"], true);
+        assert_eq!(tool["eager_input_streaming"], true);
+        assert_eq!(tool["mcp_toolset"]["server"], "filesystem");
+        assert_eq!(payload["tool_choice"]["type"], "tool");
+        assert_eq!(payload["tool_choice"]["name"], "write_file");
     }
 
     #[test]
