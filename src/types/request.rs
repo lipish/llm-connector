@@ -1,7 +1,19 @@
 //! Request types for chat completions
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
+
+/// Deserialize a JSON value that may be `null` into a `String`.
+/// Returns `String::default()` (empty string) for `null` or missing values.
+/// This handles OpenAI-compatible streaming deltas where `id`, `name`, etc.
+/// are explicitly set to `null` in subsequent chunks.
+fn deserialize_null_as_empty_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt: Option<String> = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
+}
 
 /// Role of a message sender
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -856,13 +868,22 @@ pub struct FunctionChoice {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolCall {
     /// Unique identifier for the tool call
-    /// Present in the first chunk, may be empty in subsequent delta chunks
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    /// Present in the first chunk, may be null/empty in subsequent delta chunks
+    #[serde(
+        default,
+        deserialize_with = "deserialize_null_as_empty_string",
+        skip_serializing_if = "String::is_empty"
+    )]
     pub id: String,
 
     /// Type of tool call (usually "function")
-    /// Present in the first chunk, may be empty in subsequent delta chunks
-    #[serde(rename = "type", default, skip_serializing_if = "String::is_empty")]
+    /// Present in the first chunk, may be null/empty in subsequent delta chunks
+    #[serde(
+        rename = "type",
+        default,
+        deserialize_with = "deserialize_null_as_empty_string",
+        skip_serializing_if = "String::is_empty"
+    )]
     pub call_type: String,
 
     /// Function call details
@@ -887,8 +908,12 @@ pub struct ToolCall {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FunctionCall {
     /// Name of the function
-    /// Present in the first chunk, may be empty in subsequent delta chunks
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    /// Present in the first chunk, may be null/empty in subsequent delta chunks
+    #[serde(
+        default,
+        deserialize_with = "deserialize_null_as_empty_string",
+        skip_serializing_if = "String::is_empty"
+    )]
     pub name: String,
 
     /// Arguments as JSON string
