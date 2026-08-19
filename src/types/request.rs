@@ -51,6 +51,10 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
 
+    /// Stream options (e.g. '{ "include_usage": true }")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_options: Option<serde_json::Value>,
+
     /// Stop sequences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<Vec<String>>,
@@ -197,6 +201,12 @@ impl ChatRequest {
     /// Enable streaming
     pub fn with_stream(mut self, stream: bool) -> Self {
         self.stream = Some(stream);
+        self
+    }
+
+    /// Set stream options (e.g. '{ "include_usage": true }")
+    pub fn with_stream_options(mut self, stream_options: serde_json::Value) -> Self {
+        self.stream_options = Some(stream_options);
         self
     }
 
