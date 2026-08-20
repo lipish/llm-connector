@@ -6,8 +6,8 @@ use crate::core::Protocol;
 use crate::error::LlmConnectorError;
 use crate::protocols::common::capabilities::{ContentBlockMode, ProviderCapabilities};
 use crate::protocols::common::openai_compatible::{
-    OpenAICompatibleCapabilities, build_openai_compatible_request_parts,
-    parse_openai_compatible_chat_response,
+    build_openai_compatible_request_parts, parse_openai_compatible_chat_response,
+    OpenAICompatibleCapabilities,
 };
 use crate::protocols::common::transport::resolve_endpoint;
 use crate::types::{
@@ -153,6 +153,7 @@ impl Protocol for OpenAIProtocol {
             frequency_penalty: request.frequency_penalty,
             presence_penalty: request.presence_penalty,
             stream: request.stream,
+            stream_options: request.stream_options.clone(),
             tools: parts.tools,
             tool_choice: parts.tool_choice,
             response_format: parts.response_format,
@@ -333,6 +334,8 @@ pub struct OpenAIRequest {
     pub presence_penalty: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_options: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
